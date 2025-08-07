@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: AnimeFlow-Service
+server:
+  port: 1024
+bangumi:
+  client_id: ${CLIENT_ID}
+  client_secret: ${CLIENT_SECRET}
+  redirect_uri: animeflow://auth/callback #回调地址
