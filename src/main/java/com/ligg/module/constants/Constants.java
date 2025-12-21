@@ -3,12 +3,12 @@ package com.ligg.module.constants;
 /**
  * @Author Ligg
  * @Time 2025/8/7
- *
+ * <p>
  * bgm 常量
  **/
-public class BangumiConstants {
+public class Constants {
     /**
-     *Token 请求地址
+     * Token 请求地址
      */
     public static final String BANGUMI_Token_API = "https://bgm.tv/oauth/access_token";
 
@@ -20,4 +20,6 @@ public class BangumiConstants {
      * 授权类型
      */
     public static final String BANGUMI_GRANT_TYPE = "authorization_code";
+
+    public static final String SESSION_KEY = "session";
 }

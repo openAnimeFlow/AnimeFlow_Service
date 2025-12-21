@@ -1,13 +1,12 @@
 package com.ligg.service;
 
 import com.ligg.module.response.AccessToken;
-import org.springframework.http.HttpEntity;
 
 /**
  * @Author Ligg
  * @Time 2025/8/7
  **/
-public interface TokenService {
+public interface OAuthService {
     /**
      * 获取token
      * @param code
