@@ -13,15 +13,10 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 public enum Platform {
-    ANDROID("android"),
-    IOS("isos"),
-    WEB("web"),
-    LINUX("linux"),
-    WINDOWS("windows"),
-    MAC("mac");
-
-    private String platform;
-    Platform(String platform) {
-        this.platform = platform;
-    }
+    ANDROID,
+    IOS,
+    WEB,
+    LINUX,
+    WINDOWS,
+    MAC
 }

@@ -17,9 +17,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -44,6 +42,7 @@ public class OAuthController {
         if (code.length() > 100) {
             return Result.error(ResponseCode.PARAM_ERROR);
         }
+
         AccessToken token = oAuthService.getToken(code);
         log.info("返回的token: {}", token);
         return Result.success(ResponseCode.SUCCESS, token);
@@ -72,16 +71,25 @@ public class OAuthController {
      * 回调
      */
     @GetMapping("/callback")
-    public String callback(String code) {
+    public Result<String> callback(String code, String state) {
         if (!StringUtils.hasText(code)) {
-            return "error";
+            return Result.error(ResponseCode.PARAM_ERROR);
         }
         log.info("接收到code: {}", code);
         if (code.length() > 100) {
-            return "error";
+            return Result.error(ResponseCode.PARAM_ERROR);
         }
-        AccessToken token = oAuthService.getToken(code);
-        log.info("返回的token: {}", token);
-        return "success";
+
+        SessionDto sessionDto = (SessionDto) redisTemplate.opsForValue().get(Constants.SESSION_KEY + ':' + state);
+        if (sessionDto == null) {
+            return Result.error(ResponseCode.PARAM_ERROR, "本次授权已过期");
+        }
+        redisTemplate.delete(Constants.SESSION_KEY + ':' + state);
+        Platform platform = sessionDto.getPlatform();
+        if (platform == Platform.ANDROID || platform == Platform.IOS) {
+            return Result.success(ResponseCode.SUCCESS,"移动端");
+        } else {
+            return Result.success(ResponseCode.SUCCESS,"桌面端");
+        }
     }
 }

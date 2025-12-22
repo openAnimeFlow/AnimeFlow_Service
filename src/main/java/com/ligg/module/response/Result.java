@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class Result<T> {
     private int code;
-    private String  message;
+    private String message;
     private T data;
 
 
@@ -23,10 +23,14 @@ public class Result<T> {
     }
 
     public static <T> Result<T> success() {
-        return new Result<>(ResponseCode.SUCCESS.getCode(), ResponseCode.SUCCESS.getMessage(),null);
+        return new Result<>(ResponseCode.SUCCESS.getCode(), ResponseCode.SUCCESS.getMessage(), null);
     }
 
     public static <T> Result<T> error(ResponseCode status) {
-        return new Result<>(status.getCode(), status.getMessage(),null);
+        return new Result<>(status.getCode(), status.getMessage(), null);
+    }
+
+    public static <T> Result<T> error(ResponseCode status, String message) {
+        return new Result<>(status.getCode(), message, null);
     }
 }
