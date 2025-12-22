@@ -22,4 +22,7 @@ public class Constants {
     public static final String BANGUMI_GRANT_TYPE = "authorization_code";
 
     public static final String SESSION_KEY = "session";
+
+    //移动端回调
+    public static final String MOBILE_CALLBACK_URL = "flow://auth/callback";
 }

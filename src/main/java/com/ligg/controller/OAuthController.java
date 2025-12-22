@@ -8,15 +8,17 @@ import com.ligg.module.response.SessionVo;
 import com.ligg.module.statuenum.Platform;
 import com.ligg.module.statuenum.ResponseCode;
 import com.ligg.service.OAuthService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -25,14 +27,22 @@ import java.util.concurrent.TimeUnit;
  * @Time 2025/8/7
  **/
 @Slf4j
-@RestController
+@Controller
 @RequiredArgsConstructor
 @RequestMapping("/oauth")
 public class OAuthController {
 
+    @Value("${bangumi.client_id}")
+    private String CLIENT_ID;
+    @Value("${bangumi.client_secret}")
+    private String CLIENT_SECRET;
+    @Value("${bangumi.redirect_uri}")
+    private String REDIRECT_URI;
+
     private final OAuthService oAuthService;
     private final RedisTemplate<String, Object> redisTemplate;
 
+    @ResponseBody
     @PostMapping("/token")
     public Result<AccessToken> accessToken(String code) {
         if (!StringUtils.hasText(code)) {
@@ -51,6 +61,7 @@ public class OAuthController {
     /**
      * 申请session
      */
+    @ResponseBody
     @GetMapping("/session")
     public Result<SessionVo> session(Platform platform) {
         String sessionId = "animeFlow" + new Random().nextInt(100000);
@@ -71,25 +82,34 @@ public class OAuthController {
      * 回调
      */
     @GetMapping("/callback")
-    public Result<String> callback(String code, String state) {
-        if (!StringUtils.hasText(code)) {
-            return Result.error(ResponseCode.PARAM_ERROR);
-        }
-        log.info("接收到code: {}", code);
-        if (code.length() > 100) {
-            return Result.error(ResponseCode.PARAM_ERROR);
-        }
+    public void callback(String code, String state, HttpServletResponse response) throws Exception {
+        try {
+            if (!StringUtils.hasText(code)) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+                return;
+            }
+            log.info("接收到code: {}", code);
+            if (code.length() > 100) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST);
+                return;
+            }
 
-        SessionDto sessionDto = (SessionDto) redisTemplate.opsForValue().get(Constants.SESSION_KEY + ':' + state);
-        if (sessionDto == null) {
-            return Result.error(ResponseCode.PARAM_ERROR, "本次授权已过期");
-        }
-        redisTemplate.delete(Constants.SESSION_KEY + ':' + state);
-        Platform platform = sessionDto.getPlatform();
-        if (platform == Platform.ANDROID || platform == Platform.IOS) {
-            return Result.success(ResponseCode.SUCCESS,"移动端");
-        } else {
-            return Result.success(ResponseCode.SUCCESS,"桌面端");
+            SessionDto sessionDto = (SessionDto) redisTemplate.opsForValue().get(Constants.SESSION_KEY + ':' + state);
+            if (sessionDto == null) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "本次授权已过期");
+                return;
+            }
+            redisTemplate.delete(Constants.SESSION_KEY + ':' + state);
+            Platform platform = sessionDto.getPlatform();
+            if (platform == Platform.ANDROID || platform == Platform.IOS) {
+
+                String redirectUrl = Constants.MOBILE_CALLBACK_URL + "?code=" + URLEncoder.encode(code, StandardCharsets.UTF_8) + "&state=" + state;
+                response.sendRedirect(redirectUrl);
+            } else {
+                response.sendRedirect("返回网页");
+            }
+        } catch (Exception e) {
+            log.error("回调异常", e);
         }
     }
 }
