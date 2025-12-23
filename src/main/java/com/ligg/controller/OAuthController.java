@@ -65,16 +65,16 @@ public class OAuthController {
     @GetMapping("/session")
     public Result<SessionVo> session(Platform platform) {
         String sessionId = "animeFlow" + new Random().nextInt(100000);
-        long expiresIn = System.currentTimeMillis() + 1000 * 60 * 10;
+        int expiresIn = 60;
         SessionVo sessionVo = new SessionVo();
         sessionVo.setSessionId(sessionId);
         sessionVo.setExpiresIn(expiresIn);
 
         SessionDto sessionDto = new SessionDto();
         sessionDto.setSessionId(sessionId);
-        sessionDto.setExpiresIn((int) expiresIn);
+        sessionDto.setExpiresIn(expiresIn);
         sessionDto.setPlatform(platform);
-        redisTemplate.opsForValue().set(Constants.SESSION_KEY + ':' + sessionId, sessionDto, expiresIn, TimeUnit.MILLISECONDS);
+        redisTemplate.opsForValue().set(Constants.SESSION_KEY + ':' + sessionId, sessionDto, expiresIn, TimeUnit.SECONDS);
         return Result.success(ResponseCode.SUCCESS, sessionVo);
     }
 
@@ -88,7 +88,6 @@ public class OAuthController {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST);
                 return;
             }
-            log.info("接收到code: {}", code);
             if (code.length() > 100) {
                 response.sendError(HttpServletResponse.SC_BAD_REQUEST);
                 return;
@@ -96,20 +95,40 @@ public class OAuthController {
 
             SessionDto sessionDto = (SessionDto) redisTemplate.opsForValue().get(Constants.SESSION_KEY + ':' + state);
             if (sessionDto == null) {
-                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "本次授权已过期");
+                response.sendRedirect("/no_session");
                 return;
             }
+            
             redisTemplate.delete(Constants.SESSION_KEY + ':' + state);
             Platform platform = sessionDto.getPlatform();
             if (platform == Platform.ANDROID || platform == Platform.IOS) {
-
                 String redirectUrl = Constants.MOBILE_CALLBACK_URL + "?code=" + URLEncoder.encode(code, StandardCharsets.UTF_8) + "&state=" + state;
                 response.sendRedirect(redirectUrl);
             } else {
-                response.sendRedirect("返回网页");
+                AccessToken token = oAuthService.getToken(code);
+                redisTemplate.opsForValue().set(Constants.AUTO_TOKEN_KEY + ':' + state, token, token.getExpires_in(), TimeUnit.SECONDS);
+                response.sendRedirect("/oauth-success?state=" + state);
             }
         } catch (Exception e) {
             log.error("回调异常", e);
+            if (!response.isCommitted()) {
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            }
         }
+    }
+
+    /**
+     * 获取缓存的token
+     */
+    @ResponseBody
+    @GetMapping("/token")
+    public Result<AccessToken> getToken(String sessionId) {
+        log.info("获取的sessionId: {}", sessionId);
+        AccessToken token = (AccessToken) redisTemplate.opsForValue().get(Constants.AUTO_TOKEN_KEY + ':' + sessionId);
+        if (token == null) {
+            return Result.error(ResponseCode.PARAM_ERROR);
+        }
+        redisTemplate.delete(Constants.AUTO_TOKEN_KEY + ':' + sessionId);
+        return Result.success(ResponseCode.SUCCESS, token);
     }
 }
