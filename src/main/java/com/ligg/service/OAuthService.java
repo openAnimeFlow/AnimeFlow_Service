@@ -1,6 +1,7 @@
 package com.ligg.service;
 
 import com.ligg.module.response.AccessToken;
+import com.ligg.module.response.TokenVo;
 
 /**
  * @Author Ligg
@@ -17,5 +18,5 @@ public interface OAuthService {
     /**
      * 刷新token
      */
-    AccessToken refreshToken(String refreshToken);
+    TokenVo refreshToken(String refreshToken);
 }

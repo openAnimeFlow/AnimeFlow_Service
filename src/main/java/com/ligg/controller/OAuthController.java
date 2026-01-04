@@ -1,10 +1,7 @@
 package com.ligg.controller;
 
 import com.ligg.module.constants.Constants;
-import com.ligg.module.response.AccessToken;
-import com.ligg.module.response.Result;
-import com.ligg.module.response.SessionDto;
-import com.ligg.module.response.SessionVo;
+import com.ligg.module.response.*;
 import com.ligg.module.statuenum.Platform;
 import com.ligg.module.statuenum.ResponseCode;
 import com.ligg.service.OAuthService;
@@ -129,11 +126,11 @@ public class OAuthController {
      */
     @ResponseBody
     @PostMapping("/refresh")
-    public Result<AccessToken> refreshToken(String refreshToken) {
+    public Result<TokenVo> refreshToken(String refreshToken) {
         if (!StringUtils.hasText(refreshToken)) {
             return Result.error(ResponseCode.PARAM_ERROR);
         }
-        AccessToken token = oAuthService.refreshToken(refreshToken);
+        TokenVo token = oAuthService.refreshToken(refreshToken);
         return Result.success(ResponseCode.SUCCESS, token);
     }
 }

@@ -2,6 +2,7 @@ package com.ligg.service.impl;
 
 import com.ligg.module.constants.Constants;
 import com.ligg.module.response.AccessToken;
+import com.ligg.module.response.TokenVo;
 import com.ligg.service.OAuthService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -53,7 +54,7 @@ public class OAuthServiceImpl implements OAuthService {
      * @return AccessToken
      */
     @Override
-    public AccessToken refreshToken(String refreshToken) {
+    public TokenVo refreshToken(String refreshToken) {
         RestClient restClient = RestClient.builder().build();
 
         MultiValueMap<String, Object> formData = new LinkedMultiValueMap<>();
