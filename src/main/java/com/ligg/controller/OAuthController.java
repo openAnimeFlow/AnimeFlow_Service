@@ -11,7 +11,6 @@ import com.ligg.service.OAuthService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
@@ -31,13 +30,6 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 @RequestMapping("/oauth")
 public class OAuthController {
-
-    @Value("${bangumi.client_id}")
-    private String CLIENT_ID;
-    @Value("${bangumi.client_secret}")
-    private String CLIENT_SECRET;
-    @Value("${bangumi.redirect_uri}")
-    private String REDIRECT_URI;
 
     private final OAuthService oAuthService;
     private final RedisTemplate<String, Object> redisTemplate;
@@ -129,6 +121,19 @@ public class OAuthController {
             return Result.error(ResponseCode.PARAM_ERROR);
         }
         redisTemplate.delete(Constants.AUTO_TOKEN_KEY + ':' + sessionId);
+        return Result.success(ResponseCode.SUCCESS, token);
+    }
+
+    /**
+     * 刷新token
+     */
+    @ResponseBody
+    @PostMapping("/refresh")
+    public Result<AccessToken> refreshToken(String refreshToken) {
+        if (!StringUtils.hasText(refreshToken)) {
+            return Result.error(ResponseCode.PARAM_ERROR);
+        }
+        AccessToken token = oAuthService.refreshToken(refreshToken);
         return Result.success(ResponseCode.SUCCESS, token);
     }
 }

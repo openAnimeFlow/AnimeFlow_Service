@@ -46,4 +46,26 @@ public class OAuthServiceImpl implements OAuthService {
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .retrieve().body(AccessToken.class);
     }
+
+    /**
+     * 刷新token
+     *
+     * @return AccessToken
+     */
+    @Override
+    public AccessToken refreshToken(String refreshToken) {
+        RestClient restClient = RestClient.builder().build();
+
+        MultiValueMap<String, Object> formData = new LinkedMultiValueMap<>();
+        formData.add("grant_type", "refresh_token");
+        formData.add("client_id", CLIENT_ID);
+        formData.add("client_secret", CLIENT_SECRET);
+        formData.add("refresh_token", refreshToken);
+        formData.add("redirect_uri", REDIRECT_URI);
+        return restClient.post()
+                .uri(Constants.BANGUMI_Token_API)
+                .body(formData)
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .retrieve().body(AccessToken.class);
+    }
 }

@@ -13,4 +13,9 @@ public interface OAuthService {
      * @return 获取到的token
      */
     AccessToken getToken(String code);
+
+    /**
+     * 刷新token
+     */
+    AccessToken refreshToken(String refreshToken);
 }
