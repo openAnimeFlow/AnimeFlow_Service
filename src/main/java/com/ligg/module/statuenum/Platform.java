@@ -1,6 +1,5 @@
 package com.ligg.module.statuenum;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -18,5 +17,5 @@ public enum Platform {
     WEB,
     LINUX,
     WINDOWS,
-    MAC
+    MACOS
 }
