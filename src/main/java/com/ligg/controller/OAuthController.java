@@ -5,10 +5,10 @@ import com.ligg.module.response.*;
 import com.ligg.module.statuenum.Platform;
 import com.ligg.module.statuenum.ResponseCode;
 import com.ligg.service.OAuthService;
+import com.ligg.store.OAuthKvStore;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @Author Ligg
@@ -29,7 +28,7 @@ import java.util.concurrent.TimeUnit;
 public class OAuthController {
 
     private final OAuthService oAuthService;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final OAuthKvStore oauthKvStore;
 
     @ResponseBody
     @PostMapping("/token")
@@ -63,7 +62,7 @@ public class OAuthController {
         sessionDto.setSessionId(sessionId);
         sessionDto.setExpiresIn(expiresIn);
         sessionDto.setPlatform(platform);
-        redisTemplate.opsForValue().set(Constants.SESSION_KEY + ':' + sessionId, sessionDto, expiresIn, TimeUnit.SECONDS);
+        oauthKvStore.put(Constants.SESSION_KEY + ':' + sessionId, sessionDto, expiresIn);
         return Result.success(ResponseCode.SUCCESS, sessionVo);
     }
 
@@ -82,20 +81,21 @@ public class OAuthController {
                 return;
             }
 
-            SessionDto sessionDto = (SessionDto) redisTemplate.opsForValue().get(Constants.SESSION_KEY + ':' + state);
+            SessionDto sessionDto = (SessionDto) oauthKvStore.get(Constants.SESSION_KEY + ':' + state);
             if (sessionDto == null) {
                 response.sendRedirect("/no_session");
                 return;
             }
-            
-            redisTemplate.delete(Constants.SESSION_KEY + ':' + state);
+
+            oauthKvStore.remove(Constants.SESSION_KEY + ':' + state);
             Platform platform = sessionDto.getPlatform();
             if (platform == Platform.ANDROID || platform == Platform.IOS) {
                 String redirectUrl = Constants.MOBILE_CALLBACK_URL + "?code=" + URLEncoder.encode(code, StandardCharsets.UTF_8) + "&state=" + state;
                 response.sendRedirect(redirectUrl);
             } else {
                 AccessToken token = oAuthService.getToken(code);
-                redisTemplate.opsForValue().set(Constants.AUTO_TOKEN_KEY + ':' + state, token, token.getExpires_in(), TimeUnit.SECONDS);
+                int ttl = token.getExpires_in() != null ? token.getExpires_in() : 3600;
+                oauthKvStore.put(Constants.AUTO_TOKEN_KEY + ':' + state, token, ttl);
                 response.sendRedirect("/oauth-success?state=" + state);
             }
         } catch (Exception e) {
@@ -113,11 +113,11 @@ public class OAuthController {
     @GetMapping("/token")
     public Result<AccessToken> getToken(String sessionId) {
         log.info("获取的sessionId: {}", sessionId);
-        AccessToken token = (AccessToken) redisTemplate.opsForValue().get(Constants.AUTO_TOKEN_KEY + ':' + sessionId);
+        AccessToken token = (AccessToken) oauthKvStore.get(Constants.AUTO_TOKEN_KEY + ':' + sessionId);
         if (token == null) {
             return Result.error(ResponseCode.PARAM_ERROR);
         }
-        redisTemplate.delete(Constants.AUTO_TOKEN_KEY + ':' + sessionId);
+        oauthKvStore.remove(Constants.AUTO_TOKEN_KEY + ':' + sessionId);
         return Result.success(ResponseCode.SUCCESS, token);
     }
 
