@@ -5,12 +5,22 @@ spring:
     name: AnimeFlow-Service
   config:
     import: optional:file:.env[.properties]
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/anime_flow?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: root
+    password: 200309
   data:
     redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
-      password: ${REDIS_PASSWORD}
-      username: ${REDIS_USERNAME}
+      host: 127.0.0.1
+      port: 6379
+      password:
+      username:
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
 bangumi:
   client_id: ${CLIENT_ID}
   client_secret: ${CLIENT_SECRET}
