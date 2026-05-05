@@ -1,10 +1,19 @@
 package com.ligg.flow_client.service;
 
+import com.ligg.common.vo.ForumCommentListItemVO;
+import com.ligg.common.vo.PageVO;
+import com.ligg.flow_client.module.entity.ForumCommentEntity;
+
 public interface ForumCommentService {
 
     /**
      * 添加评论
      * @return 添加数量
      */
-    int addComment();
+    int addComment(ForumCommentEntity forumComment);
+
+    /**
+     * 分页查询一级评论（{@code parent_id = 0} 且 {@code root_id = 0}），按创建时间倒序。
+     */
+    PageVO<ForumCommentListItemVO> pageTopLevelComments(long current, long size);
 }

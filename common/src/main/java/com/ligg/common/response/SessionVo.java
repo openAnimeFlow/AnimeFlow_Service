@@ -1,4 +1,4 @@
-package com.ligg.flow_client.module.response;
+package com.ligg.common.response;
 
 import lombok.Data;
 

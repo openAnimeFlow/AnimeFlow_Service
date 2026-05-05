@@ -1,4 +1,4 @@
-package com.ligg.flow_client.module.constants;
+package com.ligg.common.constants;
 
 /**
  * @Author Ligg

@@ -18,6 +18,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(forumCommentAuthorizationInterceptor)
-                .addPathPatterns("/api/forum/comment/**");
+                .addPathPatterns("/api/forum/comment/**")
+                .excludePathPatterns("/api/forum/comment/list");
     }
 }

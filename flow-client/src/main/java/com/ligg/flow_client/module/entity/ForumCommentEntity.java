@@ -45,6 +45,16 @@ public class ForumCommentEntity {
     private String imageUrl;
 
     /**
+     * 发布评论时的Bangumi昵称
+     */
+    private String nickname;
+
+    /**
+     * 发布评论时的Bangumi头像URL
+     */
+    private String avatarUrl;
+
+    /**
      * 点赞数
      */
     private Integer likeCount;

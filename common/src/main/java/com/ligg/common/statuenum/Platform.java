@@ -1,4 +1,4 @@
-package com.ligg.flow_client.module.statuenum;
+package com.ligg.common.statuenum;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;

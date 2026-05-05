@@ -1,7 +1,7 @@
 package com.ligg.flow_client.service;
 
-import com.ligg.flow_client.module.response.AccessToken;
-import com.ligg.flow_client.module.response.TokenVo;
+import com.ligg.common.response.AccessToken;
+import com.ligg.common.response.TokenVo;
 
 /**
  * @Author Ligg

@@ -1,11 +1,11 @@
-package com.ligg.flow_client.handler;
+package com.ligg.common.handler;
 
-import com.ligg.flow_client.exception.MissingAuthorizationException;
-import com.ligg.flow_client.module.response.Result;
-import com.ligg.flow_client.module.statuenum.ResponseCode;
+import com.ligg.common.exception.BangumiLoginExpiredException;
+import com.ligg.common.exception.MissingAuthorizationException;
+import com.ligg.common.response.Result;
+import com.ligg.common.statuenum.ResponseCode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
@@ -14,6 +14,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.yaml.snakeyaml.constructor.DuplicateKeyException;
 
 /**
  * 全局异常处理器
@@ -105,6 +106,15 @@ public class GlobalExceptionHandler {
     public Result<Void> handleMissingAuthorization(MissingAuthorizationException e) {
         log.warn("未授权: {}", e.getMessage());
         return Result.error(ResponseCode.UNAUTHORIZED, e.getMessage());
+    }
+
+    /**
+     * Bangumi 返回 401，访问令牌失效或登录已过期
+     */
+    @ExceptionHandler(BangumiLoginExpiredException.class)
+    public Result<Void> handleBangumiLoginExpired(BangumiLoginExpiredException e) {
+        log.warn("Bangumi 登录过期: {}", e.getMessage());
+        return Result.error(ResponseCode.UNAUTHORIZED, "登录已过期，请重新登录");
     }
 
     /**

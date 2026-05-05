@@ -1,8 +1,8 @@
 package com.ligg.flow_client.service.impl;
 
-import com.ligg.flow_client.module.constants.Constants;
-import com.ligg.flow_client.module.response.AccessToken;
-import com.ligg.flow_client.module.response.TokenVo;
+import com.ligg.common.constants.Constants;
+import com.ligg.common.response.AccessToken;
+import com.ligg.common.response.TokenVo;
 import com.ligg.flow_client.service.OAuthService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;

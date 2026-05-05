@@ -1,6 +1,6 @@
-package com.ligg.flow_client.module.response;
+package com.ligg.common.response;
 
-import com.ligg.flow_client.module.statuenum.ResponseCode;
+import com.ligg.common.statuenum.ResponseCode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

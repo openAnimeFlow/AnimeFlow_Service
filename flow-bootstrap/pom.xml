@@ -12,7 +12,7 @@
 
     <artifactId>flow-bootstrap</artifactId>
     <name>flow-bootstrap</name>
-    <description>统一启动入口，聚合 flow-client、bangumi-api 等模块</description>
+    <description>统一启动入口</description>
 
     <dependencies>
         <dependency>
