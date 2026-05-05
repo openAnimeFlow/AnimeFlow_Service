@@ -1,0 +1,21 @@
+package com.ligg.flow_client.module.statuenum;
+
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+/**
+ * @author Ligg
+ * @create_time 2025/12/22 04:21
+ * @update_time 2025/12/22 04:21
+ **/
+
+@Getter
+@NoArgsConstructor
+public enum Platform {
+    ANDROID,
+    IOS,
+    WEB,
+    LINUX,
+    WINDOWS,
+    MACOS
+}
