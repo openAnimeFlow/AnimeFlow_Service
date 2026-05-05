@@ -1,5 +1,6 @@
 package com.ligg.handler;
 
+import com.ligg.exception.MissingAuthorizationException;
 import com.ligg.module.response.Result;
 import com.ligg.module.statuenum.ResponseCode;
 import lombok.extern.slf4j.Slf4j;
@@ -95,6 +96,15 @@ public class GlobalExceptionHandler {
     public Result<Void> handleIllegalArgument(IllegalArgumentException e) {
         log.warn("非法参数: {}", e.getMessage());
         return Result.error(ResponseCode.PARAM_ERROR, e.getMessage());
+    }
+
+    /**
+     * 缺少 Authorization 请求头（论坛评论等拦截器）
+     */
+    @ExceptionHandler(MissingAuthorizationException.class)
+    public Result<Void> handleMissingAuthorization(MissingAuthorizationException e) {
+        log.warn("未授权: {}", e.getMessage());
+        return Result.error(ResponseCode.UNAUTHORIZED, e.getMessage());
     }
 
     /**

@@ -20,6 +20,11 @@ public enum ResponseCode {
      */
     PARAM_ERROR(400, "参数错误"),
 
+    /**
+     * 未授权（例如缺少或无效的凭证）
+     */
+    UNAUTHORIZED(401, "未授权"),
+
     ERROR(500, "服务器错误");
 
     private final int code;
