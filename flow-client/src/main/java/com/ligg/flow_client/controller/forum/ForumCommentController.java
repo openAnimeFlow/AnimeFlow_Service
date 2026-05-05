@@ -59,9 +59,6 @@ public class ForumCommentController {
 
     /**
      * 获取评论列表（一级评论分页，无需登录）
-     *
-     * @param current 页码，从 1 开始，默认 1
-     * @param size    每页条数，默认 10，最大 100
      */
     @GetMapping("/list")
     public Result<PageVO<ForumCommentListItemVO>> getComments(

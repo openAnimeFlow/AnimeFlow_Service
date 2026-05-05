@@ -30,11 +30,6 @@ public class ForumCommentEntity {
     private Long parentId;
 
     /**
-     * 根评论id；用于楼中楼结构查询，一级评论为0，回复评论时存所属一级评论ID
-     */
-    private Long rootId;
-
-    /**
      * 评论内容
      */
     private String content;

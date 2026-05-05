@@ -13,7 +13,7 @@ public interface ForumCommentService {
     int addComment(ForumCommentEntity forumComment);
 
     /**
-     * 分页查询一级评论（{@code parent_id = 0} 且 {@code root_id = 0}），按创建时间倒序。
+     * 分页查询评论
      */
     PageVO<ForumCommentListItemVO> pageTopLevelComments(long current, long size);
 }

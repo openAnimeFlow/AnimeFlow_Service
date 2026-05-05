@@ -12,10 +12,16 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class MybatisPlusConfig {
 
+    /** 单次分页最大条数上限 */
+    private static final long MAX_PAGE_SIZE = 100L;
+
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
+        PaginationInnerInterceptor pagination = new PaginationInnerInterceptor(DbType.MYSQL);
+        pagination.setMaxLimit(MAX_PAGE_SIZE);
+
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
-        interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+        interceptor.addInnerInterceptor(pagination);
         return interceptor;
     }
 }
