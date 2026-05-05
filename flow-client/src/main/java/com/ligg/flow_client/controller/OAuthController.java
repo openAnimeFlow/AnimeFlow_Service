@@ -1,15 +1,14 @@
 package com.ligg.flow_client.controller;
 
-import com.ligg.flow_client.module.constants.Constants;
-import com.ligg.flow_client.module.response.*;
-import com.ligg.flow_client.module.statuenum.Platform;
-import com.ligg.flow_client.module.statuenum.ResponseCode;
+import com.ligg.common.response.*;
+import com.ligg.common.constants.Constants;
+import com.ligg.common.statuenum.Platform;
+import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.flow_client.service.OAuthService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,15 +22,14 @@ import java.util.concurrent.TimeUnit;
  * @Time 2025/8/7
  **/
 @Slf4j
-@Controller
+@RestController
 @RequiredArgsConstructor
-@RequestMapping("/oauth")
+@RequestMapping("/api/oauth")
 public class OAuthController {
 
     private final OAuthService oAuthService;
     private final RedisTemplate<String, Object> redisTemplate;
 
-    @ResponseBody
     @PostMapping("/token")
     public Result<AccessToken> accessToken(String code) {
         if (!StringUtils.hasText(code)) {
@@ -50,7 +48,6 @@ public class OAuthController {
     /**
      * 申请session
      */
-    @ResponseBody
     @GetMapping("/session")
     public Result<SessionVo> session(Platform platform) {
         String sessionId = "animeFlow" + new Random().nextInt(100000);
@@ -84,7 +81,7 @@ public class OAuthController {
 
             SessionDto sessionDto = (SessionDto) redisTemplate.opsForValue().get(Constants.SESSION_KEY + ':' + state);
             if (sessionDto == null) {
-                response.sendRedirect("/no_session");
+                response.sendRedirect("/api/no_session");
                 return;
             }
             
@@ -96,7 +93,7 @@ public class OAuthController {
             } else {
                 AccessToken token = oAuthService.getToken(code);
                 redisTemplate.opsForValue().set(Constants.AUTO_TOKEN_KEY + ':' + state, token, token.getExpires_in(), TimeUnit.SECONDS);
-                response.sendRedirect("/oauth-success?state=" + state);
+                response.sendRedirect("/api/oauth-success?state=" + state);
             }
         } catch (Exception e) {
             log.error("回调异常", e);
@@ -109,7 +106,6 @@ public class OAuthController {
     /**
      * 获取缓存的token
      */
-    @ResponseBody
     @GetMapping("/token")
     public Result<AccessToken> getToken(String sessionId) {
         log.info("获取的sessionId: {}", sessionId);
@@ -124,7 +120,6 @@ public class OAuthController {
     /**
      * 刷新token
      */
-    @ResponseBody
     @PostMapping("/refresh")
     public Result<TokenVo> refreshToken(String refreshToken) {
         if (!StringUtils.hasText(refreshToken)) {

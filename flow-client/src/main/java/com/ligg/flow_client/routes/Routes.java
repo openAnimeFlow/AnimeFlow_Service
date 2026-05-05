@@ -2,6 +2,7 @@ package com.ligg.flow_client.routes;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 /**
  * @author Ligg
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
  * @update_time 2025/12/23 12:42
  **/
 @Controller
+@RequestMapping("/api")
 public class Routes {
 
     @GetMapping("/no_session")

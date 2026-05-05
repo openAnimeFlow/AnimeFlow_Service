@@ -2,7 +2,7 @@ package com.ligg.flow_client.controller;
 
 import com.ligg.flow_client.module.dto.DanmakuDto;
 import com.ligg.flow_client.module.entity.DanmakuEntity;
-import com.ligg.flow_client.module.response.Result;
+import com.ligg.common.response.Result;
 import com.ligg.flow_client.service.DanmakuService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
