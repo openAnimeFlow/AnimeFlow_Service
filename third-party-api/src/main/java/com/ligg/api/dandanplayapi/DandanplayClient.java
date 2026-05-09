@@ -1,5 +1,8 @@
-package com.ligg.api.bangumiapi.dandanplayapi;
-
+/**
+ * @author Ligg
+ * @date 2026/5/9 18:27
+ */
+package com.ligg.api.dandanplayapi;
 import com.ligg.common.vo.DanmakuVo;
 
 import java.util.List;
