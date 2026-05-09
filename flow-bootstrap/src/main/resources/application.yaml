@@ -30,3 +30,7 @@ bangumi:
 dandanplay:
   app_id: ${DANDANPLAY_ID}
   secret: ${DANDANPLAY_SECRET}
+  # 为 true 时由 Reactor Netty 打印完整 HTTP 请求/响应（含 X-AppSecret），仅本地排障；需同时把
+  # logging.level.reactor.netty.http.client.HttpClient 设为 DEBUG
+  http:
+    wiretap: true

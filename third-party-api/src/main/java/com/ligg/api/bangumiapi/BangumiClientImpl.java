@@ -5,7 +5,7 @@
 package com.ligg.api.bangumiapi;
 
 import com.ligg.common.constants.ApiConstant;
-import com.ligg.common.exception.BangumiLoginExpiredException;
+import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.vo.BangumiUserinfoVO;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -35,10 +35,10 @@ public class BangumiClientImpl implements BangumiClient {
                     .bodyToMono(BangumiUserinfoVO.class)
                     .block(REQUEST_TIMEOUT);
         } catch (WebClientResponseException.Unauthorized e) {
-            throw new BangumiLoginExpiredException(e);
+            throw new LoginExpiredException(e);
         } catch (WebClientResponseException e) {
             if (e.getStatusCode().value() == 401) {
-                throw new BangumiLoginExpiredException(e);
+                throw new LoginExpiredException(e);
             }
             throw e;
         }

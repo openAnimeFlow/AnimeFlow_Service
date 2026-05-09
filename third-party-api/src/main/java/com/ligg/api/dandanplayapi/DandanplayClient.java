@@ -3,6 +3,7 @@
  * @date 2026/5/9 18:27
  */
 package com.ligg.api.dandanplayapi;
+
 import com.ligg.common.vo.DanmakuVo;
 
 import java.util.List;
@@ -16,5 +17,5 @@ public interface DandanplayClient {
      * @param chConvert 是否转换为中文
      * @return 弹幕列表
      */
-    List<DanmakuVo> getDanmaku(Long episodeId, Boolean withRelated, int chConvert);
+    List<DanmakuVo> getDanmaku(int episodeId, Boolean withRelated, int chConvert);
 }

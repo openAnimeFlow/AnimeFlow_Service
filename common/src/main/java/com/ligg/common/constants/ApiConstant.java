@@ -20,4 +20,9 @@ public class ApiConstant {
      * dandanPlay API
      */
     public static final String DANDAN_PLAY_API_BASE_URL = "https://api.dandanplay.net";
+
+    /**
+     * 获取弹幕
+     */
+    public static final String DANDAN_API_COMMENT = "/api/v2/comment/";
 }

@@ -1,6 +1,6 @@
 package com.ligg.common.handler;
 
-import com.ligg.common.exception.BangumiLoginExpiredException;
+import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.exception.MissingAuthorizationException;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
@@ -111,8 +111,8 @@ public class GlobalExceptionHandler {
     /**
      * Bangumi 返回 401，访问令牌失效或登录已过期
      */
-    @ExceptionHandler(BangumiLoginExpiredException.class)
-    public Result<Void> handleBangumiLoginExpired(BangumiLoginExpiredException e) {
+    @ExceptionHandler(LoginExpiredException.class)
+    public Result<Void> handleBangumiLoginExpired(LoginExpiredException e) {
         log.warn("Bangumi 登录过期: {}", e.getMessage());
         return Result.error(ResponseCode.UNAUTHORIZED, "登录已过期，请重新登录");
     }
