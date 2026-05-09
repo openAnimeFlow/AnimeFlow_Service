@@ -10,9 +10,13 @@ import com.ligg.common.vo.DandanplayCommentVo;
 import com.ligg.common.vo.DanmakuVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.netty.http.client.HttpClient;
 
 import java.time.Duration;
 import java.util.List;
@@ -22,7 +26,15 @@ import java.util.List;
 public class DandanplayClientImpl implements DandanplayClient {
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
+    /**
+     * 弹幕 JSON 可能很大，需高于 WebClient 默认 256KB
+     **/
+    private static final int MAX_IN_MEMORY_BODY_BYTES = 1024 * 1024;
     private static final String DANDANPLAY_API_BASE_URL = ApiConstant.DANDAN_PLAY_API_BASE_URL;
+
+    private static final ExchangeStrategies DANDAN_EXCHANGE_STRATEGIES = ExchangeStrategies.builder()
+            .codecs(c -> c.defaultCodecs().maxInMemorySize(MAX_IN_MEMORY_BODY_BYTES))
+            .build();
 
     @Value("${dandanplay.app_id}")
     private String dandanPlayAppId;
@@ -33,12 +45,15 @@ public class DandanplayClientImpl implements DandanplayClient {
 
     private final WebClient webClient = WebClient.builder()
             .baseUrl(DANDANPLAY_API_BASE_URL)
+            .exchangeStrategies(DANDAN_EXCHANGE_STRATEGIES)
+            .clientConnector(new ReactorClientHttpConnector(
+                    HttpClient.create().followRedirect(true)))
             .build();
 
     @Override
     public List<DanmakuVo> getDanmaku(int episodeId, Boolean withRelated, int chConvert) {
         try {
-            DandanplayCommentVo body = webClient.get()
+            ResponseEntity<DandanplayCommentVo> response = webClient.get()
                     .uri(uriBuilder -> {
                         var b = uriBuilder.path(ApiConstant.DANDAN_API_COMMENT + episodeId)
                                 .queryParam("chConvert", chConvert)
@@ -51,8 +66,10 @@ public class DandanplayClientImpl implements DandanplayClient {
                     .header("X-AppId", dandanPlayAppId)
                     .header("X-AppSecret", dandanPlaySecret)
                     .retrieve()
-                    .bodyToMono(DandanplayCommentVo.class)
+                    .toEntity(DandanplayCommentVo.class)
                     .block(REQUEST_TIMEOUT);
+            log.info("弹弹play 获取弹幕请求响应状态码: {}", response.getStatusCode().value());
+            DandanplayCommentVo body = response.getBody();
             if (body == null || body.comments() == null) {
                 return List.of();
             }
