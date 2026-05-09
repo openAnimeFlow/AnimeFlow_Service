@@ -4,7 +4,7 @@
  */
 package com.ligg.common.constants;
 
-public class BangumiApiConstant {
+public class ApiConstant {
 
     /**
      * Bangumi Next API
@@ -16,5 +16,8 @@ public class BangumiApiConstant {
      */
     public static final String ME = "/p1/me";
 
-
+    /**
+     * dandanPlay API
+     */
+    public static final String DANDAN_PLAY_API_BASE_URL = "https://api.dandanplay.net";
 }

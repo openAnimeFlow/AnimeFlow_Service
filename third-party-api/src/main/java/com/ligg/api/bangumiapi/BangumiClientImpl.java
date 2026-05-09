@@ -4,7 +4,7 @@
  */
 package com.ligg.api.bangumiapi;
 
-import com.ligg.common.constants.BangumiApiConstant;
+import com.ligg.common.constants.ApiConstant;
 import com.ligg.common.exception.BangumiLoginExpiredException;
 import com.ligg.common.vo.BangumiUserinfoVO;
 import org.springframework.stereotype.Service;
@@ -19,7 +19,7 @@ public class BangumiClientImpl implements BangumiClient {
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
 
     private final WebClient webClient = WebClient.builder()
-            .baseUrl(BangumiApiConstant.BANGUMI_NEXT_API_BASE_URL)
+            .baseUrl(ApiConstant.BANGUMI_NEXT_API_BASE_URL)
             .build();
 
     /**
@@ -29,7 +29,7 @@ public class BangumiClientImpl implements BangumiClient {
     public BangumiUserinfoVO getMe(String accessToken) {
         try {
             return webClient.get()
-                    .uri(BangumiApiConstant.ME)
+                    .uri(ApiConstant.ME)
                     .headers(headers -> headers.setBearerAuth(accessToken))
                     .retrieve()
                     .bodyToMono(BangumiUserinfoVO.class)
