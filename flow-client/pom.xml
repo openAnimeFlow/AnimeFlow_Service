@@ -5,7 +5,7 @@
 
     <parent>
         <groupId>com.ligg</groupId>
-        <artifactId>anime-flow-service</artifactId>
+        <artifactId>anime_flow_service</artifactId>
         <version>0.0.1-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>

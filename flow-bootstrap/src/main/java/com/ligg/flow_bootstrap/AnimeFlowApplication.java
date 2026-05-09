@@ -8,9 +8,9 @@ import org.springframework.context.annotation.ComponentScan;
 @SpringBootApplication
 @ComponentScan(value = "com.ligg")
 @MapperScan("com.ligg.**.mapper")
-public class AnimeFlowBootstrapApplication {
+public class AnimeFlowApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(AnimeFlowBootstrapApplication.class, args);
+        SpringApplication.run(AnimeFlowApplication.class, args);
     }
 }
