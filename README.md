@@ -34,5 +34,5 @@ mvn -pl flow-bootstrap spring-boot:run
 ## 包结构说明
 
 - 启动类包名：**`com.ligg.flow_bootstrap`**
-- 业务代码位于 **`com.ligg.flow_client`** 及其子包。
+- 业务代码位于 **`com.ligg.flowclient`** 及其子包。
 - 扩展模块包名：**`com.ligg.bangumiapi`**（由 `scanBasePackages` 一并扫描）。

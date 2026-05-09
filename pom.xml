@@ -53,7 +53,7 @@
 
     <modules>
         <module>flow-client</module>
-        <module>bangumi-api</module>
+        <module>third-party-api</module>
         <module>flow-bootstrap</module>
         <module>common</module>
     </modules>

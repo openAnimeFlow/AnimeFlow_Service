@@ -22,7 +22,7 @@
         </dependency>
         <dependency>
             <groupId>com.ligg</groupId>
-            <artifactId>bangumi-api</artifactId>
+            <artifactId>third-party-api</artifactId>
             <version>${project.version}</version>
         </dependency>
 
