@@ -26,3 +26,7 @@ bangumi:
   client_id: ${CLIENT_ID}
   client_secret: ${CLIENT_SECRET}
   redirect_uri: ${REDIRECT_URI}
+
+dandanplay:
+  app_id: ${DANDANPLAY_ID}
+  secret: ${DANDANPLAY_SECRET}
