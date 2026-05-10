@@ -4,6 +4,7 @@ import com.ligg.api.dandanplayapi.DandanplayClient;
 import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.common.vo.dandanplay.BangumiDetailVo;
 import com.ligg.common.vo.dandanplay.DandanplayCommentVo;
+import com.ligg.common.vo.dandanplay.DanmakuEpisodeVo;
 import com.ligg.common.vo.dandanplay.DanmakuSearchVo;
 import com.ligg.flowclient.module.dto.DanmakuDto;
 import com.ligg.flowclient.module.entity.DanmakuEntity;
@@ -46,8 +47,8 @@ public class DanmakuController {
     /**
      * 获取弹幕
      */
-    @GetMapping
-    public Result<DandanplayCommentVo> getDanmaku(@RequestParam @NotNull(message = "episodeId 不能为空") Integer episodeId,
+    @GetMapping("/{episodeId}")
+    public Result<DandanplayCommentVo> getDanmaku(@PathVariable @NotNull(message = "episodeId 不能为空") Integer episodeId,
                                                   @RequestParam(defaultValue = "false") Boolean withRelated,
                                                   @RequestParam(defaultValue = "0") int chConvert) {
 
@@ -71,5 +72,13 @@ public class DanmakuController {
     @GetMapping("/bangumi/{bangumiId}")
     public Result<BangumiDetailVo> getBangumiDetail(@PathVariable @NotNull(message = "bangumiId 不能为空") Integer bangumiId) {
         return Result.success(ResponseCode.SUCCESS, dandanplayClient.getBangumiDetail(bangumiId));
+    }
+
+    /**
+     * 根据bangumiId获取番剧元素
+     */
+    @GetMapping("/bangumi/bgmtv/{bangumiId}")
+    public Result<DanmakuEpisodeVo> getBangumiEpisode(@PathVariable @NotNull(message = "bangumiId 不能为空") Integer bangumiId) {
+        return Result.success(ResponseCode.SUCCESS, dandanplayClient.getBangumiDetailByBangumiId(bangumiId));
     }
 }

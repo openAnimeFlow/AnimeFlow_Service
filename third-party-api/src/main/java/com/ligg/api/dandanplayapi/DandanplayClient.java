@@ -5,6 +5,7 @@
 package com.ligg.api.dandanplayapi;
 
 import com.ligg.common.vo.dandanplay.BangumiDetailVo;
+import com.ligg.common.vo.dandanplay.DanmakuEpisodeVo;
 import org.springframework.validation.annotation.Validated;
 
 import com.ligg.common.vo.dandanplay.DandanplayCommentVo;
@@ -31,7 +32,12 @@ public interface DandanplayClient {
     DanmakuSearchVo searchAnimes(@NotNull @Size(min = 2, message = "keyword 长度不能小于 2") String keyword, Integer type);
 
     /**
-     * 获取番剧详情
+     * 获取番剧元素
      */
     BangumiDetailVo getBangumiDetail(int bangumiId);
+
+    /**
+     * 获取番剧元素(根据bangumiId)
+     */
+    DanmakuEpisodeVo getBangumiDetailByBangumiId(int bangumiId);
 }

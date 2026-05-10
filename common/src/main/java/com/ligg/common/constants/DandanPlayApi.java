@@ -23,5 +23,10 @@ public class DandanPlayApi {
     /**
      * 获取番剧详情
      */
-    public static final String DANDAN_API_BANGUMI = "/api/v2/bangumi";
+    public static final String DANDAN_API_ELEMENT = "/api/v2/bangumi";
+
+    /**
+     * 获取番剧详情(根据bangumiId)
+     */
+    public static final String DANDAN_API_ELEMENT_BY_BANGUMI_ID = "/api/v2/bangumi/bgmtv/";
 }
