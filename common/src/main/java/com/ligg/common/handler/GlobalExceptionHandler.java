@@ -66,7 +66,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 方法参数校验失败（如 @Validated 控制器方法上的 @NotNull）
+     * 方法参数校验失败
      */
     @ExceptionHandler(ConstraintViolationException.class)
     public Result<Void> handleConstraintViolation(ConstraintViolationException e) {

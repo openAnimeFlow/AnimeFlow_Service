@@ -4,11 +4,15 @@
  */
 package com.ligg.api.dandanplayapi;
 
-import com.ligg.common.vo.DandanplayCommentVo;
-import com.ligg.common.vo.DanmakuVo;
+import com.ligg.common.vo.dandanplay.BangumiDetailVo;
+import org.springframework.validation.annotation.Validated;
 
-import java.util.List;
+import com.ligg.common.vo.dandanplay.DandanplayCommentVo;
+import com.ligg.common.vo.dandanplay.DanmakuSearchVo;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
+@Validated
 public interface DandanplayClient {
 
     /**
@@ -20,4 +24,14 @@ public interface DandanplayClient {
      * @return 弹幕列表
      */
     DandanplayCommentVo getDanmaku(int episodeId, Boolean withRelated, int chConvert);
+
+    /**
+     * 弹弹play搜索番剧
+     */
+    DanmakuSearchVo searchAnimes(@NotNull @Size(min = 2, message = "keyword 长度不能小于 2") String keyword, Integer type);
+
+    /**
+     * 获取番剧详情
+     */
+    BangumiDetailVo getBangumiDetail(int bangumiId);
 }

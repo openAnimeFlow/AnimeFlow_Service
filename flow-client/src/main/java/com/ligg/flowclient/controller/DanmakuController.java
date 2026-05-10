@@ -2,7 +2,9 @@ package com.ligg.flowclient.controller;
 
 import com.ligg.api.dandanplayapi.DandanplayClient;
 import com.ligg.common.statuenum.ResponseCode;
-import com.ligg.common.vo.DandanplayCommentVo;
+import com.ligg.common.vo.dandanplay.BangumiDetailVo;
+import com.ligg.common.vo.dandanplay.DandanplayCommentVo;
+import com.ligg.common.vo.dandanplay.DanmakuSearchVo;
 import com.ligg.flowclient.module.dto.DanmakuDto;
 import com.ligg.flowclient.module.entity.DanmakuEntity;
 import com.ligg.common.response.Result;
@@ -52,5 +54,22 @@ public class DanmakuController {
         DandanplayCommentVo danmakuVoList = dandanplayClient.getDanmaku(episodeId, withRelated, chConvert);
         //TODO 后续添加自己服务的弹幕信息
         return Result.success(ResponseCode.SUCCESS, danmakuVoList);
+    }
+
+    /**
+     * 搜索番剧
+     */
+    @GetMapping("/search")
+    public Result<DanmakuSearchVo> searchAnimes(@RequestParam String keyword,
+                                                @RequestParam(defaultValue = "1") Integer type) {
+        return Result.success(ResponseCode.SUCCESS, dandanplayClient.searchAnimes(keyword, type));
+    }
+
+    /**
+     * 搜索番剧详情
+     */
+    @GetMapping("/bangumi/{bangumiId}")
+    public Result<BangumiDetailVo> getBangumiDetail(@PathVariable @NotNull(message = "bangumiId 不能为空") Integer bangumiId) {
+        return Result.success(ResponseCode.SUCCESS, dandanplayClient.getBangumiDetail(bangumiId));
     }
 }
