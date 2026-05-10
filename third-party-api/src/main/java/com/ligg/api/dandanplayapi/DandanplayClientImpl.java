@@ -7,7 +7,6 @@ package com.ligg.api.dandanplayapi;
 import com.ligg.common.constants.ApiConstant;
 import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.vo.DandanplayCommentVo;
-import com.ligg.common.vo.DanmakuVo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -19,7 +18,6 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import reactor.netty.http.client.HttpClient;
 
 import java.time.Duration;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -51,7 +49,7 @@ public class DandanplayClientImpl implements DandanplayClient {
             .build();
 
     @Override
-    public List<DanmakuVo> getDanmaku(int episodeId, Boolean withRelated, int chConvert) {
+    public DandanplayCommentVo getDanmaku(int episodeId, Boolean withRelated, int chConvert) {
         try {
             ResponseEntity<DandanplayCommentVo> response = webClient.get()
                     .uri(uriBuilder -> {
@@ -69,11 +67,7 @@ public class DandanplayClientImpl implements DandanplayClient {
                     .toEntity(DandanplayCommentVo.class)
                     .block(REQUEST_TIMEOUT);
             log.info("弹弹play 获取弹幕请求响应状态码: {}", response.getStatusCode().value());
-            DandanplayCommentVo body = response.getBody();
-            if (body == null || body.comments() == null) {
-                return List.of();
-            }
-            return body.comments();
+            return response.getBody();
         } catch (WebClientResponseException e) {
             if (e.getStatusCode().value() == 401) {
                 throw new LoginExpiredException(e);

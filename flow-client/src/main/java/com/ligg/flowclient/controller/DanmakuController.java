@@ -2,7 +2,7 @@ package com.ligg.flowclient.controller;
 
 import com.ligg.api.dandanplayapi.DandanplayClient;
 import com.ligg.common.statuenum.ResponseCode;
-import com.ligg.common.vo.DanmakuVo;
+import com.ligg.common.vo.DandanplayCommentVo;
 import com.ligg.flowclient.module.dto.DanmakuDto;
 import com.ligg.flowclient.module.entity.DanmakuEntity;
 import com.ligg.common.response.Result;
@@ -13,7 +13,6 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 /**
  * 弹幕控制层
@@ -44,11 +43,11 @@ public class DanmakuController {
      * 获取弹幕
      */
     @GetMapping
-    public Result<List<DanmakuVo>> getDanmaku(@NonNull Integer episodeId,
-                                              @RequestParam(defaultValue = "false") Boolean withRelated,
-                                              @RequestParam(defaultValue = "0") int chConvert) {
+    public Result<DandanplayCommentVo> getDanmaku(@NonNull Integer episodeId,
+                                                  @RequestParam(defaultValue = "false") Boolean withRelated,
+                                                  @RequestParam(defaultValue = "0") int chConvert) {
 
-        List<DanmakuVo> danmakuVoList = dandanplayClient.getDanmaku(episodeId, withRelated, chConvert);
+        DandanplayCommentVo danmakuVoList = dandanplayClient.getDanmaku(episodeId, withRelated, chConvert);
         //TODO 后续添加自己服务的弹幕信息
         return Result.success(ResponseCode.SUCCESS, danmakuVoList);
     }
