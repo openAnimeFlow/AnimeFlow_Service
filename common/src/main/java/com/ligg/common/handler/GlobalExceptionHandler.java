@@ -141,12 +141,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(RateLimitExceededException.class)
     public ResponseEntity<Result<Void>> handleRateLimitExceeded(RateLimitExceededException e) {
         log.warn("请求限流: {}", e.getMessage() != null ? e.getMessage() : ResponseCode.TOO_MANY_REQUESTS.getMessage());
-        String message = e.getMessage() != null && !e.getMessage().isBlank()
-                ? e.getMessage()
-                : ResponseCode.TOO_MANY_REQUESTS.getMessage();
         return ResponseEntity
                 .status(HttpStatus.TOO_MANY_REQUESTS)
-                .body(Result.error(ResponseCode.TOO_MANY_REQUESTS, message));
+                .body(Result.error(ResponseCode.TOO_MANY_REQUESTS, ResponseCode.TOO_MANY_REQUESTS.getMessage()));
     }
 
     /**

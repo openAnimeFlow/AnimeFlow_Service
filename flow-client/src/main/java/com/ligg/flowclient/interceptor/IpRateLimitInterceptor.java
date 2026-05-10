@@ -37,7 +37,6 @@ public class IpRateLimitInterceptor implements HandlerInterceptor {
         if (!StringUtils.hasText(ip)) {
             ip = "unknown";
         }
-        log.info("限流ip：{}",ip);
         String key = rateLimitProperties.getKeyPrefix() + ip;
         Long allowed = stringRedisTemplate.execute(
                 ipRateLimitRedisScript,
@@ -50,6 +49,6 @@ public class IpRateLimitInterceptor implements HandlerInterceptor {
             return true;
         }
 
-        throw new RateLimitExceededException();
+        throw new RateLimitExceededException("IP<" + ip + "> 超出限流阈值");
     }
 }
