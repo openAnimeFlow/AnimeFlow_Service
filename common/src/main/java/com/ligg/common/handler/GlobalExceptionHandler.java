@@ -2,6 +2,7 @@ package com.ligg.common.handler;
 
 import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.exception.MissingAuthorizationException;
+import com.ligg.common.exception.RateLimitExceededException;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
 import jakarta.validation.ConstraintViolation;
@@ -13,6 +14,8 @@ import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -130,6 +133,20 @@ public class GlobalExceptionHandler {
     public Result<Void> handleBangumiLoginExpired(LoginExpiredException e) {
         log.warn("Bangumi 登录过期: {}", e.getMessage());
         return Result.error(ResponseCode.UNAUTHORIZED, "登录已过期，请重新登录");
+    }
+
+    /**
+     * 接口限流（如按 IP 的 Redis Lua 限流）
+     */
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<Result<Void>> handleRateLimitExceeded(RateLimitExceededException e) {
+        log.warn("请求限流: {}", e.getMessage() != null ? e.getMessage() : ResponseCode.TOO_MANY_REQUESTS.getMessage());
+        String message = e.getMessage() != null && !e.getMessage().isBlank()
+                ? e.getMessage()
+                : ResponseCode.TOO_MANY_REQUESTS.getMessage();
+        return ResponseEntity
+                .status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(Result.error(ResponseCode.TOO_MANY_REQUESTS, message));
     }
 
     /**

@@ -41,8 +41,8 @@ public class DandanplayClientImpl implements DandanplayClient {
     private final WebClient webClient;
 
     public DandanplayClientImpl(
-            @Value("${dandanplay.app_id}") String dandanPlayAppId,
-            @Value("${dandanplay.secret}") String dandanPlaySecret) {
+            @Value("${anime-flow.dandanplay.app_id}") String dandanPlayAppId,
+            @Value("${anime-flow.dandanplay.secret}") String dandanPlaySecret) {
         this.webClient = WebClient.builder()
                 .baseUrl(DANDANPLAY_API_BASE_URL)
                 .exchangeStrategies(DANDAN_EXCHANGE_STRATEGIES)

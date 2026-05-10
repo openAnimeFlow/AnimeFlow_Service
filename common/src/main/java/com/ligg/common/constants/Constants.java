@@ -27,4 +27,9 @@ public class Constants {
     public static final String MOBILE_CALLBACK_URL = "flow://auth/callback";
 
     public static final  String AUTO_TOKEN_KEY = "auto_token";
+
+    /**
+     * 限流key
+     */
+    public static final String RATE_LIMIT_KEY = "flow:rl:ip:";
 }

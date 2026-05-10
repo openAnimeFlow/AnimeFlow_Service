@@ -25,6 +25,11 @@ public enum ResponseCode {
      */
     UNAUTHORIZED(401, "未授权"),
 
+    /**
+     * 请求过于频繁（限流）
+     */
+    TOO_MANY_REQUESTS(429, "请求过于频繁，请稍后再试"),
+
     ERROR(500, "服务器错误");
 
     private final int code;

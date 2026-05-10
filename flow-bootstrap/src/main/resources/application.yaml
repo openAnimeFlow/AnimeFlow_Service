@@ -22,15 +22,18 @@ mybatis-plus:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
-bangumi:
-  client_id: ${CLIENT_ID}
-  client_secret: ${CLIENT_SECRET}
-  redirect_uri: ${REDIRECT_URI}
+anime-flow:
+  dandanplay:
+    app_id: ${DANDANPLAY_ID}
+    secret: ${DANDANPLAY_SECRET}
 
-dandanplay:
-  app_id: ${DANDANPLAY_ID}
-  secret: ${DANDANPLAY_SECRET}
-  # 为 true 时由 Reactor Netty 打印完整 HTTP 请求/响应（含 X-AppSecret），仅本地排障；需同时把
-  # logging.level.reactor.netty.http.client.HttpClient 设为 DEBUG
-  http:
-    wiretap: true
+  bangumi:
+    client_id: ${CLIENT_ID}
+    client_secret: ${CLIENT_SECRET}
+    redirect_uri: ${REDIRECT_URI}
+
+  ## 接口限流
+  rate-limit:
+    enabled: true
+    max-requests: 10   #单个时间窗口内允许的最大请求次数。
+    window-seconds: 60  #时间窗口长度（秒）。

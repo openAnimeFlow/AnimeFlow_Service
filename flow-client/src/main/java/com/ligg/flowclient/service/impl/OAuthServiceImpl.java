@@ -18,11 +18,11 @@ import org.springframework.web.client.RestClient;
 @Service
 public class OAuthServiceImpl implements OAuthService {
 
-    @Value("${bangumi.client_id}")
+    @Value("${anime-flow.bangumi.client_id}")
     private String CLIENT_ID;
-    @Value("${bangumi.client_secret}")
+    @Value("${anime-flow.bangumi.client_secret}")
     private String CLIENT_SECRET;
-    @Value("${bangumi.redirect_uri}")
+    @Value("${anime-flow.bangumi.redirect_uri}")
     private String REDIRECT_URI;
 
 
