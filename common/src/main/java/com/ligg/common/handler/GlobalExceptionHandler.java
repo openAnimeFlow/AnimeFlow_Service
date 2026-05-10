@@ -4,6 +4,8 @@ import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.exception.MissingAuthorizationException;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -60,6 +62,19 @@ public class GlobalExceptionHandler {
         FieldError fieldError = e.getBindingResult().getFieldError();
         String msg = fieldError != null ? fieldError.getDefaultMessage() : "参数绑定失败";
         log.warn("参数绑定失败: {}", msg);
+        return Result.error(ResponseCode.PARAM_ERROR, msg);
+    }
+
+    /**
+     * 方法参数校验失败（如 @Validated 控制器方法上的 @NotNull）
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public Result<Void> handleConstraintViolation(ConstraintViolationException e) {
+        String msg = e.getConstraintViolations().stream()
+                .map(ConstraintViolation::getMessage)
+                .findFirst()
+                .orElse("参数校验失败");
+        log.warn("参数校验失败: {}", msg);
         return Result.error(ResponseCode.PARAM_ERROR, msg);
     }
 

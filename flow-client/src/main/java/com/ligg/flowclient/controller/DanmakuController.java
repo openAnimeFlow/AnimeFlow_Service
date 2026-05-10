@@ -7,10 +7,11 @@ import com.ligg.flowclient.module.dto.DanmakuDto;
 import com.ligg.flowclient.module.entity.DanmakuEntity;
 import com.ligg.common.response.Result;
 import com.ligg.flowclient.service.DanmakuService;
-import lombok.NonNull;
+import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
  * 弹幕控制层
  */
 @Slf4j
+@Validated
 @RestController
 @RequestMapping("/api/v1/danmaku")
 public class DanmakuController {
@@ -43,7 +45,7 @@ public class DanmakuController {
      * 获取弹幕
      */
     @GetMapping
-    public Result<DandanplayCommentVo> getDanmaku(@NonNull Integer episodeId,
+    public Result<DandanplayCommentVo> getDanmaku(@RequestParam @NotNull(message = "episodeId 不能为空") Integer episodeId,
                                                   @RequestParam(defaultValue = "false") Boolean withRelated,
                                                   @RequestParam(defaultValue = "0") int chConvert) {
 
