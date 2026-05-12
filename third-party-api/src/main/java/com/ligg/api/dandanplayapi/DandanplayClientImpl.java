@@ -10,6 +10,7 @@ import com.ligg.common.vo.dandanplay.BangumiDetailVo;
 import com.ligg.common.vo.dandanplay.DandanplayCommentVo;
 import com.ligg.common.vo.dandanplay.DanmakuEpisodeVo;
 import com.ligg.common.vo.dandanplay.DanmakuSearchVo;
+import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -32,7 +33,7 @@ public class DandanplayClientImpl implements DandanplayClient {
     /**
      * 弹幕 JSON 可能很大，需高于 WebClient 默认 256KB
      **/
-    private static final int MAX_IN_MEMORY_BODY_BYTES = 1024 * 1024;
+    private static final int MAX_IN_MEMORY_BODY_BYTES = 10 * 1024 * 1024;
     private static final String DANDANPLAY_API_BASE_URL = DandanPlayApi.DANDAN_PLAY_API_BASE_URL;
 
     private static final ExchangeStrategies DANDAN_EXCHANGE_STRATEGIES = ExchangeStrategies.builder()
@@ -105,7 +106,7 @@ public class DandanplayClientImpl implements DandanplayClient {
     }
 
     @Override
-    public BangumiDetailVo getBangumiDetail(int bangumiId) {
+    public BangumiDetailVo getBangumiDetail(@NotNull int bangumiId) {
         try {
             ResponseEntity<BangumiDetailVo> response = webClient.get()
                     .uri(uriBuilder -> uriBuilder.path(DandanPlayApi.DANDAN_API_ELEMENT + '/' + bangumiId).build())
@@ -123,7 +124,7 @@ public class DandanplayClientImpl implements DandanplayClient {
     }
 
     @Override
-    public DanmakuEpisodeVo getBangumiDetailByBangumiId(int bangumiId) {
+    public DanmakuEpisodeVo getBangumiDetailByBangumiId(@NotNull int bangumiId) {
         try {
             ResponseEntity<DanmakuEpisodeVo> response = webClient.get()
                     .uri(uriBuilder -> uriBuilder.path(DandanPlayApi.DANDAN_API_ELEMENT_BY_BANGUMI_ID + '/' + bangumiId).build())

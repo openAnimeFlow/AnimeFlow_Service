@@ -34,10 +34,10 @@ public interface DandanplayClient {
     /**
      * 获取番剧元素
      */
-    BangumiDetailVo getBangumiDetail(int bangumiId);
+    BangumiDetailVo getBangumiDetail(@NotNull int bangumiId);
 
     /**
      * 获取番剧元素(根据bangumiId)
      */
-    DanmakuEpisodeVo getBangumiDetailByBangumiId(int bangumiId);
+    DanmakuEpisodeVo getBangumiDetailByBangumiId(@NotNull int bangumiId);
 }
