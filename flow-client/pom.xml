@@ -22,6 +22,12 @@
         </dependency>
 
         <dependency>
+            <groupId>com.ligg</groupId>
+            <artifactId>common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-extra</artifactId>
         </dependency>
