@@ -22,15 +22,18 @@ public class Result<T> {
         return new Result<>(status.getCode(), status.getMessage(), data);
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> Result<T> success() {
-        return new Result<>(ResponseCode.SUCCESS.getCode(), ResponseCode.SUCCESS.getMessage(), null);
+        return new Result<>(ResponseCode.SUCCESS.getCode(), ResponseCode.SUCCESS.getMessage(), (T) "success");
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> Result<T> error(ResponseCode status) {
-        return new Result<>(status.getCode(), status.getMessage(), null);
+        return new Result<>(status.getCode(), status.getMessage(), (T) "error");
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> Result<T> error(ResponseCode status, String message) {
-        return new Result<>(status.getCode(), message, null);
+        return new Result<>(status.getCode(), message, (T) "error");
     }
 }

@@ -7,12 +7,11 @@ import com.ligg.common.vo.dandanplay.DandanplayCommentVo;
 import com.ligg.common.vo.dandanplay.DanmakuEpisodeVo;
 import com.ligg.common.vo.dandanplay.DanmakuSearchVo;
 import com.ligg.flowclient.module.dto.DanmakuDto;
-import com.ligg.common.entity.DanmakuEntity;
 import com.ligg.common.response.Result;
 import com.ligg.flowclient.service.DanmakuService;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -37,10 +36,8 @@ public class DanmakuController {
      * 添加弹幕
      */
     @PostMapping
-    public Result<String> addDanmaku(DanmakuDto danmakuDto) {
-        DanmakuEntity danmakuEntity = new DanmakuEntity();
-        BeanUtils.copyProperties(danmakuDto, danmakuEntity);
-        danmakuService.saveDanmaku(danmakuEntity);
+    public Result<String> addDanmaku(@Valid DanmakuDto danmakuDto) {
+        danmakuService.saveDanmaku(danmakuDto);
         return Result.success();
     }
 
