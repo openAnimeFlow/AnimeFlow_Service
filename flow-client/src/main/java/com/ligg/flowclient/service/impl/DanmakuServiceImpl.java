@@ -2,7 +2,7 @@ package com.ligg.flowclient.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.ligg.flowclient.mapper.DanmakuMapper;
-import com.ligg.flowclient.module.entity.DanmakuEntity;
+import com.ligg.common.entity.DanmakuEntity;
 import com.ligg.flowclient.service.DanmakuService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

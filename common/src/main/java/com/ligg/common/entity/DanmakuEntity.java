@@ -1,4 +1,4 @@
-package com.ligg.flowclient.module.entity;
+package com.ligg.common.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;

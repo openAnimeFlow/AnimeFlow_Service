@@ -7,7 +7,7 @@ import com.ligg.common.vo.dandanplay.DandanplayCommentVo;
 import com.ligg.common.vo.dandanplay.DanmakuEpisodeVo;
 import com.ligg.common.vo.dandanplay.DanmakuSearchVo;
 import com.ligg.flowclient.module.dto.DanmakuDto;
-import com.ligg.flowclient.module.entity.DanmakuEntity;
+import com.ligg.common.entity.DanmakuEntity;
 import com.ligg.common.response.Result;
 import com.ligg.flowclient.service.DanmakuService;
 import jakarta.validation.constraints.NotNull;

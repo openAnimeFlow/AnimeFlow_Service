@@ -1,7 +1,7 @@
 package com.ligg.flowclient.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.ligg.flowclient.module.entity.ForumCommentEntity;
+import com.ligg.common.entity.ForumCommentEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 

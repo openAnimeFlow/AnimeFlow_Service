@@ -3,7 +3,7 @@
 <mapper namespace="com.ligg.flowclient.mapper.ForumCommentMapper">
 
     <!-- 根据一级评论 id 列表，查询 parent_id 命中该列表的直接子回复。 -->
-    <select id="selectRepliesByParentIds" resultType="com.ligg.flowclient.module.entity.ForumCommentEntity">
+    <select id="selectRepliesByParentIds" resultType="com.ligg.common.entity.ForumCommentEntity">
         SELECT id,
                user_id,
                parent_id,

@@ -1,7 +1,7 @@
 package com.ligg.flowclient.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.ligg.flowclient.module.entity.DanmakuEntity;
+import com.ligg.common.entity.DanmakuEntity;
 
 public interface DanmakuService extends IService<DanmakuEntity> {
 

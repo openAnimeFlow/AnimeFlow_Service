@@ -13,7 +13,7 @@ import com.ligg.common.vo.ForumCommentListItemVO;
 import com.ligg.common.vo.PageVO;
 import com.ligg.flowclient.interceptor.ForumCommentAuthorizationInterceptor;
 import com.ligg.flowclient.module.dto.ForumCommentDto;
-import com.ligg.flowclient.module.entity.ForumCommentEntity;
+import com.ligg.common.entity.ForumCommentEntity;
 import com.ligg.common.response.Result;
 import com.ligg.flowclient.service.ForumCommentService;
 import jakarta.servlet.http.HttpServletRequest;

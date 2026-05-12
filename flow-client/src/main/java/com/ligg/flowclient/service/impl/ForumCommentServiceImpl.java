@@ -11,7 +11,7 @@ import com.ligg.common.vo.ForumCommentListItemVO;
 import com.ligg.common.vo.ForumCommentReplyVO;
 import com.ligg.common.vo.PageVO;
 import com.ligg.flowclient.mapper.ForumCommentMapper;
-import com.ligg.flowclient.module.entity.ForumCommentEntity;
+import com.ligg.common.entity.ForumCommentEntity;
 import com.ligg.flowclient.service.ForumCommentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

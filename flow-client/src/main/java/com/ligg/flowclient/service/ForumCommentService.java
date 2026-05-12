@@ -2,7 +2,7 @@ package com.ligg.flowclient.service;
 
 import com.ligg.common.vo.ForumCommentListItemVO;
 import com.ligg.common.vo.PageVO;
-import com.ligg.flowclient.module.entity.ForumCommentEntity;
+import com.ligg.common.entity.ForumCommentEntity;
 
 public interface ForumCommentService {
 

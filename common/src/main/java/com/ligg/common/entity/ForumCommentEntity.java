@@ -2,7 +2,7 @@
  * @author Ligg
  * @date 2026/5/3 16:53
  */
-package com.ligg.flowclient.module.entity;
+package com.ligg.common.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
