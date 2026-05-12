@@ -12,12 +12,13 @@
 
     <groupId>com.ligg</groupId>
     <artifactId>anime_flow_service</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>${revision}</version>
     <packaging>pom</packaging>
     <name>AnimeFlowService</name>
     <description>AnimeFlow</description>
 
     <properties>
+        <revision>0.0.1</revision>
         <java.version>17</java.version>
         <hutool.version>5.8.38</hutool.version>
         <mybatis-plus.version>3.5.15</mybatis-plus.version>
