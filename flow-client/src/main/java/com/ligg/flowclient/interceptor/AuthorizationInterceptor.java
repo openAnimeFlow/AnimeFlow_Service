@@ -12,7 +12,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
  * 论坛评论接口：读取 Authorization 请求头，解析 access_token 并放入 request attribute。
  */
 @Component
-public class ForumCommentAuthorizationInterceptor implements HandlerInterceptor {
+public class AuthorizationInterceptor implements HandlerInterceptor {
 
     /**
      * {@link HttpServletRequest#getAttribute(String)} 键，值为请求头 Authorization 的原始字符串。

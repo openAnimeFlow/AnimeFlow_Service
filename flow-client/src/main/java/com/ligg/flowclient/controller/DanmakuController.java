@@ -6,6 +6,7 @@ import com.ligg.common.vo.dandanplay.BangumiDetailVo;
 import com.ligg.common.vo.dandanplay.DandanplayCommentVo;
 import com.ligg.common.vo.dandanplay.DanmakuEpisodeVo;
 import com.ligg.common.vo.dandanplay.DanmakuSearchVo;
+import com.ligg.flowclient.annotation.DanmakuSendRateLimit;
 import com.ligg.flowclient.module.dto.DanmakuDto;
 import com.ligg.common.response.Result;
 import com.ligg.flowclient.service.DanmakuService;
@@ -36,6 +37,7 @@ public class DanmakuController {
      * 添加弹幕
      */
     @PostMapping
+    @DanmakuSendRateLimit
     public Result<String> addDanmaku(@Valid DanmakuDto danmakuDto) {
         danmakuService.saveDanmaku(danmakuDto);
         return Result.success();

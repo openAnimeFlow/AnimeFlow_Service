@@ -11,7 +11,7 @@ import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.common.vo.BangumiUserinfoVO;
 import com.ligg.common.vo.ForumCommentListItemVO;
 import com.ligg.common.vo.PageVO;
-import com.ligg.flowclient.interceptor.ForumCommentAuthorizationInterceptor;
+import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.module.dto.ForumCommentDto;
 import com.ligg.common.entity.ForumCommentEntity;
 import com.ligg.common.response.Result;
@@ -39,7 +39,7 @@ public class ForumCommentController {
     @PostMapping
     public Result<String> addComment(
             HttpServletRequest request,
-            @RequestAttribute(ForumCommentAuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
+            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
             ForumCommentDto forumCommentDto) {
         // 从Bangumi中获取用户信息
         BangumiUserinfoVO me = bangumiClient.getMe(accessToken);
