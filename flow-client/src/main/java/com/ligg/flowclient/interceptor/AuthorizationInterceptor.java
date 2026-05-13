@@ -1,6 +1,6 @@
 package com.ligg.flowclient.interceptor;
 
-import com.ligg.common.exception.MissingAuthorizationException;
+import com.ligg.common.exception.AuthorizationException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
@@ -29,12 +29,12 @@ public class AuthorizationInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
         if (!StringUtils.hasText(authorization)) {
-            throw new MissingAuthorizationException("缺少 Authorization 请求头");
+            throw new AuthorizationException("未登录...");
         }
 
         String accessToken = parseBearerAccessToken(authorization);
         if (!StringUtils.hasText(accessToken)) {
-            throw new MissingAuthorizationException("缺少或无效的访问令牌");
+            throw new AuthorizationException("缺少或无效的访问令牌");
         }
 
         request.setAttribute(AUTHORIZATION_REQUEST_ATTRIBUTE, authorization);

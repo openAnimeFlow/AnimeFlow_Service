@@ -1,7 +1,7 @@
 package com.ligg.common.handler;
 
 import com.ligg.common.exception.LoginExpiredException;
-import com.ligg.common.exception.MissingAuthorizationException;
+import com.ligg.common.exception.AuthorizationException;
 import com.ligg.common.exception.RateLimitExceededException;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
@@ -120,8 +120,8 @@ public class GlobalExceptionHandler {
     /**
      * 缺少 Authorization 请求头（论坛评论等拦截器）
      */
-    @ExceptionHandler(MissingAuthorizationException.class)
-    public Result<Void> handleMissingAuthorization(MissingAuthorizationException e) {
+    @ExceptionHandler(AuthorizationException.class)
+    public Result<Void> handleMissingAuthorization(AuthorizationException e) {
         log.warn("未授权: {}", e.getMessage());
         return Result.error(ResponseCode.UNAUTHORIZED, e.getMessage());
     }
