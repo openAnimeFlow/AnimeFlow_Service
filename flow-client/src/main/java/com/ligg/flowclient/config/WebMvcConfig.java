@@ -28,7 +28,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .order(0);
 
         registry.addInterceptor(authorizationInterceptor)
-                .addPathPatterns("/api/forum/comment/**")
+                .addPathPatterns("/api/forum/comment/**", "/api/v1/danmaku")
                 .excludePathPatterns("/api/forum/comment/list")
                 .order(1);
     }
