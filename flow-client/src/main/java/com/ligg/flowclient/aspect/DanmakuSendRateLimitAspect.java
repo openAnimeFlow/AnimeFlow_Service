@@ -1,9 +1,9 @@
 package com.ligg.flowclient.aspect;
 
+import com.ligg.common.exception.AuthorizationException;
 import com.ligg.common.exception.RateLimitExceededException;
 import com.ligg.flowclient.annotation.DanmakuSendRateLimit;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
-import com.ligg.flowclient.module.dto.DanmakuDto;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -22,7 +22,7 @@ import java.util.Collections;
 
 /**
  * {@link DanmakuSendRateLimit}：固定窗口限流（复用 IP 限流 Lua 脚本）。
- * 已登录：按 {@link AuthorizationInterceptor} 写入的 access_token + bgmId；无 token 时仅按 bgmId。
+ * 按 {@link AuthorizationInterceptor} 写入的 access_token 区分用户；无有效 token 直接拒绝。
  */
 @Aspect
 @Component
@@ -37,14 +37,8 @@ public class DanmakuSendRateLimitAspect {
 
     @Around("@annotation(limit)")
     public Object around(ProceedingJoinPoint pjp, DanmakuSendRateLimit limit) throws Throwable {
-        DanmakuDto dto = findDanmakuDto(pjp.getArgs());
-        if (dto == null || dto.getBgmId() == null) {
-            return pjp.proceed();
-        }
-
         HttpServletRequest request = currentRequest();
-        String userPart = resolveUserPart(request);
-        String key = KEY_PREFIX + userPart + ":" + dto.getBgmId();
+        String key = KEY_PREFIX + requireTokenKeyPart(request);
 
         Long allowed = stringRedisTemplate.execute(
                 ipRateLimitRedisScript,
@@ -58,18 +52,6 @@ public class DanmakuSendRateLimitAspect {
         return pjp.proceed();
     }
 
-    private static DanmakuDto findDanmakuDto(Object[] args) {
-        if (args == null) {
-            return null;
-        }
-        for (Object arg : args) {
-            if (arg instanceof DanmakuDto d) {
-                return d;
-            }
-        }
-        return null;
-    }
-
     private static HttpServletRequest currentRequest() {
         RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
         if (attrs instanceof ServletRequestAttributes servletRequestAttributes) {
@@ -79,16 +61,16 @@ public class DanmakuSendRateLimitAspect {
     }
 
     /**
-     * 已登录：{@code t:} + 拦截器解析后的 access_token；否则 {@code anon}（与请求体中的 bgmId 组合）。
+     * {@code t:} + 拦截器解析后的 access_token；无请求上下文或无 token 则拒绝。
      */
-    private static String resolveUserPart(HttpServletRequest request) {
+    private static String requireTokenKeyPart(HttpServletRequest request) {
         if (request == null) {
-            return "anon";
+            throw new AuthorizationException("缺少或无效的访问令牌");
         }
         Object tokenAttr = request.getAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE);
         if (tokenAttr instanceof String token && StringUtils.hasText(token)) {
             return "t:" + token;
         }
-        return "anon";
+        throw new AuthorizationException("缺少或无效的访问令牌");
     }
 }
