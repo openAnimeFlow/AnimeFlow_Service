@@ -53,10 +53,11 @@
     </dependencyManagement>
 
     <modules>
-        <module>flow-client</module>
-        <module>third-party-api</module>
-        <module>flow-bootstrap</module>
+        <!--需要注意构建顺序-->
         <module>common</module>
+        <module>third-party-api</module>
+        <module>flow-client</module>
+        <module>flow-bootstrap</module>
     </modules>
 
     <build>
