@@ -2,9 +2,9 @@ package com.ligg.flowclient.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.ligg.common.vo.dandanplay.DandanplayCommentVo;
 import com.ligg.flowclient.mapper.DanmakuMapper;
 import com.ligg.common.entity.DanmakuEntity;
-import com.ligg.common.vo.AnimeFlowDanmakuItemVo;
 import com.ligg.flowclient.module.dto.DanmakuDto;
 import com.ligg.flowclient.service.DanmakuService;
 import lombok.RequiredArgsConstructor;
@@ -41,24 +41,23 @@ public class DanmakuServiceImpl extends ServiceImpl<DanmakuMapper, DanmakuEntity
     }
 
     @Override
-    public List<AnimeFlowDanmakuItemVo> queryDanmaku(Integer episodeId) {
+    public List<DandanplayCommentVo.DanmakuVo> queryDanmaku(Integer episodeId) {
         return danmakuMapper.selectList(new LambdaQueryWrapper<DanmakuEntity>().eq(DanmakuEntity::getEpisodeId, episodeId))
                 .stream()
                 .map(DanmakuServiceImpl::toAnimeFlowItem)
                 .toList();
     }
 
-    private static AnimeFlowDanmakuItemVo toAnimeFlowItem(DanmakuEntity e) {
-        return new AnimeFlowDanmakuItemVo(
+    private static DandanplayCommentVo.DanmakuVo toAnimeFlowItem(DanmakuEntity e) {
+        return new DandanplayCommentVo.DanmakuVo(
                 e.getId(),
                 buildP(e),
-                e.getComment() != null ? e.getComment() : "",
-                e.getBgmUserId() != null ? Integer.toString(e.getBgmUserId()) : null
+                e.getComment() != null ? e.getComment() : ""
         );
     }
 
     /**
-     * 与弹弹一致：「出现时间(秒),类型,颜色(十进制),平台」；平台取 {@link DanmakuEntity#getSource()}，逗号转空格。
+     * 与弹弹前四段一致：「时间(秒),类型,颜色(十进制),平台」；本站额外追加第五段 {@code bgmUserId}（无则 0）。平台取 {@link DanmakuEntity#getSource()}，逗号转空格。
      */
     private static String buildP(DanmakuEntity e) {
         double timeSec = e.getTime() != null ? e.getTime() : 0.0;
@@ -67,6 +66,7 @@ public class DanmakuServiceImpl extends ServiceImpl<DanmakuMapper, DanmakuEntity
         String platform = (e.getSource() != null && !e.getSource().isBlank())
                 ? e.getSource().replace(",", " ")
                 : "AnimeFlow";
-        return String.format(Locale.ROOT, "%.3f,%d,%d,%s", timeSec, type, color, platform);
+        int bgmId = e.getBgmUserId() != null ? e.getBgmUserId() : 0;
+        return String.format(Locale.ROOT, "%.3f,%d,%d,%s,%d", timeSec, type, color, platform, bgmId);
     }
 }

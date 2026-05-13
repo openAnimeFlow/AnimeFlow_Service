@@ -3,7 +3,6 @@ package com.ligg.flowclient.controller;
 import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.api.dandanplayapi.DandanplayClient;
 import com.ligg.common.statuenum.ResponseCode;
-import com.ligg.common.vo.AnimeFlowDanmakuItemVo;
 import com.ligg.common.vo.BangumiUserinfoVO;
 import com.ligg.common.vo.dandanplay.DandanplayBangumiDetailVo;
 import com.ligg.common.vo.dandanplay.DandanplayCommentVo;
@@ -46,7 +45,7 @@ public class DanmakuController {
      */
     @PostMapping
     @DanmakuSendRateLimit
-    public Result<String> addDanmaku(@Valid DanmakuDto danmakuDto,
+    public Result<String> addDanmaku(@Valid @RequestBody DanmakuDto danmakuDto,
                                      @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken
     ) {
         BangumiUserinfoVO bgmUserInfo = bangumiClient.getMe(accessToken);
@@ -68,8 +67,8 @@ public class DanmakuController {
         }
         List<DandanplayCommentVo.DanmakuVo> merged = new ArrayList<>(
                 danmakuVoList.comments() != null ? danmakuVoList.comments() : List.of());
-        for (AnimeFlowDanmakuItemVo item : danmakuService.queryDanmaku(episodeId)) {
-            merged.add(new DandanplayCommentVo.DanmakuVo(item.cid(), item.p(), item.m(), item.bgmUserId()));
+        for (DandanplayCommentVo.DanmakuVo item : danmakuService.queryDanmaku(episodeId)) {
+            merged.add(new DandanplayCommentVo.DanmakuVo(item.cid(), item.p(), item.m()));
         }
         DandanplayCommentVo result = new DandanplayCommentVo(merged.size(), merged);
         return Result.success(ResponseCode.SUCCESS, result);
