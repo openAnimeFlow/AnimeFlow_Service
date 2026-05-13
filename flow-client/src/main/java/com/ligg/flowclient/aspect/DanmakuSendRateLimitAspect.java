@@ -2,6 +2,7 @@ package com.ligg.flowclient.aspect;
 
 import com.ligg.common.exception.RateLimitExceededException;
 import com.ligg.flowclient.annotation.DanmakuSendRateLimit;
+import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.module.dto.DanmakuDto;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +12,6 @@ import org.aspectj.lang.annotation.Aspect;
 import org.springframework.core.annotation.Order;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
-import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestAttributes;
@@ -22,7 +22,7 @@ import java.util.Collections;
 
 /**
  * {@link DanmakuSendRateLimit}：固定窗口限流（复用 IP 限流 Lua 脚本）。
- * 已登录：按原始 access_token + bgmId；未登录：仅按 bgmId。
+ * 已登录：按 {@link AuthorizationInterceptor} 写入的 access_token + bgmId；无 token 时仅按 bgmId。
  */
 @Aspect
 @Component
@@ -79,27 +79,16 @@ public class DanmakuSendRateLimitAspect {
     }
 
     /**
-     * 已登录：{@code t:} + 原始 Bearer token；未登录：固定 {@code anon}（与请求体中的 bgmId 组合）。
+     * 已登录：{@code t:} + 拦截器解析后的 access_token；否则 {@code anon}（与请求体中的 bgmId 组合）。
      */
     private static String resolveUserPart(HttpServletRequest request) {
         if (request == null) {
             return "anon";
         }
-        String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (StringUtils.hasText(authorization)) {
-            String token = parseBearerAccessToken(authorization);
-            if (StringUtils.hasText(token)) {
-                return "t:" + token;
-            }
+        Object tokenAttr = request.getAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE);
+        if (tokenAttr instanceof String token && StringUtils.hasText(token)) {
+            return "t:" + token;
         }
         return "anon";
-    }
-
-    private static String parseBearerAccessToken(String authorization) {
-        String v = authorization.trim();
-        if (v.regionMatches(true, 0, "Bearer ", 0, 7)) {
-            return v.substring(7).trim();
-        }
-        return v;
     }
 }

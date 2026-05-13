@@ -8,6 +8,7 @@ import java.lang.annotation.Target;
 
 /**
  * 弹幕发送限流：同一用户在同一 {@code bgmId} 下，在指定时间窗口内仅允许一次请求（Redis 计数）。
+ * 必须在 {AuthorizationInterceptor} 拦截的接口上使用。
  * <p>
  * 用户标识：有 {@code Authorization: Bearer &lt;token&gt;} 时使用原始 token + bgmId；无令牌时仅按 bgmId（不按 IP）。
  */

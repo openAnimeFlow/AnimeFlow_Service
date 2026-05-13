@@ -9,7 +9,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
- * 论坛评论接口：读取 Authorization 请求头，解析 access_token 并放入 request attribute。
+ * Authorization拦截器：读取 Authorization 请求头，解析 access_token 并放入 request attribute。
  */
 @Component
 public class AuthorizationInterceptor implements HandlerInterceptor {
