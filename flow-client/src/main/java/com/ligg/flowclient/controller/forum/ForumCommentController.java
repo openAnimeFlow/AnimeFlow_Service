@@ -47,7 +47,7 @@ public class ForumCommentController {
         ForumCommentEntity forumCommentEntity = new ForumCommentEntity();
         BeanUtils.copyProperties(forumCommentDto, forumCommentEntity);
         forumCommentEntity.setCreateTime(LocalDateTime.now());
-        forumCommentEntity.setUserId(me.id());
+        forumCommentEntity.setUserId(me.id().longValue());
         forumCommentEntity.setNickname(me.nickname());
         forumCommentEntity.setAvatarUrl(me.avatar().large());
         forumCommentEntity.setContent(forumCommentDto.getContent());

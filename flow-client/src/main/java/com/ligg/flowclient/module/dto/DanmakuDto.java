@@ -21,11 +21,6 @@ public class DanmakuDto {
     @NotBlank(message = "弹幕内容不能为空")
     private String comment;
 
-    /**
-     * bgm_id
-     */
-    @NotNull(message = "BGM ID不能为空")
-    private Integer bgmId;
 
     /**
      * 弹幕出现时间，单位为秒

@@ -10,7 +10,8 @@ public interface DanmakuService extends IService<DanmakuEntity> {
      * 保存弹幕数据
      *
      * @param danmakuDto 弹幕实体对象
+     * @param bgmUserId
      * @return 是否保存成功
      */
-    int saveDanmaku(DanmakuDto danmakuDto);
+    int saveDanmaku(DanmakuDto danmakuDto,int bgmUserId);
 }

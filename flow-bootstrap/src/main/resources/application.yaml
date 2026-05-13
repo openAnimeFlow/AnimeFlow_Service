@@ -35,7 +35,7 @@ anime-flow:
     client_id: ${CLIENT_ID}
     client_secret: ${CLIENT_SECRET}
     redirect_uri: ${REDIRECT_URI}
-
+    user-agent: openAnimeFlow/AnimeFlow_Service (https://github.com/openAnimeFlow/AnimeFlow_Service) #bangumi使用共的 User Agent(官方要求)
   ## 接口限流
   rate-limit:
     enabled: true

@@ -43,9 +43,9 @@ public class DanmakuEntity {
     private Integer type;
 
     /**
-     * bgm_id
+     * bgm_user_id
      */
-    private Integer bgmId;
+    private Integer bgmUserId;
 
     /**
      * 弹幕来源([BiliBili], [Gamer])

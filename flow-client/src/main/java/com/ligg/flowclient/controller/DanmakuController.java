@@ -1,17 +1,21 @@
 package com.ligg.flowclient.controller;
 
+import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.api.dandanplayapi.DandanplayClient;
 import com.ligg.common.statuenum.ResponseCode;
+import com.ligg.common.vo.BangumiUserinfoVO;
 import com.ligg.common.vo.dandanplay.BangumiDetailVo;
 import com.ligg.common.vo.dandanplay.DandanplayCommentVo;
 import com.ligg.common.vo.dandanplay.DanmakuEpisodeVo;
 import com.ligg.common.vo.dandanplay.DanmakuSearchVo;
 import com.ligg.flowclient.annotation.DanmakuSendRateLimit;
+import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.module.dto.DanmakuDto;
 import com.ligg.common.response.Result;
 import com.ligg.flowclient.service.DanmakuService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
@@ -24,22 +28,26 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 @Validated
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/v1/danmaku")
 public class DanmakuController {
 
-    @Autowired
-    private DanmakuService danmakuService;
+    private final DanmakuService danmakuService;
 
-    @Autowired
-    private DandanplayClient dandanplayClient;
+    private final DandanplayClient dandanplayClient;
+    private final BangumiClient bangumiClient;
+
 
     /**
      * 添加弹幕
      */
     @PostMapping
     @DanmakuSendRateLimit
-    public Result<String> addDanmaku(@Valid DanmakuDto danmakuDto) {
-        danmakuService.saveDanmaku(danmakuDto);
+    public Result<String> addDanmaku(@Valid DanmakuDto danmakuDto,
+                                     @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken
+    ) {
+        BangumiUserinfoVO bgmUserInfo = bangumiClient.getMe(accessToken);
+        danmakuService.saveDanmaku(danmakuDto, bgmUserInfo.id());
         return Result.success();
     }
 

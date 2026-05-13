@@ -16,7 +16,7 @@ package com.ligg.common.vo;
  * @author Ligg
  */
 public record BangumiUserinfoVO(
-        Long id,
+        Integer id,
         String username,
         String nickname,
         Avatar avatar,
