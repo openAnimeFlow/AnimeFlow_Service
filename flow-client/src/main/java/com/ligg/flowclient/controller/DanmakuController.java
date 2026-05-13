@@ -3,6 +3,7 @@ package com.ligg.flowclient.controller;
 import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.api.dandanplayapi.DandanplayClient;
 import com.ligg.common.statuenum.ResponseCode;
+import com.ligg.common.vo.AnimeFlowDanmakuItemVo;
 import com.ligg.common.vo.BangumiUserinfoVO;
 import com.ligg.common.vo.dandanplay.DandanplayBangumiDetailVo;
 import com.ligg.common.vo.dandanplay.DandanplayCommentVo;
@@ -19,6 +20,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -59,8 +63,16 @@ public class DanmakuController {
                                                   @RequestParam(defaultValue = "0") int chConvert) {
 
         DandanplayCommentVo danmakuVoList = dandanplayClient.getDanmaku(episodeId, withRelated, chConvert);
-        //TODO 后续添加自己服务的弹幕信息
-        return Result.success(ResponseCode.SUCCESS, danmakuVoList);
+        if (danmakuVoList == null) {
+            danmakuVoList = new DandanplayCommentVo(0, List.of());
+        }
+        List<DandanplayCommentVo.DanmakuVo> merged = new ArrayList<>(
+                danmakuVoList.comments() != null ? danmakuVoList.comments() : List.of());
+        for (AnimeFlowDanmakuItemVo item : danmakuService.queryDanmaku(episodeId)) {
+            merged.add(new DandanplayCommentVo.DanmakuVo(item.cid(), item.p(), item.m(), item.bgmUserId()));
+        }
+        DandanplayCommentVo result = new DandanplayCommentVo(merged.size(), merged);
+        return Result.success(ResponseCode.SUCCESS, result);
     }
 
     /**

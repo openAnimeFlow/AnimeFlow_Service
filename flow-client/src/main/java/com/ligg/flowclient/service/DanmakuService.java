@@ -2,7 +2,10 @@ package com.ligg.flowclient.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.ligg.common.entity.DanmakuEntity;
+import com.ligg.common.vo.AnimeFlowDanmakuItemVo;
 import com.ligg.flowclient.module.dto.DanmakuDto;
+
+import java.util.List;
 
 public interface DanmakuService extends IService<DanmakuEntity> {
 
@@ -15,5 +18,8 @@ public interface DanmakuService extends IService<DanmakuEntity> {
      */
     int saveDanmaku(DanmakuDto danmakuDto,int bgmUserId);
 
-
+    /**
+     * 查询本站弹幕（已拼好弹弹兼容的 {@code p} 等字段）。
+     */
+    List<AnimeFlowDanmakuItemVo> queryDanmaku(Integer episodeId);
 }
