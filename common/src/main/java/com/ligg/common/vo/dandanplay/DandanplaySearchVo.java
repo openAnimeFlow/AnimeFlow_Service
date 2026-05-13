@@ -7,7 +7,7 @@ package com.ligg.common.vo.dandanplay;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public record DanmakuSearchVo(
+public record DandanplaySearchVo(
         List<Animes> animes,
         int errorCode,
         boolean success,

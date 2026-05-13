@@ -14,4 +14,6 @@ public interface DanmakuService extends IService<DanmakuEntity> {
      * @return 是否保存成功
      */
     int saveDanmaku(DanmakuDto danmakuDto,int bgmUserId);
+
+
 }

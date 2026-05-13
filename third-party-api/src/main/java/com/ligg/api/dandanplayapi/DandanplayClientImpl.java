@@ -6,10 +6,10 @@ package com.ligg.api.dandanplayapi;
 
 import com.ligg.common.constants.DandanPlayApi;
 import com.ligg.common.exception.LoginExpiredException;
-import com.ligg.common.vo.dandanplay.BangumiDetailVo;
+import com.ligg.common.vo.dandanplay.DandanplayBangumiDetailVo;
 import com.ligg.common.vo.dandanplay.DandanplayCommentVo;
-import com.ligg.common.vo.dandanplay.DanmakuEpisodeVo;
-import com.ligg.common.vo.dandanplay.DanmakuSearchVo;
+import com.ligg.common.vo.dandanplay.DandanplayEpisodeVo;
+import com.ligg.common.vo.dandanplay.DandanplaySearchVo;
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -81,9 +81,9 @@ public class DandanplayClientImpl implements DandanplayClient {
     }
 
     @Override
-    public DanmakuSearchVo searchAnimes(String keyword, Integer type) {
+    public DandanplaySearchVo searchAnimes(String keyword, Integer type) {
         try {
-            ResponseEntity<DanmakuSearchVo> response = webClient.get()
+            ResponseEntity<DandanplaySearchVo> response = webClient.get()
                     .uri(uriBuilder -> {
                         var b = uriBuilder.path(DandanPlayApi.DANDAN_API_SEARCH_ANIME)
                                 .queryParam("keyword", keyword);
@@ -93,7 +93,7 @@ public class DandanplayClientImpl implements DandanplayClient {
                         return b.build();
                     })
                     .retrieve()
-                    .toEntity(DanmakuSearchVo.class)
+                    .toEntity(DandanplaySearchVo.class)
                     .block(REQUEST_TIMEOUT);
             log.info("弹弹play 搜索番剧响应状态码: {}", response.getStatusCode().value());
             return response.getBody();
@@ -106,12 +106,12 @@ public class DandanplayClientImpl implements DandanplayClient {
     }
 
     @Override
-    public BangumiDetailVo getBangumiDetail(@NotNull int bangumiId) {
+    public DandanplayBangumiDetailVo getBangumiDetail(@NotNull int bangumiId) {
         try {
-            ResponseEntity<BangumiDetailVo> response = webClient.get()
+            ResponseEntity<DandanplayBangumiDetailVo> response = webClient.get()
                     .uri(uriBuilder -> uriBuilder.path(DandanPlayApi.DANDAN_API_ELEMENT + '/' + bangumiId).build())
                     .retrieve()
-                    .toEntity(BangumiDetailVo.class)
+                    .toEntity(DandanplayBangumiDetailVo.class)
                     .block(REQUEST_TIMEOUT);
             log.info("弹弹play 获取番剧详情响应状态码: {}", response.getStatusCode().value());
             return response.getBody();
@@ -124,12 +124,12 @@ public class DandanplayClientImpl implements DandanplayClient {
     }
 
     @Override
-    public DanmakuEpisodeVo getBangumiDetailByBangumiId(@NotNull int bangumiId) {
+    public DandanplayEpisodeVo getBangumiDetailByBangumiId(@NotNull int bangumiId) {
         try {
-            ResponseEntity<DanmakuEpisodeVo> response = webClient.get()
+            ResponseEntity<DandanplayEpisodeVo> response = webClient.get()
                     .uri(uriBuilder -> uriBuilder.path(DandanPlayApi.DANDAN_API_ELEMENT_BY_BANGUMI_ID + '/' + bangumiId).build())
                     .retrieve()
-                    .toEntity(DanmakuEpisodeVo.class)
+                    .toEntity(DandanplayEpisodeVo.class)
                     .block(REQUEST_TIMEOUT);
             return response.getBody();
         } catch (WebClientResponseException e) {

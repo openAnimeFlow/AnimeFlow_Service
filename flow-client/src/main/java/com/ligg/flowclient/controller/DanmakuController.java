@@ -4,10 +4,10 @@ import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.api.dandanplayapi.DandanplayClient;
 import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.common.vo.BangumiUserinfoVO;
-import com.ligg.common.vo.dandanplay.BangumiDetailVo;
+import com.ligg.common.vo.dandanplay.DandanplayBangumiDetailVo;
 import com.ligg.common.vo.dandanplay.DandanplayCommentVo;
-import com.ligg.common.vo.dandanplay.DanmakuEpisodeVo;
-import com.ligg.common.vo.dandanplay.DanmakuSearchVo;
+import com.ligg.common.vo.dandanplay.DandanplayEpisodeVo;
+import com.ligg.common.vo.dandanplay.DandanplaySearchVo;
 import com.ligg.flowclient.annotation.DanmakuSendRateLimit;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.module.dto.DanmakuDto;
@@ -17,7 +17,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -68,8 +67,8 @@ public class DanmakuController {
      * 搜索番剧
      */
     @GetMapping("/search")
-    public Result<DanmakuSearchVo> searchAnimes(@RequestParam String keyword,
-                                                @RequestParam(defaultValue = "1") Integer type) {
+    public Result<DandanplaySearchVo> searchAnimes(@RequestParam String keyword,
+                                                   @RequestParam(defaultValue = "1") Integer type) {
         return Result.success(ResponseCode.SUCCESS, dandanplayClient.searchAnimes(keyword, type));
     }
 
@@ -77,7 +76,7 @@ public class DanmakuController {
      * 搜索番剧详情
      */
     @GetMapping("/bangumi/{bangumiId}")
-    public Result<BangumiDetailVo> getBangumiDetail(@PathVariable @NotNull(message = "bangumiId 不能为空") Integer bangumiId) {
+    public Result<DandanplayBangumiDetailVo> getBangumiDetail(@PathVariable @NotNull(message = "bangumiId 不能为空") Integer bangumiId) {
         return Result.success(ResponseCode.SUCCESS, dandanplayClient.getBangumiDetail(bangumiId));
     }
 
@@ -85,7 +84,7 @@ public class DanmakuController {
      * 根据bangumiId获取番剧元素
      */
     @GetMapping("/bangumi/bgmtv/{bangumiId}")
-    public Result<DanmakuEpisodeVo> getBangumiEpisode(@PathVariable @NotNull(message = "bangumiId 不能为空") Integer bangumiId) {
+    public Result<DandanplayEpisodeVo> getBangumiEpisode(@PathVariable @NotNull(message = "bangumiId 不能为空") Integer bangumiId) {
         return Result.success(ResponseCode.SUCCESS, dandanplayClient.getBangumiDetailByBangumiId(bangumiId));
     }
 }

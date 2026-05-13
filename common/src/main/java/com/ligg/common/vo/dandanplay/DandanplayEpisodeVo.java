@@ -6,8 +6,8 @@
  */
 package com.ligg.common.vo.dandanplay;
 
-public record DanmakuEpisodeVo(
-        DanmakuDetailVo bangumi,
+public record DandanplayEpisodeVo(
+        DandanplayDetailVo bangumi,
         int errorCode,
         boolean success,
         String errorMessage) {

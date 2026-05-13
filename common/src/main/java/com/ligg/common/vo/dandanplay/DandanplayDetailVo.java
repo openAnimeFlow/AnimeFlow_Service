@@ -11,12 +11,12 @@ import java.util.List;
 import java.util.Map;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record DanmakuDetailVo(
+public record DandanplayDetailVo(
         String type,
         String typeDescription,
-        List<DanmakuDetailVo.TitleVo> titles,
-        List<DanmakuDetailVo.SeasonVo> seasons,
-        List<DanmakuDetailVo.EpisodeVo> episodes,
+        List<DandanplayDetailVo.TitleVo> titles,
+        List<DandanplayDetailVo.SeasonVo> seasons,
+        List<DandanplayDetailVo.EpisodeVo> episodes,
         String summary,
         String intro,
         List<String> metadata,
@@ -25,11 +25,11 @@ public record DanmakuDetailVo(
         Boolean favoriteStatus,
         String comment,
         Map<String, Double> ratingDetails,
-        List<DanmakuDetailVo.ListAnimeVo> relateds,
-        List<DanmakuDetailVo.ListAnimeVo> similars,
-        List<DanmakuDetailVo.TagVo> tags,
-        List<DanmakuDetailVo.OnlineDatabaseVo> onlineDatabases,
-        List<DanmakuDetailVo.TrailerVo> trailers,
+        List<DandanplayDetailVo.ListAnimeVo> relateds,
+        List<DandanplayDetailVo.ListAnimeVo> similars,
+        List<DandanplayDetailVo.TagVo> tags,
+        List<DandanplayDetailVo.OnlineDatabaseVo> onlineDatabases,
+        List<DandanplayDetailVo.TrailerVo> trailers,
         int animeId,
         String bangumiId,
         String animeTitle,
