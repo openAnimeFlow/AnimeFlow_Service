@@ -1,5 +1,6 @@
 package com.ligg.common.handler;
 
+import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.exception.AuthorizationException;
 import com.ligg.common.exception.RateLimitExceededException;
@@ -133,6 +134,15 @@ public class GlobalExceptionHandler {
     public Result<Void> handleBangumiLoginExpired(LoginExpiredException e) {
         log.warn("Bangumi 登录过期: {}", e.getMessage());
         return Result.error(ResponseCode.UNAUTHORIZED, "登录已过期，请重新登录");
+    }
+
+    /**
+     * Bangumi Next API 超时或网络异常等（非 401）
+     */
+    @ExceptionHandler(BangumiUpstreamException.class)
+    public Result<Void> handleBangumiUpstream(BangumiUpstreamException e) {
+        log.warn("Bangumi 上游不可用: {}", e.getMessage());
+        return Result.error(ResponseCode.ERROR, e.getMessage());
     }
 
     /**
