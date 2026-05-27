@@ -4,6 +4,7 @@
  */
 package com.ligg.api.bangumiapi;
 
+import com.ligg.common.thirdparty.CalendarDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
 
 public interface BangumiClient {
@@ -11,4 +12,9 @@ public interface BangumiClient {
      * 获取当前用户信息
      */
     BangumiUserinfoVO getMe(String accessToken);
+
+    /**
+     * 获取每日放送
+     */
+    CalendarDto getCalendar();
 }
