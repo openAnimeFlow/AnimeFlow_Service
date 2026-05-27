@@ -6,6 +6,7 @@ package com.ligg.api.bangumiapi;
 
 import com.ligg.common.thirdparty.CalendarDto;
 import com.ligg.common.thirdparty.SubjectDetailDto;
+import com.ligg.common.thirdparty.SubjectEpisodesDto;
 import com.ligg.common.thirdparty.TrendingSubjectsDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
 
@@ -33,4 +34,9 @@ public interface BangumiClient {
      * 获取条目详情；{@code accessToken} 为空时不带 Bearer，响应不含 {@code interest}。
      */
     SubjectDetailDto getSubject(int subjectId, String accessToken);
+
+    /**
+     * 获取条目章节列表
+     */
+    SubjectEpisodesDto getSubjectEpisodes(int subjectId, int limit, int offset);
 }

@@ -10,6 +10,7 @@ import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.thirdparty.CalendarDto;
 import com.ligg.common.thirdparty.SubjectDetailDto;
+import com.ligg.common.thirdparty.SubjectEpisodesDto;
 import com.ligg.common.thirdparty.TrendingSubjectsDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
 import lombok.extern.slf4j.Slf4j;
@@ -95,6 +96,19 @@ public class BangumiClientImpl implements BangumiClient {
             request = request.headers(headers -> headers.setBearerAuth(accessToken));
         }
         return blockBangumi(request.retrieve().bodyToMono(SubjectDetailDto.class));
+    }
+
+    @Override
+    public SubjectEpisodesDto getSubjectEpisodes(int subjectId, int limit, int offset) {
+        log.info("获取条目章节 subjectId={} limit={} offset={}", subjectId, limit, offset);
+        return blockBangumi(bangumiNextClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path(BangumiApiPath.P1_SUBJECT_EPISODES)
+                        .queryParam("limit", limit)
+                        .queryParam("offset", offset)
+                        .build(subjectId))
+                .retrieve()
+                .bodyToMono(SubjectEpisodesDto.class));
     }
 
     private <T> T blockBangumi(Mono<T> mono) {

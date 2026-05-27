@@ -22,4 +22,9 @@ public class BangumiApiPath {
      * 条目详情，{@code {subjectId}} 为 Bangumi subject id
      */
     public static final String P1_SUBJECT = "/p1/subjects/{subjectId}";
+
+    /**
+     * 条目章节列表
+     */
+    public static final String P1_SUBJECT_EPISODES = "/p1/subjects/{subjectId}/episodes";
 }

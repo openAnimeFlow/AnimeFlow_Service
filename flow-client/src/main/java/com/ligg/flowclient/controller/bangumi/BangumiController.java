@@ -9,10 +9,12 @@ import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.common.thirdparty.CalendarDto;
 import com.ligg.common.thirdparty.SubjectDetailDto;
+import com.ligg.common.thirdparty.SubjectEpisodesDto;
 import com.ligg.common.thirdparty.TrendingSubjectsDto;
 import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.bangumi.CalendarVo;
 import com.ligg.common.vo.bangumi.SubjectDetailVo;
+import com.ligg.common.vo.bangumi.SubjectEpisodesVo;
 import com.ligg.common.vo.bangumi.TrendingSubjectsVo;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import jakarta.validation.constraints.NotNull;
@@ -91,6 +93,20 @@ public class BangumiController {
         SubjectDetailDto dto = bangumiClient.getSubject(subjectId, accessToken);
         Utils.applyWsrvCdnInPlace(dto.getImages());
         SubjectDetailVo vo = new SubjectDetailVo();
+        BeanUtils.copyProperties(dto, vo);
+        return Result.success(ResponseCode.SUCCESS, vo);
+    }
+
+    /**
+     * 条目章节列表
+     */
+    @GetMapping("/subjects/{subjectId}/episodes")
+    public Result<SubjectEpisodesVo> subjectEpisodes(
+            @NotNull @PathVariable int subjectId,
+            @RequestParam(defaultValue = "100") int limit,
+            @RequestParam(defaultValue = "0") int offset) {
+        SubjectEpisodesDto dto = bangumiClient.getSubjectEpisodes(subjectId, limit, offset);
+        SubjectEpisodesVo vo = new SubjectEpisodesVo();
         BeanUtils.copyProperties(dto, vo);
         return Result.success(ResponseCode.SUCCESS, vo);
     }
