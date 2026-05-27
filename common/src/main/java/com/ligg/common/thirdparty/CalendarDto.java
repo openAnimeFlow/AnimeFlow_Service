@@ -7,7 +7,6 @@ package com.ligg.common.thirdparty;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.ligg.common.model.CoverImages;
 import lombok.Data;
 
 import java.util.LinkedHashMap;
@@ -36,28 +35,7 @@ public class CalendarDto {
 
     @Data
     public static class Entry {
-        private Subject subject;
+        private BangumiSubject subject;
         private Integer watchers;
-    }
-
-    @Data
-    public static class Subject {
-        private Integer id;
-        private String name;
-        private String nameCN;
-        private Integer type;
-        private String info;
-        private Rating rating;
-        private Boolean locked;
-        private Boolean nsfw;
-        private CoverImages images;
-    }
-
-    @Data
-    public static class Rating {
-        private Integer rank;
-        private List<Integer> count;
-        private Double score;
-        private Integer total;
     }
 }

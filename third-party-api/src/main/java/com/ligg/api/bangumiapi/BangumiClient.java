@@ -5,6 +5,7 @@
 package com.ligg.api.bangumiapi;
 
 import com.ligg.common.thirdparty.CalendarDto;
+import com.ligg.common.thirdparty.TrendingSubjectsDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
 
 public interface BangumiClient {
@@ -17,4 +18,13 @@ public interface BangumiClient {
      * 获取每日放送
      */
     CalendarDto getCalendar();
+
+    /**
+     * 获取趋势条目
+     *
+     * @param type   条目类型，2=动画
+     * @param limit  每页条数
+     * @param offset 偏移量
+     */
+    TrendingSubjectsDto getTrendingSubjects(int type, int limit, int offset);
 }

@@ -12,4 +12,9 @@ public class BangumiApiPath {
      * 获取每日放送
      */
     public static final String P1_CALENDAR = "/p1/calendar";
+
+    /**
+     * 趋势条目（如 type=2 为动画）
+     */
+    public static final String P1_TRENDING_SUBJECTS = "/p1/trending/subjects";
 }

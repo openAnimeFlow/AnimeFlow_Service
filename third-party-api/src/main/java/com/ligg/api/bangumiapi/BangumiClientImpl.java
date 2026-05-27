@@ -9,6 +9,7 @@ import com.ligg.common.constants.ApiConstant;
 import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.thirdparty.CalendarDto;
+import com.ligg.common.thirdparty.TrendingSubjectsDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -68,6 +69,20 @@ public class BangumiClientImpl implements BangumiClient {
                 .uri(BangumiApiPath.P1_CALENDAR)
                 .retrieve()
                 .bodyToMono(CalendarDto.class));
+    }
+
+    @Override
+    public TrendingSubjectsDto getTrendingSubjects(int type, int limit, int offset) {
+        log.info("获取趋势条目 type={} limit={} offset={}", type, limit, offset);
+        return blockBangumi(bangumiNextClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path(BangumiApiPath.P1_TRENDING_SUBJECTS)
+                        .queryParam("type", type)
+                        .queryParam("limit", limit)
+                        .queryParam("offset", offset)
+                        .build())
+                .retrieve()
+                .bodyToMono(TrendingSubjectsDto.class));
     }
 
     private <T> T blockBangumi(Mono<T> mono) {
