@@ -36,7 +36,7 @@ public class DanmakuServiceImpl extends ServiceImpl<DanmakuMapper, DanmakuEntity
         danmakuEntity.setCreateTime(LocalDateTime.now());
         danmakuEntity.setBgmUserId(bgmUserId);
         // 目前默认直接设置来源为AnimeFlow，后续可以根据实际情况进行调整
-        danmakuEntity.setSource("AnimeFlow");
+        danmakuEntity.setSource("[AnimeFlow]");
         return danmakuMapper.insert(danmakuEntity);
     }
 
