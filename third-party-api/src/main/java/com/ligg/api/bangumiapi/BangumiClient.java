@@ -5,6 +5,7 @@
 package com.ligg.api.bangumiapi;
 
 import com.ligg.common.thirdparty.CalendarDto;
+import com.ligg.common.thirdparty.SubjectDetailDto;
 import com.ligg.common.thirdparty.TrendingSubjectsDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
 
@@ -27,4 +28,9 @@ public interface BangumiClient {
      * @param offset 偏移量
      */
     TrendingSubjectsDto getTrendingSubjects(int type, int limit, int offset);
+
+    /**
+     * 获取条目详情；{@code accessToken} 为空时不带 Bearer，响应不含 {@code interest}。
+     */
+    SubjectDetailDto getSubject(int subjectId, String accessToken);
 }

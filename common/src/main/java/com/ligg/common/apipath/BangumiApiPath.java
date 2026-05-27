@@ -17,4 +17,9 @@ public class BangumiApiPath {
      * 趋势条目（如 type=2 为动画）
      */
     public static final String P1_TRENDING_SUBJECTS = "/p1/trending/subjects";
+
+    /**
+     * 条目详情，{@code {subjectId}} 为 Bangumi subject id
+     */
+    public static final String P1_SUBJECT = "/p1/subjects/{subjectId}";
 }

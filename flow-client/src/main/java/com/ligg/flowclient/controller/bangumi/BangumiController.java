@@ -8,19 +8,27 @@ import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.common.thirdparty.CalendarDto;
+import com.ligg.common.thirdparty.SubjectDetailDto;
 import com.ligg.common.thirdparty.TrendingSubjectsDto;
 import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.bangumi.CalendarVo;
+import com.ligg.common.vo.bangumi.SubjectDetailVo;
 import com.ligg.common.vo.bangumi.TrendingSubjectsVo;
+import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+@Validated
 @RestController
 @RequestMapping("/api/v1/bangumi")
 @RequiredArgsConstructor
@@ -68,6 +76,21 @@ public class BangumiController {
             }
         }
         TrendingSubjectsVo vo = new TrendingSubjectsVo();
+        BeanUtils.copyProperties(dto, vo);
+        return Result.success(ResponseCode.SUCCESS, vo);
+    }
+
+    /**
+     * 条目详情；携带 Authorization Bearer 时返回当前用户 {@code interest}，否则不含该字段。
+     */
+    @GetMapping("/subjects/{subjectId}")
+    public Result<SubjectDetailVo> subjectDetail(
+            @NotNull @PathVariable int subjectId,
+            @RequestAttribute(name = AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, required = false)
+            String accessToken) {
+        SubjectDetailDto dto = bangumiClient.getSubject(subjectId, accessToken);
+        Utils.applyWsrvCdnInPlace(dto.getImages());
+        SubjectDetailVo vo = new SubjectDetailVo();
         BeanUtils.copyProperties(dto, vo);
         return Result.success(ResponseCode.SUCCESS, vo);
     }

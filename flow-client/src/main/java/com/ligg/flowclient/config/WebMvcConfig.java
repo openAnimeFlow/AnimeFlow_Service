@@ -2,6 +2,7 @@ package com.ligg.flowclient.config;
 
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.interceptor.IpRateLimitInterceptor;
+import com.ligg.flowclient.interceptor.OptionalAuthorizationInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
@@ -17,6 +18,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebMvcConfig implements WebMvcConfigurer {
 
     private final AuthorizationInterceptor authorizationInterceptor;
+    private final OptionalAuthorizationInterceptor optionalAuthorizationInterceptor;
     private final IpRateLimitInterceptor ipRateLimitInterceptor;
     private final RateLimitProperties rateLimitProperties;
 
@@ -31,5 +33,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .addPathPatterns("/api/forum/comment/**", "/api/v1/danmaku")
                 .excludePathPatterns("/api/forum/comment/list")
                 .order(1);
+
+        registry.addInterceptor(optionalAuthorizationInterceptor)
+                .addPathPatterns("/api/v1/bangumi/subjects/**")
+                .order(2);
     }
 }

@@ -9,11 +9,13 @@ import com.ligg.common.constants.ApiConstant;
 import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.thirdparty.CalendarDto;
+import com.ligg.common.thirdparty.SubjectDetailDto;
 import com.ligg.common.thirdparty.TrendingSubjectsDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.util.StringUtils;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -83,6 +85,16 @@ public class BangumiClientImpl implements BangumiClient {
                         .build())
                 .retrieve()
                 .bodyToMono(TrendingSubjectsDto.class));
+    }
+
+    @Override
+    public SubjectDetailDto getSubject(int subjectId, String accessToken) {
+        log.info("获取条目详情 subjectId={} withAuth={}", subjectId, StringUtils.hasText(accessToken));
+        var request = bangumiNextClient.get().uri(BangumiApiPath.P1_SUBJECT, subjectId);
+        if (StringUtils.hasText(accessToken)) {
+            request = request.headers(headers -> headers.setBearerAuth(accessToken));
+        }
+        return blockBangumi(request.retrieve().bodyToMono(SubjectDetailDto.class));
     }
 
     private <T> T blockBangumi(Mono<T> mono) {

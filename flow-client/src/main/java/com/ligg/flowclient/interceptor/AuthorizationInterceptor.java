@@ -37,15 +37,33 @@ public class AuthorizationInterceptor implements HandlerInterceptor {
             throw new AuthorizationException("缺少或无效的访问令牌");
         }
 
+        attachAccessToken(request, authorization, accessToken);
+        return true;
+    }
+
+    /**
+     * 若存在 Authorization 请求头则解析 Bearer token 并写入 attribute；无请求头时不抛错。
+     */
+    public static void attachAccessTokenIfPresent(HttpServletRequest request) {
+        String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (!StringUtils.hasText(authorization)) {
+            return;
+        }
+        String accessToken = parseBearerAccessToken(authorization);
+        if (StringUtils.hasText(accessToken)) {
+            attachAccessToken(request, authorization, accessToken);
+        }
+    }
+
+    private static void attachAccessToken(HttpServletRequest request, String authorization, String accessToken) {
         request.setAttribute(AUTHORIZATION_REQUEST_ATTRIBUTE, authorization);
         request.setAttribute(ACCESS_TOKEN_REQUEST_ATTRIBUTE, accessToken);
-        return true;
     }
 
     /**
      * 从 Authorization 取值中解析 access_token（不含 {@code Bearer } 前缀）。
      */
-    private static String parseBearerAccessToken(String authorization) {
+    public static String parseBearerAccessToken(String authorization) {
         String v = authorization.trim();
         if (v.regionMatches(true, 0, "Bearer ", 0, 7)) {
             return v.substring(7).trim();
