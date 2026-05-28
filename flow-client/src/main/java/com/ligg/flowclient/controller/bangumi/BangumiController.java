@@ -123,6 +123,69 @@ public class BangumiController {
             @RequestParam(defaultValue = "2") int type,
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month) {
+        if (page >= 1 && page <= BangumiConstants.BANGUMI_SUBJECTS_MAX_CACHE_PAGE) {
+            String yearKey = year != null ? year.toString() : "none";
+            String monthKey = month != null ? month.toString() : "none";
+            String cacheKey = BangumiConstants.BANGUMI_SUBJECTS_CACHE_KEY_PREFIX + ':' + sort + ':' + type + ':'
+                    + yearKey + ':' + monthKey + ":page:" + page;
+            String lockKey = cacheKey + ":lock";
+            long deadline = System.currentTimeMillis() + BangumiConstants.BANGUMI_CALENDAR_CACHE_WAIT_MILLIS;
+            while (true) {
+                Object cached = redisTemplate.opsForValue().get(cacheKey);
+                if (cached instanceof SubjectsVo subjectsVo) {
+                    log.info("条目列表(命中缓存), sort={}, page={}, type={}, year={}, month={}", sort, page, type, year, month);
+                    return Result.success(ResponseCode.SUCCESS, subjectsVo);
+                }
+
+                Boolean locked = redisTemplate.opsForValue().setIfAbsent(
+                        lockKey,
+                        "1",
+                        BangumiConstants.BANGUMI_CALENDAR_LOCK_TTL_SECONDS,
+                        TimeUnit.SECONDS
+                );
+                if (Boolean.TRUE.equals(locked)) {
+                    try {
+                        cached = redisTemplate.opsForValue().get(cacheKey);
+                        if (cached instanceof SubjectsVo subjectsVo) {
+                            log.info("条目列表(命中缓存), sort={}, page={}, type={}, year={}, month={}", sort, page, type, year, month);
+                            return Result.success(ResponseCode.SUCCESS, subjectsVo);
+                        }
+
+                        SubjectsDto dto = bangumiClient.getSubjects(sort, page, type, year, month);
+                        if (dto.getData() != null) {
+                            for (var subject : dto.getData()) {
+                                if (subject == null) {
+                                    continue;
+                                }
+                                Utils.applyWsrvCdnInPlace(subject.getImages());
+                            }
+                        }
+                        SubjectsVo vo = new SubjectsVo();
+                        BeanUtils.copyProperties(dto, vo);
+                        redisTemplate.opsForValue().set(
+                                cacheKey,
+                                vo,
+                                BangumiConstants.BANGUMI_SUBJECTS_CACHE_TTL_SECONDS,
+                                TimeUnit.SECONDS
+                        );
+                        return Result.success(ResponseCode.SUCCESS, vo);
+                    } finally {
+                        redisTemplate.delete(lockKey);
+                    }
+                }
+
+                if (System.currentTimeMillis() >= deadline) {
+                    throw new BangumiUpstreamException("获取条目列表超时，请稍后重试");
+                }
+                try {
+                    Thread.sleep(BangumiConstants.BANGUMI_CALENDAR_CACHE_POLL_INTERVAL_MILLIS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new BangumiUpstreamException("获取条目列表被中断", e);
+                }
+            }
+        }
+
         SubjectsDto dto = bangumiClient.getSubjects(sort, page, type, year, month);
         if (dto.getData() != null) {
             for (var subject : dto.getData()) {

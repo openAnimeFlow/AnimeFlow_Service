@@ -49,4 +49,19 @@ public class BangumiConstants {
      * Bangumi 趋势条目缓存时长（秒）
      */
     public static final long BANGUMI_TRENDING_CACHE_TTL_SECONDS = 900;
+
+    /**
+     * Bangumi 条目列表缓存键前缀
+     */
+    public static final String BANGUMI_SUBJECTS_CACHE_KEY_PREFIX = "bangumi:subjects";
+
+    /**
+     * Bangumi 条目列表最多缓存页数
+     */
+    public static final int BANGUMI_SUBJECTS_MAX_CACHE_PAGE = 10;
+
+    /**
+     * Bangumi 条目列表缓存时长（秒）
+     */
+    public static final long BANGUMI_SUBJECTS_CACHE_TTL_SECONDS = 1800;
 }
