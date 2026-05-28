@@ -5,6 +5,7 @@
 package com.ligg.api.bangumiapi;
 
 import com.ligg.common.thirdparty.CalendarDto;
+import com.ligg.common.thirdparty.EpisodeCommentsDto;
 import com.ligg.common.thirdparty.SubjectDetailDto;
 import com.ligg.common.thirdparty.SubjectEpisodesDto;
 import com.ligg.common.thirdparty.SubjectsDto;
@@ -51,4 +52,9 @@ public interface BangumiClient {
      * 获取条目章节列表
      */
     SubjectEpisodesDto getSubjectEpisodes(int subjectId, int limit, int offset);
+
+    /**
+     * 获取章节评论列表
+     */
+    EpisodeCommentsDto getEpisodeComments(long episodeId);
 }

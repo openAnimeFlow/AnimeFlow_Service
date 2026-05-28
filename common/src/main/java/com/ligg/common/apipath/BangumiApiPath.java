@@ -27,4 +27,9 @@ public class BangumiApiPath {
      * 条目章节列表
      */
     public static final String P1_SUBJECT_EPISODES = "/p1/subjects/{subjectId}/episodes";
+
+    /**
+     * 章节评论列表，{@code {episodeId}} 为 Bangumi episode id
+     */
+    public static final String P1_EPISODE_COMMENTS = "/p1/episodes/{episodeId}/comments";
 }

@@ -8,6 +8,7 @@ import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.common.thirdparty.CalendarDto;
+import com.ligg.common.thirdparty.EpisodeCommentDto;
 import com.ligg.common.thirdparty.SubjectDetailDto;
 import com.ligg.common.thirdparty.SubjectEpisodesDto;
 import com.ligg.common.thirdparty.SubjectsDto;
@@ -30,6 +31,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 
 @Validated
@@ -135,5 +138,26 @@ public class BangumiController {
         SubjectEpisodesVo vo = new SubjectEpisodesVo();
         BeanUtils.copyProperties(dto, vo);
         return Result.success(ResponseCode.SUCCESS, vo);
+    }
+
+    /**
+     * 章节评论列表
+     */
+    @GetMapping("/episodes/{episodeId}/comments")
+    public Result<List<EpisodeCommentDto>> episodeComments(@NotNull @PathVariable long episodeId) {
+        List<EpisodeCommentDto> comments = bangumiClient.getEpisodeComments(episodeId).getData();
+        if (comments != null) {
+            Deque<EpisodeCommentDto> pending = new ArrayDeque<>(comments);
+            while (!pending.isEmpty()) {
+                EpisodeCommentDto comment = pending.pop();
+                if (comment.getUser() != null) {
+                    Utils.applyWsrvCdnInPlace(comment.getUser().getAvatar());
+                }
+                if (comment.getReplies() != null) {
+                    pending.addAll(comment.getReplies());
+                }
+            }
+        }
+        return Result.success(ResponseCode.SUCCESS, comments);
     }
 }

@@ -9,6 +9,8 @@ import com.ligg.common.constants.ApiConstant;
 import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.thirdparty.CalendarDto;
+import com.ligg.common.thirdparty.EpisodeCommentDto;
+import com.ligg.common.thirdparty.EpisodeCommentsDto;
 import com.ligg.common.thirdparty.SubjectDetailDto;
 import com.ligg.common.thirdparty.SubjectEpisodesDto;
 import com.ligg.common.thirdparty.SubjectsDto;
@@ -16,10 +18,12 @@ import com.ligg.common.thirdparty.TrendingSubjectsDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.util.StringUtils;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -28,6 +32,7 @@ import reactor.netty.http.client.HttpClient;
 
 import java.net.SocketTimeoutException;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
 
 import io.netty.handler.timeout.ReadTimeoutException;
@@ -39,12 +44,19 @@ public class BangumiClientImpl implements BangumiClient {
     private final Duration requestTimeout;
     private final WebClient bangumiNextClient;
 
+    private static final int MAX_IN_MEMORY_BODY_BYTES = 10 * 1024 * 1024;
+
+    private static final ExchangeStrategies DANDAN_EXCHANGE_STRATEGIES = ExchangeStrategies.builder()
+            .codecs(c -> c.defaultCodecs().maxInMemorySize(MAX_IN_MEMORY_BODY_BYTES))
+            .build();
+
     public BangumiClientImpl(
             @Value("${anime-flow.bangumi.user-agent}") String bangumiUserAgent,
             @Value("${anime-flow.bangumi.request-timeout-seconds:30}") int requestTimeoutSeconds) {
         this.requestTimeout = Duration.ofSeconds(Math.max(5, requestTimeoutSeconds));
         HttpClient reactorHttpClient = HttpClient.create().responseTimeout(this.requestTimeout);
         this.bangumiNextClient = WebClient.builder()
+                .exchangeStrategies(DANDAN_EXCHANGE_STRATEGIES)
                 .clientConnector(new ReactorClientHttpConnector(reactorHttpClient))
                 .baseUrl(BangumiApiPath.BANGUMI_NEXT_API_BASE_URL)
                 .defaultHeader(HttpHeaders.USER_AGENT, bangumiUserAgent)
@@ -132,6 +144,20 @@ public class BangumiClientImpl implements BangumiClient {
                         .build(subjectId))
                 .retrieve()
                 .bodyToMono(SubjectEpisodesDto.class));
+    }
+
+    @Override
+    public EpisodeCommentsDto getEpisodeComments(long episodeId) {
+        log.info("获取章节评论 episodeId={}", episodeId);
+        return blockBangumi(bangumiNextClient.get()
+                .uri(BangumiApiPath.P1_EPISODE_COMMENTS, episodeId)
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<List<EpisodeCommentDto>>() {})
+                .map(comments -> {
+                    EpisodeCommentsDto dto = new EpisodeCommentsDto();
+                    dto.setData(comments);
+                    return dto;
+                }));
     }
 
     private <T> T blockBangumi(Mono<T> mono) {

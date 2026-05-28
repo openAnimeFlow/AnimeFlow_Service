@@ -6,7 +6,7 @@ import lombok.Data;
  * Bangumi 等第三方常用的五档封面图 URL（large / common / medium / small / grid）。
  */
 @Data
-public class CoverImages {
+public class CoverImages implements ImageUrls {
 
     private String large;
     private String common;
