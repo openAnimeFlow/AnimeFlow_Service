@@ -24,6 +24,7 @@ import com.ligg.common.vo.bangumi.TrendingSubjectsVo;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.validation.annotation.Validated;
@@ -43,6 +44,7 @@ import java.util.concurrent.TimeUnit;
 @RestController
 @RequestMapping("/api/v1/bangumi")
 @RequiredArgsConstructor
+@Slf4j
 public class BangumiController {
 
     private final BangumiClient bangumiClient;
@@ -143,6 +145,66 @@ public class BangumiController {
             @RequestParam(defaultValue = "2") int type,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int offset) {
+        if (limit > 0 && offset / limit + 1 <= BangumiConstants.BANGUMI_TRENDING_MAX_CACHE_PAGE) {
+            String cacheKey = BangumiConstants.BANGUMI_TRENDING_CACHE_KEY_PREFIX + ':' + type + ':' + limit + ':' + offset;
+            String lockKey = cacheKey + ":lock";
+            long deadline = System.currentTimeMillis() + BangumiConstants.BANGUMI_CALENDAR_CACHE_WAIT_MILLIS;
+            while (true) {
+                Object cached = redisTemplate.opsForValue().get(cacheKey);
+                if (cached instanceof TrendingSubjectsVo trendingSubjectsVo) {
+                    log.info("趋势条目(命中缓存), type={}, limit={}, offset={}", type, limit, offset);
+                    return Result.success(ResponseCode.SUCCESS, trendingSubjectsVo);
+                }
+
+                Boolean locked = redisTemplate.opsForValue().setIfAbsent(
+                        lockKey,
+                        "1",
+                        BangumiConstants.BANGUMI_CALENDAR_LOCK_TTL_SECONDS,
+                        TimeUnit.SECONDS
+                );
+                if (Boolean.TRUE.equals(locked)) {
+                    try {
+                        cached = redisTemplate.opsForValue().get(cacheKey);
+                        if (cached instanceof TrendingSubjectsVo trendingSubjectsVo) {
+                            log.info("趋势条目(命中缓存), type={}, limit={}, offset={}", type, limit, offset);
+                            return Result.success(ResponseCode.SUCCESS, trendingSubjectsVo);
+                        }
+
+                        TrendingSubjectsDto dto = bangumiClient.getTrendingSubjects(type, limit, offset);
+                        if (dto.getData() != null) {
+                            for (TrendingSubjectsDto.Item item : dto.getData()) {
+                                if (item == null || item.getSubject() == null) {
+                                    continue;
+                                }
+                                Utils.applyWsrvCdnInPlace(item.getSubject().getImages());
+                            }
+                        }
+                        TrendingSubjectsVo vo = new TrendingSubjectsVo();
+                        BeanUtils.copyProperties(dto, vo);
+                        redisTemplate.opsForValue().set(
+                                cacheKey,
+                                vo,
+                                BangumiConstants.BANGUMI_TRENDING_CACHE_TTL_SECONDS,
+                                TimeUnit.SECONDS
+                        );
+                        return Result.success(ResponseCode.SUCCESS, vo);
+                    } finally {
+                        redisTemplate.delete(lockKey);
+                    }
+                }
+
+                if (System.currentTimeMillis() >= deadline) {
+                    throw new BangumiUpstreamException("获取趋势条目超时，请稍后重试");
+                }
+                try {
+                    Thread.sleep(BangumiConstants.BANGUMI_CALENDAR_CACHE_POLL_INTERVAL_MILLIS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new BangumiUpstreamException("获取趋势条目被中断", e);
+                }
+            }
+        }
+
         TrendingSubjectsDto dto = bangumiClient.getTrendingSubjects(type, limit, offset);
         if (dto.getData() != null) {
             for (TrendingSubjectsDto.Item item : dto.getData()) {

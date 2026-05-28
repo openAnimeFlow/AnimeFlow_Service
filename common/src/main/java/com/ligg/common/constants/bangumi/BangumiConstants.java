@@ -34,4 +34,19 @@ public class BangumiConstants {
      * 等待缓存重建时的轮询间隔（毫秒）
      */
     public static final long BANGUMI_CALENDAR_CACHE_POLL_INTERVAL_MILLIS = 100;
+
+    /**
+     * Bangumi 趋势条目缓存键前缀
+     */
+    public static final String BANGUMI_TRENDING_CACHE_KEY_PREFIX = "bangumi:trending";
+
+    /**
+     * Bangumi 趋势条目最多缓存页数
+     */
+    public static final int BANGUMI_TRENDING_MAX_CACHE_PAGE = 10;
+
+    /**
+     * Bangumi 趋势条目缓存时长（秒）
+     */
+    public static final long BANGUMI_TRENDING_CACHE_TTL_SECONDS = 900;
 }
