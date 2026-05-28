@@ -2,30 +2,30 @@
  * @author Ligg
  * @date 2026/5/28 02:45
  */
-
 package com.ligg.common.utils;
-
 
 import com.ligg.common.constants.ApiConstant;
 import com.ligg.common.model.CoverImages;
-
+import com.ligg.common.model.ImageUrls;
 
 public final class Utils {
 
     /**
-     * 原地替换 {@link CoverImages} 五档封面 URL
+     * 原地替换图片 URL 为 wsrv CDN。
+     * 所有 {@link ImageUrls}（small / medium / large）均适用；
+     * {@link CoverImages} 额外处理 common / grid。
      */
-    public static void applyWsrvCdnInPlace(CoverImages images) {
-
+    public static <T extends ImageUrls> void applyWsrvCdnInPlace(T images) {
         if (images == null) {
             return;
-
         }
-        images.setLarge(imgUrlToWsrvCdn(images.getLarge()));
-        images.setCommon(imgUrlToWsrvCdn(images.getCommon()));
-        images.setMedium(imgUrlToWsrvCdn(images.getMedium()));
         images.setSmall(imgUrlToWsrvCdn(images.getSmall()));
-        images.setGrid(imgUrlToWsrvCdn(images.getGrid()));
+        images.setMedium(imgUrlToWsrvCdn(images.getMedium()));
+        images.setLarge(imgUrlToWsrvCdn(images.getLarge()));
+        if (images instanceof CoverImages coverImages) {
+            coverImages.setCommon(imgUrlToWsrvCdn(coverImages.getCommon()));
+            coverImages.setGrid(imgUrlToWsrvCdn(coverImages.getGrid()));
+        }
     }
 
     /**
@@ -40,5 +40,4 @@ public final class Utils {
         }
         return ApiConstant.WSRV_CDN + "/?url=" + imageUrl;
     }
-
 }
