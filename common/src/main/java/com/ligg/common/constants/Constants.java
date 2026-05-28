@@ -26,5 +26,5 @@ public class Constants {
     //移动端回调
     public static final String MOBILE_CALLBACK_URL = "flow://auth/callback";
 
-    public static final  String AUTO_TOKEN_KEY = "auto_token";
+    public static final String AUTO_TOKEN_KEY = "auto_token";
 }

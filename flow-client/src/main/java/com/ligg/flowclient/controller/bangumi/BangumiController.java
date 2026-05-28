@@ -5,6 +5,8 @@
 package com.ligg.flowclient.controller.bangumi;
 
 import com.ligg.api.bangumiapi.BangumiClient;
+import com.ligg.common.constants.bangumi.BangumiConstants;
+import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.common.thirdparty.CalendarDto;
@@ -23,6 +25,7 @@ import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,6 +37,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Validated
 @RestController
@@ -42,27 +46,69 @@ import java.util.List;
 public class BangumiController {
 
     private final BangumiClient bangumiClient;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     /**
      * 获取每日放送
      */
     @GetMapping("/calendar")
     public Result<CalendarVo> calendar() {
-        CalendarDto calendarDto = bangumiClient.getCalendar();
-        for (List<CalendarDto.Entry> entries : calendarDto.getDays().values()) {
-            if (entries == null) {
-                continue;
+        long deadline = System.currentTimeMillis() + BangumiConstants.BANGUMI_CALENDAR_CACHE_WAIT_MILLIS;
+        while (true) {
+            Object cached = redisTemplate.opsForValue().get(BangumiConstants.BANGUMI_CALENDAR_CACHE_KEY);
+            if (cached instanceof CalendarVo calendarVo) {
+                return Result.success(ResponseCode.SUCCESS, calendarVo);
             }
-            for (CalendarDto.Entry entry : entries) {
-                if (entry == null || entry.getSubject() == null) {
-                    continue;
+
+            Boolean locked = redisTemplate.opsForValue().setIfAbsent(
+                    BangumiConstants.BANGUMI_CALENDAR_LOCK_KEY,
+                    "1",
+                    BangumiConstants.BANGUMI_CALENDAR_LOCK_TTL_SECONDS,
+                    TimeUnit.SECONDS
+            );
+            if (Boolean.TRUE.equals(locked)) {
+                try {
+                    cached = redisTemplate.opsForValue().get(BangumiConstants.BANGUMI_CALENDAR_CACHE_KEY);
+                    if (cached instanceof CalendarVo calendarVo) {
+                        return Result.success(ResponseCode.SUCCESS, calendarVo);
+                    }
+
+                    CalendarDto calendarDto = bangumiClient.getCalendar();
+                    for (List<CalendarDto.Entry> entries : calendarDto.getDays().values()) {
+                        if (entries == null) {
+                            continue;
+                        }
+                        for (CalendarDto.Entry entry : entries) {
+                            if (entry == null || entry.getSubject() == null) {
+                                continue;
+                            }
+                            Utils.applyWsrvCdnInPlace(entry.getSubject().getImages());
+                        }
+                    }
+                    CalendarVo calendarVo = new CalendarVo();
+                    calendarVo.getDays().putAll(calendarDto.getDays());
+                    redisTemplate.opsForValue().set(
+                            BangumiConstants.BANGUMI_CALENDAR_CACHE_KEY,
+                            calendarVo,
+                            BangumiConstants.BANGUMI_CALENDAR_CACHE_TTL_SECONDS,
+                            TimeUnit.SECONDS
+                    );
+                    return Result.success(ResponseCode.SUCCESS, calendarVo);
+                } finally {
+                    redisTemplate.delete(BangumiConstants.BANGUMI_CALENDAR_LOCK_KEY);
                 }
-                Utils.applyWsrvCdnInPlace(entry.getSubject().getImages());
+            }
+
+            if (System.currentTimeMillis() >= deadline) {
+                throw new BangumiUpstreamException("获取每日放送超时，请稍后重试");
+            }
+            try {
+                Thread.sleep(BangumiConstants.BANGUMI_CALENDAR_CACHE_POLL_INTERVAL_MILLIS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new BangumiUpstreamException("获取每日放送被中断", e);
             }
         }
-        CalendarVo calendarVo = new CalendarVo();
-        calendarVo.getDays().putAll(calendarDto.getDays());
-        return Result.success(ResponseCode.SUCCESS, calendarVo);
     }
 
     /**
