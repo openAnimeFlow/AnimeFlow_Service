@@ -19,9 +19,9 @@ public class BangumiApiPath {
     public static final String P1_TRENDING_SUBJECTS = "/p1/trending/subjects";
 
     /**
-     * 条目详情，{@code {subjectId}} 为 Bangumi subject id
+     * 条目
      */
-    public static final String P1_SUBJECT = "/p1/subjects/{subjectId}";
+    public static final String P1_SUBJECTS = "/p1/subjects";
 
     /**
      * 条目章节列表

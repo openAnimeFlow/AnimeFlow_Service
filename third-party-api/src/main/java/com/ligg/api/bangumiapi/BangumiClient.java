@@ -7,6 +7,7 @@ package com.ligg.api.bangumiapi;
 import com.ligg.common.thirdparty.CalendarDto;
 import com.ligg.common.thirdparty.SubjectDetailDto;
 import com.ligg.common.thirdparty.SubjectEpisodesDto;
+import com.ligg.common.thirdparty.SubjectsDto;
 import com.ligg.common.thirdparty.TrendingSubjectsDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
 
@@ -29,6 +30,17 @@ public interface BangumiClient {
      * @param offset 偏移量
      */
     TrendingSubjectsDto getTrendingSubjects(int type, int limit, int offset);
+
+    /**
+     * 获取条目列表
+     *
+     * @param sort  排序方式，如 rank
+     * @param page  页码，从 1 开始
+     * @param type  条目类型，2=动画
+     * @param year  放送年份，可为空
+     * @param month 放送月份，可为空
+     */
+    SubjectsDto getSubjects(String sort, int page, int type, Integer year, Integer month);
 
     /**
      * 获取条目详情；{@code accessToken} 为空时不带 Bearer，响应不含 {@code interest}。

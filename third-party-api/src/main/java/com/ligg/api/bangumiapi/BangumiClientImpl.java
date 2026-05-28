@@ -11,6 +11,7 @@ import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.thirdparty.CalendarDto;
 import com.ligg.common.thirdparty.SubjectDetailDto;
 import com.ligg.common.thirdparty.SubjectEpisodesDto;
+import com.ligg.common.thirdparty.SubjectsDto;
 import com.ligg.common.thirdparty.TrendingSubjectsDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
 import lombok.extern.slf4j.Slf4j;
@@ -89,9 +90,31 @@ public class BangumiClientImpl implements BangumiClient {
     }
 
     @Override
+    public SubjectsDto getSubjects(String sort, int page, int type, Integer year, Integer month) {
+        log.info("获取条目列表 sort={} page={} type={} year={} month={}", sort, page, type, year, month);
+        return blockBangumi(bangumiNextClient.get()
+                .uri(uriBuilder -> {
+                    var builder = uriBuilder
+                            .path(BangumiApiPath.P1_SUBJECTS)
+                            .queryParam("sort", sort)
+                            .queryParam("page", page)
+                            .queryParam("type", type);
+                    if (year != null) {
+                        builder.queryParam("year", year);
+                    }
+                    if (month != null) {
+                        builder.queryParam("month", month);
+                    }
+                    return builder.build();
+                })
+                .retrieve()
+                .bodyToMono(SubjectsDto.class));
+    }
+
+    @Override
     public SubjectDetailDto getSubject(int subjectId, String accessToken) {
         log.info("获取条目详情 subjectId={} withAuth={}", subjectId, StringUtils.hasText(accessToken));
-        var request = bangumiNextClient.get().uri(BangumiApiPath.P1_SUBJECT, subjectId);
+        var request = bangumiNextClient.get().uri(BangumiApiPath.P1_SUBJECTS + '/' + subjectId);
         if (StringUtils.hasText(accessToken)) {
             request = request.headers(headers -> headers.setBearerAuth(accessToken));
         }

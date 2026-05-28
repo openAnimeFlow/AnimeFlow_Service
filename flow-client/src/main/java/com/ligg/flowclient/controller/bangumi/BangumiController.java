@@ -10,11 +10,13 @@ import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.common.thirdparty.CalendarDto;
 import com.ligg.common.thirdparty.SubjectDetailDto;
 import com.ligg.common.thirdparty.SubjectEpisodesDto;
+import com.ligg.common.thirdparty.SubjectsDto;
 import com.ligg.common.thirdparty.TrendingSubjectsDto;
 import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.bangumi.CalendarVo;
 import com.ligg.common.vo.bangumi.SubjectDetailVo;
 import com.ligg.common.vo.bangumi.SubjectEpisodesVo;
+import com.ligg.common.vo.bangumi.SubjectsVo;
 import com.ligg.common.vo.bangumi.TrendingSubjectsVo;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import jakarta.validation.constraints.NotNull;
@@ -58,6 +60,30 @@ public class BangumiController {
         CalendarVo calendarVo = new CalendarVo();
         calendarVo.getDays().putAll(calendarDto.getDays());
         return Result.success(ResponseCode.SUCCESS, calendarVo);
+    }
+
+    /**
+     * 条目列表（默认动画 type=2，按 rank 排序）
+     */
+    @GetMapping("/subjects")
+    public Result<SubjectsVo> subjects(
+            @RequestParam(defaultValue = "rank") String sort,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "2") int type,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month) {
+        SubjectsDto dto = bangumiClient.getSubjects(sort, page, type, year, month);
+        if (dto.getData() != null) {
+            for (var subject : dto.getData()) {
+                if (subject == null) {
+                    continue;
+                }
+                Utils.applyWsrvCdnInPlace(subject.getImages());
+            }
+        }
+        SubjectsVo vo = new SubjectsVo();
+        BeanUtils.copyProperties(dto, vo);
+        return Result.success(ResponseCode.SUCCESS, vo);
     }
 
     /**
