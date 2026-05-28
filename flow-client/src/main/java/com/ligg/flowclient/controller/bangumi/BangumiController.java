@@ -27,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,6 +39,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.concurrent.TimeUnit;
 
 @Validated
@@ -290,6 +293,69 @@ public class BangumiController {
             @NotNull @PathVariable int subjectId,
             @RequestAttribute(name = AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, required = false)
             String accessToken) {
+        if (!StringUtils.hasText(accessToken)) {
+            String cacheKey = BangumiConstants.BANGUMI_SUBJECT_DETAIL_CACHE_KEY_PREFIX + ':' + subjectId;
+            String lockKey = cacheKey + ":lock";
+            long deadline = System.currentTimeMillis() + BangumiConstants.BANGUMI_CALENDAR_CACHE_WAIT_MILLIS;
+            while (true) {
+                Object cached = redisTemplate.opsForValue().get(cacheKey);
+                if (cached instanceof SubjectDetailVo subjectDetailVo) {
+                    log.info("条目详情(命中缓存), subjectId={}", subjectId);
+                    return Result.success(ResponseCode.SUCCESS, subjectDetailVo);
+                }
+
+                Boolean locked = redisTemplate.opsForValue().setIfAbsent(
+                        lockKey,
+                        "1",
+                        BangumiConstants.BANGUMI_CALENDAR_LOCK_TTL_SECONDS,
+                        TimeUnit.SECONDS
+                );
+                if (Boolean.TRUE.equals(locked)) {
+                    try {
+                        cached = redisTemplate.opsForValue().get(cacheKey);
+                        if (cached instanceof SubjectDetailVo subjectDetailVo) {
+                            log.info("条目详情(命中缓存), subjectId={}", subjectId);
+                            return Result.success(ResponseCode.SUCCESS, subjectDetailVo);
+                        }
+
+                        SubjectDetailDto dto = bangumiClient.getSubject(subjectId, null);
+                        Utils.applyWsrvCdnInPlace(dto.getImages());
+                        SubjectDetailVo vo = new SubjectDetailVo();
+                        BeanUtils.copyProperties(dto, vo);
+                        SubjectDetailDto.Airtime airtime = vo.getAirtime();
+                        if (airtime != null && StringUtils.hasText(airtime.getDate())) {
+                            try {
+                                LocalDate airtimeDate = LocalDate.parse(airtime.getDate());
+                                LocalDate today = LocalDate.now();
+                                if (!airtimeDate.isBefore(today.minusMonths(4)) && !airtimeDate.isAfter(today)) {
+                                    redisTemplate.opsForValue().set(
+                                            cacheKey,
+                                            vo,
+                                            BangumiConstants.BANGUMI_SUBJECT_DETAIL_CACHE_TTL_SECONDS,
+                                            TimeUnit.SECONDS
+                                    );
+                                }
+                            } catch (DateTimeParseException ignored) {
+                            }
+                        }
+                        return Result.success(ResponseCode.SUCCESS, vo);
+                    } finally {
+                        redisTemplate.delete(lockKey);
+                    }
+                }
+
+                if (System.currentTimeMillis() >= deadline) {
+                    throw new BangumiUpstreamException("获取条目详情超时，请稍后重试");
+                }
+                try {
+                    Thread.sleep(BangumiConstants.BANGUMI_CALENDAR_CACHE_POLL_INTERVAL_MILLIS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new BangumiUpstreamException("获取条目详情被中断", e);
+                }
+            }
+        }
+
         SubjectDetailDto dto = bangumiClient.getSubject(subjectId, accessToken);
         Utils.applyWsrvCdnInPlace(dto.getImages());
         SubjectDetailVo vo = new SubjectDetailVo();

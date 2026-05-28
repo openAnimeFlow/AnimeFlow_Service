@@ -64,4 +64,14 @@ public class BangumiConstants {
      * Bangumi 条目列表缓存时长（秒）
      */
     public static final long BANGUMI_SUBJECTS_CACHE_TTL_SECONDS = 1800;
+
+    /**
+     * Bangumi 条目详情缓存键前缀
+     */
+    public static final String BANGUMI_SUBJECT_DETAIL_CACHE_KEY_PREFIX = "bangumi:subject:detail";
+
+    /**
+     * Bangumi 条目详情缓存时长（秒）
+     */
+    public static final long BANGUMI_SUBJECT_DETAIL_CACHE_TTL_SECONDS = 60;
 }
