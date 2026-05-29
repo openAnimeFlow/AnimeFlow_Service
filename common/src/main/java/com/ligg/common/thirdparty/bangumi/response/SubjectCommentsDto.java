@@ -19,7 +19,7 @@ public class SubjectCommentsDto {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Comment {
         private Long id;
-        private EpisodeCommentDto.User user;
+        private BangumiCommentUser user;
         private Integer type;
         private Integer rate;
         private String comment;
