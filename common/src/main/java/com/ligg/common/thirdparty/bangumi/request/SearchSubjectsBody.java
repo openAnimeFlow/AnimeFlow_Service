@@ -1,7 +1,7 @@
 package com.ligg.common.thirdparty.bangumi.request;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.ligg.common.thirdparty.bangumi.enums.SubjectSort;
+import com.ligg.common.thirdparty.bangumi.enums.SubjectSearchSort;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
@@ -16,9 +16,9 @@ public class SearchSubjectsBody {
     private String keyword;
 
     /**
-     * 排序方式，默认 {@link SubjectSort#MATCH}
+     * 排序方式，默认 {@link SubjectSearchSort#MATCH}
      */
-    private SubjectSort sort;
+    private SubjectSearchSort sort;
 
     private SearchSubjectsFilter filter;
 

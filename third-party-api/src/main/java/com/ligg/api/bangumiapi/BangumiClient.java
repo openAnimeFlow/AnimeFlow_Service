@@ -4,7 +4,7 @@
  */
 package com.ligg.api.bangumiapi;
 
-import com.ligg.common.thirdparty.bangumi.enums.SubjectSort;
+import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
 import com.ligg.common.thirdparty.bangumi.response.CalendarDto;
 import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentsDto;
@@ -43,7 +43,7 @@ public interface BangumiClient {
      * @param year  放送年份，可为空
      * @param month 放送月份，可为空
      */
-    SubjectsDto getSubjects(SubjectSort sort, int page, int type, Integer year, Integer month);
+    SubjectsDto getSubjects(SubjectBrowseSort sort, int page, int type, Integer year, Integer month);
 
     /**
      * 搜索条目；{@code accessToken} 为空时不带 Bearer，响应不含 {@code interest}。

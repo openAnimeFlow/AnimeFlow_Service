@@ -9,7 +9,7 @@ import com.ligg.common.constants.bangumi.BangumiConstants;
 import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
-import com.ligg.common.thirdparty.bangumi.enums.SubjectSort;
+import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
 import com.ligg.common.thirdparty.bangumi.response.CalendarDto;
 import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentDto;
@@ -130,7 +130,7 @@ public class BangumiController {
      */
     @GetMapping("/subjects")
     public Result<SubjectsVo> subjects(
-            @RequestParam(defaultValue = "rank") SubjectSort sort,
+            @RequestParam(defaultValue = "rank") SubjectBrowseSort sort,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "2") int type,
             @RequestParam(required = false) Integer year,

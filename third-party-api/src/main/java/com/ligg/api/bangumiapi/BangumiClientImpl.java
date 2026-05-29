@@ -8,7 +8,7 @@ import com.ligg.common.apipath.BangumiApiPath;
 import com.ligg.common.constants.ApiConstant;
 import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.exception.LoginExpiredException;
-import com.ligg.common.thirdparty.bangumi.enums.SubjectSort;
+import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
 import com.ligg.common.thirdparty.bangumi.response.CalendarDto;
 import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentDto;
@@ -104,7 +104,7 @@ public class BangumiClientImpl implements BangumiClient {
     }
 
     @Override
-    public SubjectsDto getSubjects(SubjectSort sort, int page, int type, Integer year, Integer month) {
+    public SubjectsDto getSubjects(SubjectBrowseSort sort, int page, int type, Integer year, Integer month) {
         log.info("获取条目列表 sort={} page={} type={} year={} month={}", sort.getValue(), page, type, year, month);
         return blockBangumi(bangumiNextClient.get()
                 .uri(uriBuilder -> {

@@ -6,11 +6,11 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Bangumi 条目搜索排序 {@code SubjectSearchSort}。
+ * Bangumi 条目搜索排序 {@code SubjectSearchSort}，用于 {@code POST /p1/search/subjects}。
  */
 @Getter
 @RequiredArgsConstructor
-public enum SubjectSort {
+public enum SubjectSearchSort {
 
     MATCH("match"),
     HEAT("heat"),
@@ -21,11 +21,11 @@ public enum SubjectSort {
     private final String value;
 
     @JsonCreator
-    public static SubjectSort fromValue(String value) {
+    public static SubjectSearchSort fromValue(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }
-        for (SubjectSort sort : values()) {
+        for (SubjectSearchSort sort : values()) {
             if (sort.value.equalsIgnoreCase(value)) {
                 return sort;
             }

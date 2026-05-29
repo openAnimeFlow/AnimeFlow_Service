@@ -1,6 +1,7 @@
 package com.ligg.flowclient.config;
 
-import com.ligg.common.thirdparty.bangumi.enums.SubjectSort;
+import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
+import com.ligg.common.thirdparty.bangumi.enums.SubjectSearchSort;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.interceptor.IpRateLimitInterceptor;
 import com.ligg.flowclient.interceptor.OptionalAuthorizationInterceptor;
@@ -42,10 +43,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
     }
 
     /**
-     * 注册 String → SubjectSort 转换器，支持 query 传 "rank"、"match" 等小写值
+     * 注册 query 枚举转换器，支持传 "rank"、"match" 等小写值。
      */
     @Override
     public void addFormatters(FormatterRegistry registry) {
-        registry.addConverter(String.class, SubjectSort.class, SubjectSort::fromValue);
+        registry.addConverter(String.class, SubjectBrowseSort.class, SubjectBrowseSort::fromValue);
+        registry.addConverter(String.class, SubjectSearchSort.class, SubjectSearchSort::fromValue);
     }
 }
