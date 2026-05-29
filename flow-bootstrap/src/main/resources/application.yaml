@@ -44,5 +44,5 @@ anime-flow:
     max-requests: 30   #单个时间窗口内允许的最大请求次数。
     window-seconds: 60  #时间窗口长度（秒）。
     path-patterns: #拦截路径
-      - /api/v1/danmaku/**
+      - /api/v1/**
     exclude-path-patterns: [] #放行路径
