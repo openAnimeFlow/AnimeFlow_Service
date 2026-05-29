@@ -44,6 +44,11 @@ public class BangumiApiPath {
     public static final String P1_CHARACTER = "/p1/characters/{characterId}";
 
     /**
+     * 角色出演作品列表
+     */
+    public static final String P1_CHARACTER_CASTS = "/p1/characters/{characterId}/casts";
+
+    /**
      * 条目制作人员列表
      */
     public static final String P1_SUBJECT_STAFF_PERSONS = "/p1/subjects/{subjectId}/staffs/persons";

@@ -352,6 +352,61 @@ public class BangumiController {
     }
 
     /**
+     * 角色出演作品列表。
+     * 对应 Bangumi {@code GET /p1/characters/{id}/casts}；前 2 页走缓存。
+     *
+     * @param characterId  角色 ID
+     * @param subjectType  条目类型，默认 2（动画）
+     * @param limit        每页条数，默认 20
+     * @param offset       偏移量，默认 0
+     */
+    @GetMapping("/characters/{characterId}/casts")
+    public Result<CharacterCastsVo> characterCasts(
+            @NotNull @PathVariable int characterId,
+            @RequestParam(defaultValue = "2") int subjectType,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "0") int offset) {
+        Supplier<CharacterCastsVo> loader = () -> {
+            CharacterCastsDto dto = bangumiClient.getCharacterCasts(characterId, limit, offset, subjectType);
+            if (dto.getData() != null) {
+                for (CharacterCastsDto.Item item : dto.getData()) {
+                    if (item == null) {
+                        continue;
+                    }
+                    if (item.getSubject() != null) {
+                        Utils.applyWsrvCdnInPlace(item.getSubject().getImages());
+                    }
+                    if (item.getCasts() != null) {
+                        for (SubjectCharactersDto.Cast cast : item.getCasts()) {
+                            if (cast != null && cast.getPerson() != null) {
+                                Utils.applyWsrvCdnInPlace(cast.getPerson().getImages());
+                            }
+                        }
+                    }
+                }
+            }
+            CharacterCastsVo vo = new CharacterCastsVo();
+            BeanUtils.copyProperties(dto, vo);
+            return vo;
+        };
+        if (limit > 0 && offset / limit + 1 <= BangumiConstants.BANGUMI_CHARACTER_CASTS_MAX_CACHE_PAGE) {
+            String cacheKey = BangumiConstants.BANGUMI_CHARACTER_CASTS_CACHE_KEY_PREFIX + ':' + characterId
+                    + ':' + subjectType + ':' + limit + ':' + offset;
+            CharacterCastsVo vo = bangumiCacheService.getOrLoad(
+                    cacheKey,
+                    CharacterCastsVo.class,
+                    BangumiConstants.BANGUMI_CHARACTER_CASTS_CACHE_TTL_SECONDS,
+                    "获取角色出演作品超时，请稍后重试",
+                    "获取角色出演作品被中断",
+                    loader,
+                    () -> log.info("角色出演作品(命中缓存), characterId={}, subjectType={}, limit={}, offset={}",
+                            characterId, subjectType, limit, offset));
+            return Result.success(ResponseCode.SUCCESS, vo);
+        }
+        return Result.success(ResponseCode.SUCCESS, loader.get());
+    }
+
+    /**
      * 条目制作人员列表。
      * 对应 Bangumi {@code GET /p1/subjects/{id}/staffs/persons}；前 10 页走缓存。
      *

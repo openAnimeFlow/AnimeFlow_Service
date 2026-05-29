@@ -10,6 +10,7 @@ import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
+import com.ligg.common.thirdparty.bangumi.response.CharacterCastsDto;
 import com.ligg.common.thirdparty.bangumi.response.CharacterDetailDto;
 import com.ligg.common.thirdparty.bangumi.response.CalendarDto;
 import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentDto;
@@ -196,6 +197,25 @@ public class BangumiClientImpl implements BangumiClient {
                 .uri(BangumiApiPath.P1_CHARACTER, characterId)
                 .retrieve()
                 .bodyToMono(CharacterDetailDto.class));
+    }
+
+    @Override
+    public CharacterCastsDto getCharacterCasts(int characterId, int limit, int offset, Integer subjectType) {
+        log.info("获取角色出演作品 characterId={} limit={} offset={} subjectType={}",
+                characterId, limit, offset, subjectType);
+        return blockBangumi(bangumiNextClient.get()
+                .uri(uriBuilder -> {
+                    var builder = uriBuilder
+                            .path(BangumiApiPath.P1_CHARACTER_CASTS)
+                            .queryParam("limit", limit)
+                            .queryParam("offset", offset);
+                    if (subjectType != null) {
+                        builder.queryParam("subjectType", subjectType);
+                    }
+                    return builder.build(characterId);
+                })
+                .retrieve()
+                .bodyToMono(CharacterCastsDto.class));
     }
 
     @Override

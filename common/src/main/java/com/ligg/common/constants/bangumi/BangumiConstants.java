@@ -131,6 +131,21 @@ public class BangumiConstants {
     public static final long BANGUMI_CHARACTER_DETAIL_CACHE_TTL_SECONDS = 120;
 
     /**
+     * Bangumi 角色出演作品列表缓存键前缀
+     */
+    public static final String BANGUMI_CHARACTER_CASTS_CACHE_KEY_PREFIX = "bangumi:character:casts";
+
+    /**
+     * Bangumi 角色出演作品列表最多缓存页数
+     */
+    public static final int BANGUMI_CHARACTER_CASTS_MAX_CACHE_PAGE = 2;
+
+    /**
+     * Bangumi 角色出演作品列表缓存时长（秒）
+     */
+    public static final long BANGUMI_CHARACTER_CASTS_CACHE_TTL_SECONDS = 120;
+
+    /**
      * Bangumi 条目搜索串行执行锁
      */
     public static final String BANGUMI_SEARCH_LOCK_KEY = "bangumi:search:lock";
