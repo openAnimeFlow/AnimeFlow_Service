@@ -6,6 +6,7 @@ package com.ligg.common.utils;
 
 import com.ligg.common.constants.ApiConstant;
 import com.ligg.common.model.CoverImages;
+import com.ligg.common.model.ImageFour;
 import com.ligg.common.model.ImageUrls;
 
 public final class Utils {
@@ -13,7 +14,7 @@ public final class Utils {
     /**
      * 原地替换图片 URL 为 wsrv CDN。
      * 所有 {@link ImageUrls}（small / medium / large）均适用；
-     * {@link CoverImages} 额外处理 common / grid。
+     * {@link CoverImages} 额外处理 common / grid；{@link ImageFour} 额外处理 grid。
      */
     public static <T extends ImageUrls> void applyWsrvCdnInPlace(T images) {
         if (images == null) {
@@ -25,6 +26,8 @@ public final class Utils {
         if (images instanceof CoverImages coverImages) {
             coverImages.setCommon(imgUrlToWsrvCdn(coverImages.getCommon()));
             coverImages.setGrid(imgUrlToWsrvCdn(coverImages.getGrid()));
+        } else if (images instanceof ImageFour imageFour) {
+            imageFour.setGrid(imgUrlToWsrvCdn(imageFour.getGrid()));
         }
     }
 

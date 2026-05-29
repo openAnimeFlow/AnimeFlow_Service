@@ -9,6 +9,7 @@ import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
 import com.ligg.common.thirdparty.bangumi.response.CalendarDto;
 import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectCharactersDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
 import com.ligg.common.thirdparty.bangumi.response.TrendingSubjectsDto;
@@ -59,6 +60,13 @@ public interface BangumiClient {
      * 获取条目章节列表
      */
     SubjectEpisodesDto getSubjectEpisodes(int subjectId, int limit, int offset);
+
+    /**
+     * 获取条目角色列表
+     *
+     * @param type 角色类型筛选，可为空
+     */
+    SubjectCharactersDto getSubjectCharacters(int subjectId, int limit, int offset, Integer type);
 
     /**
      * 获取章节评论列表

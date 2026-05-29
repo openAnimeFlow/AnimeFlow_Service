@@ -76,6 +76,21 @@ public class BangumiConstants {
     public static final long BANGUMI_SUBJECT_DETAIL_CACHE_TTL_SECONDS = 60;
 
     /**
+     * Bangumi 条目角色列表缓存键前缀
+     */
+    public static final String BANGUMI_SUBJECT_CHARACTERS_CACHE_KEY_PREFIX = "bangumi:subject:characters";
+
+    /**
+     * Bangumi 条目角色列表最多缓存页数
+     */
+    public static final int BANGUMI_SUBJECT_CHARACTERS_MAX_CACHE_PAGE = 10;
+
+    /**
+     * Bangumi 条目角色列表缓存时长（秒）
+     */
+    public static final long BANGUMI_SUBJECT_CHARACTERS_CACHE_TTL_SECONDS = 1800;
+
+    /**
      * Bangumi 条目搜索串行执行锁
      */
     public static final String BANGUMI_SEARCH_LOCK_KEY = "bangumi:search:lock";

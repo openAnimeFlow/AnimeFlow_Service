@@ -11,19 +11,11 @@ import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
-import com.ligg.common.thirdparty.bangumi.response.CalendarDto;
-import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentDto;
-import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
-import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
-import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
-import com.ligg.common.thirdparty.bangumi.response.TrendingSubjectsDto;
+import com.ligg.common.thirdparty.bangumi.response.*;
 import com.ligg.common.utils.Utils;
-import com.ligg.common.vo.bangumi.CalendarVo;
-import com.ligg.common.vo.bangumi.SubjectDetailVo;
-import com.ligg.common.vo.bangumi.SubjectEpisodesVo;
-import com.ligg.common.vo.bangumi.SubjectsVo;
-import com.ligg.common.vo.bangumi.TrendingSubjectsVo;
+import com.ligg.common.vo.bangumi.*;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
+import com.ligg.flowclient.service.BangumiCacheService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -34,58 +26,44 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestAttribute;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
-import java.util.function.Supplier;
-import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
+/**
+ * Bangumi 数据代理接口：转发 {@code next.bgm.tv} 请求，统一 CDN 图片处理与 Redis 缓存。
+ */
+@Slf4j
 @Validated
 @RestController
 @RequestMapping("/api/v1/bangumi")
 @RequiredArgsConstructor
-@Slf4j
 public class BangumiController {
 
     private final BangumiClient bangumiClient;
+    private final BangumiCacheService bangumiCacheService;
     private final RedisTemplate<String, Object> redisTemplate;
 
     /**
-     * 获取每日放送
+     * 获取每日放送。
+     * 对应 Bangumi {@code GET /p1/calendar}，结果写入 Redis 全局缓存。
      */
     @GetMapping("/calendar")
     public Result<CalendarVo> calendar() {
-        long deadline = System.currentTimeMillis() + BangumiConstants.BANGUMI_CALENDAR_CACHE_WAIT_MILLIS;
-        while (true) {
-            Object cached = redisTemplate.opsForValue().get(BangumiConstants.BANGUMI_CALENDAR_CACHE_KEY);
-            if (cached instanceof CalendarVo calendarVo) {
-                return Result.success(ResponseCode.SUCCESS, calendarVo);
-            }
-
-            Boolean locked = redisTemplate.opsForValue().setIfAbsent(
-                    BangumiConstants.BANGUMI_CALENDAR_LOCK_KEY,
-                    "1",
-                    BangumiConstants.BANGUMI_CALENDAR_LOCK_TTL_SECONDS,
-                    TimeUnit.SECONDS
-            );
-            if (Boolean.TRUE.equals(locked)) {
-                try {
-                    cached = redisTemplate.opsForValue().get(BangumiConstants.BANGUMI_CALENDAR_CACHE_KEY);
-                    if (cached instanceof CalendarVo calendarVo) {
-                        return Result.success(ResponseCode.SUCCESS, calendarVo);
-                    }
-
+        CalendarVo calendarVo = bangumiCacheService.getOrLoad(
+                BangumiConstants.BANGUMI_CALENDAR_CACHE_KEY,
+                BangumiConstants.BANGUMI_CALENDAR_LOCK_KEY,
+                CalendarVo.class,
+                BangumiConstants.BANGUMI_CALENDAR_CACHE_TTL_SECONDS,
+                "获取每日放送超时，请稍后重试",
+                "获取每日放送被中断",
+                () -> {
                     CalendarDto calendarDto = bangumiClient.getCalendar();
                     for (List<CalendarDto.Entry> entries : calendarDto.getDays().values()) {
                         if (entries == null) {
@@ -98,35 +76,22 @@ public class BangumiController {
                             Utils.applyWsrvCdnInPlace(entry.getSubject().getImages());
                         }
                     }
-                    CalendarVo calendarVo = new CalendarVo();
-                    calendarVo.getDays().putAll(calendarDto.getDays());
-                    redisTemplate.opsForValue().set(
-                            BangumiConstants.BANGUMI_CALENDAR_CACHE_KEY,
-                            calendarVo,
-                            BangumiConstants.BANGUMI_CALENDAR_CACHE_TTL_SECONDS,
-                            TimeUnit.SECONDS
-                    );
-                    return Result.success(ResponseCode.SUCCESS, calendarVo);
-                } finally {
-                    redisTemplate.delete(BangumiConstants.BANGUMI_CALENDAR_LOCK_KEY);
-                }
-            }
-
-            if (System.currentTimeMillis() >= deadline) {
-                throw new BangumiUpstreamException("获取每日放送超时，请稍后重试");
-            }
-            try {
-                Thread.sleep(BangumiConstants.BANGUMI_CALENDAR_CACHE_POLL_INTERVAL_MILLIS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new BangumiUpstreamException("获取每日放送被中断", e);
-            }
-        }
+                    CalendarVo vo = new CalendarVo();
+                    vo.getDays().putAll(calendarDto.getDays());
+                    return vo;
+                });
+        return Result.success(ResponseCode.SUCCESS, calendarVo);
     }
 
     /**
-     * 条目列表
-     *（默认动画 type=2，按 rank 排序）
+     * 条目浏览列表。
+     * 对应 Bangumi {@code GET /p1/subjects}；前 10 页走缓存。
+     *
+     * @param sort  排序方式，默认 rank
+     * @param page  页码，从 1 开始
+     * @param type  条目类型，默认 2（动画）
+     * @param year  放送年份，可选
+     * @param month 放送月份，可选
      */
     @GetMapping("/subjects")
     public Result<SubjectsVo> subjects(
@@ -135,169 +100,89 @@ public class BangumiController {
             @RequestParam(defaultValue = "2") int type,
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false) Integer month) {
+        Supplier<SubjectsVo> loader = () -> {
+            SubjectsDto dto = bangumiClient.getSubjects(sort, page, type, year, month);
+            if (dto.getData() != null) {
+                for (var subject : dto.getData()) {
+                    if (subject == null) {
+                        continue;
+                    }
+                    Utils.applyWsrvCdnInPlace(subject.getImages());
+                }
+            }
+            SubjectsVo vo = new SubjectsVo();
+            BeanUtils.copyProperties(dto, vo);
+            return vo;
+        };
         if (page >= 1 && page <= BangumiConstants.BANGUMI_SUBJECTS_MAX_CACHE_PAGE) {
             String yearKey = year != null ? year.toString() : "none";
             String monthKey = month != null ? month.toString() : "none";
             String cacheKey = BangumiConstants.BANGUMI_SUBJECTS_CACHE_KEY_PREFIX + ':' + sort.getValue() + ':' + type + ':'
                     + yearKey + ':' + monthKey + ":page:" + page;
-            String lockKey = cacheKey + ":lock";
-            long deadline = System.currentTimeMillis() + BangumiConstants.BANGUMI_CALENDAR_CACHE_WAIT_MILLIS;
-            while (true) {
-                Object cached = redisTemplate.opsForValue().get(cacheKey);
-                if (cached instanceof SubjectsVo subjectsVo) {
-                    log.info("条目列表(命中缓存), sort={}, page={}, type={}, year={}, month={}", sort, page, type, year, month);
-                    return Result.success(ResponseCode.SUCCESS, subjectsVo);
-                }
-
-                Boolean locked = redisTemplate.opsForValue().setIfAbsent(
-                        lockKey,
-                        "1",
-                        BangumiConstants.BANGUMI_CALENDAR_LOCK_TTL_SECONDS,
-                        TimeUnit.SECONDS
-                );
-                if (Boolean.TRUE.equals(locked)) {
-                    try {
-                        cached = redisTemplate.opsForValue().get(cacheKey);
-                        if (cached instanceof SubjectsVo subjectsVo) {
-                            log.info("条目列表(命中缓存), sort={}, page={}, type={}, year={}, month={}", sort, page, type, year, month);
-                            return Result.success(ResponseCode.SUCCESS, subjectsVo);
-                        }
-
-                        SubjectsDto dto = bangumiClient.getSubjects(sort, page, type, year, month);
-                        if (dto.getData() != null) {
-                            for (var subject : dto.getData()) {
-                                if (subject == null) {
-                                    continue;
-                                }
-                                Utils.applyWsrvCdnInPlace(subject.getImages());
-                            }
-                        }
-                        SubjectsVo vo = new SubjectsVo();
-                        BeanUtils.copyProperties(dto, vo);
-                        redisTemplate.opsForValue().set(
-                                cacheKey,
-                                vo,
-                                BangumiConstants.BANGUMI_SUBJECTS_CACHE_TTL_SECONDS,
-                                TimeUnit.SECONDS
-                        );
-                        return Result.success(ResponseCode.SUCCESS, vo);
-                    } finally {
-                        redisTemplate.delete(lockKey);
-                    }
-                }
-
-                if (System.currentTimeMillis() >= deadline) {
-                    throw new BangumiUpstreamException("获取条目列表超时，请稍后重试");
-                }
-                try {
-                    Thread.sleep(BangumiConstants.BANGUMI_CALENDAR_CACHE_POLL_INTERVAL_MILLIS);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new BangumiUpstreamException("获取条目列表被中断", e);
-                }
-            }
+            SubjectsVo vo = bangumiCacheService.getOrLoad(
+                    cacheKey,
+                    SubjectsVo.class,
+                    BangumiConstants.BANGUMI_SUBJECTS_CACHE_TTL_SECONDS,
+                    "获取条目列表超时，请稍后重试",
+                    "获取条目列表被中断",
+                    loader,
+                    () -> log.info("条目列表(命中缓存), sort={}, page={}, type={}, year={}, month={}", sort, page, type, year, month));
+            return Result.success(ResponseCode.SUCCESS, vo);
         }
-
-        SubjectsDto dto = bangumiClient.getSubjects(sort, page, type, year, month);
-        if (dto.getData() != null) {
-            for (var subject : dto.getData()) {
-                if (subject == null) {
-                    continue;
-                }
-                Utils.applyWsrvCdnInPlace(subject.getImages());
-            }
-        }
-        SubjectsVo vo = new SubjectsVo();
-        BeanUtils.copyProperties(dto, vo);
-        return Result.success(ResponseCode.SUCCESS, vo);
+        return Result.success(ResponseCode.SUCCESS, loader.get());
     }
 
     /**
-     * 获取趋势条目
-     *（默认动画 type=2）
+     * 获取趋势条目。
+     * 对应 Bangumi {@code GET /p1/trending/subjects}；前 10 页走缓存。
+     *
+     * @param type   条目类型，默认 2（动画）
+     * @param limit  每页条数
+     * @param offset 偏移量
      */
     @GetMapping("/trending/subjects")
     public Result<TrendingSubjectsVo> trendingSubjects(
             @RequestParam(defaultValue = "2") int type,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int offset) {
+        Supplier<TrendingSubjectsVo> loader = () -> {
+            TrendingSubjectsDto dto = bangumiClient.getTrendingSubjects(type, limit, offset);
+            if (dto.getData() != null) {
+                for (TrendingSubjectsDto.Item item : dto.getData()) {
+                    if (item == null || item.getSubject() == null) {
+                        continue;
+                    }
+                    Utils.applyWsrvCdnInPlace(item.getSubject().getImages());
+                }
+            }
+            TrendingSubjectsVo vo = new TrendingSubjectsVo();
+            BeanUtils.copyProperties(dto, vo);
+            return vo;
+        };
         if (limit > 0 && offset / limit + 1 <= BangumiConstants.BANGUMI_TRENDING_MAX_CACHE_PAGE) {
             String cacheKey = BangumiConstants.BANGUMI_TRENDING_CACHE_KEY_PREFIX + ':' + type + ':' + limit + ':' + offset;
-            String lockKey = cacheKey + ":lock";
-            long deadline = System.currentTimeMillis() + BangumiConstants.BANGUMI_CALENDAR_CACHE_WAIT_MILLIS;
-            while (true) {
-                Object cached = redisTemplate.opsForValue().get(cacheKey);
-                if (cached instanceof TrendingSubjectsVo trendingSubjectsVo) {
-                    log.info("趋势条目(命中缓存), type={}, limit={}, offset={}", type, limit, offset);
-                    return Result.success(ResponseCode.SUCCESS, trendingSubjectsVo);
-                }
-
-                Boolean locked = redisTemplate.opsForValue().setIfAbsent(
-                        lockKey,
-                        "1",
-                        BangumiConstants.BANGUMI_CALENDAR_LOCK_TTL_SECONDS,
-                        TimeUnit.SECONDS
-                );
-                if (Boolean.TRUE.equals(locked)) {
-                    try {
-                        cached = redisTemplate.opsForValue().get(cacheKey);
-                        if (cached instanceof TrendingSubjectsVo trendingSubjectsVo) {
-                            log.info("趋势条目(命中缓存), type={}, limit={}, offset={}", type, limit, offset);
-                            return Result.success(ResponseCode.SUCCESS, trendingSubjectsVo);
-                        }
-
-                        TrendingSubjectsDto dto = bangumiClient.getTrendingSubjects(type, limit, offset);
-                        if (dto.getData() != null) {
-                            for (TrendingSubjectsDto.Item item : dto.getData()) {
-                                if (item == null || item.getSubject() == null) {
-                                    continue;
-                                }
-                                Utils.applyWsrvCdnInPlace(item.getSubject().getImages());
-                            }
-                        }
-                        TrendingSubjectsVo vo = new TrendingSubjectsVo();
-                        BeanUtils.copyProperties(dto, vo);
-                        redisTemplate.opsForValue().set(
-                                cacheKey,
-                                vo,
-                                BangumiConstants.BANGUMI_TRENDING_CACHE_TTL_SECONDS,
-                                TimeUnit.SECONDS
-                        );
-                        return Result.success(ResponseCode.SUCCESS, vo);
-                    } finally {
-                        redisTemplate.delete(lockKey);
-                    }
-                }
-
-                if (System.currentTimeMillis() >= deadline) {
-                    throw new BangumiUpstreamException("获取趋势条目超时，请稍后重试");
-                }
-                try {
-                    Thread.sleep(BangumiConstants.BANGUMI_CALENDAR_CACHE_POLL_INTERVAL_MILLIS);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new BangumiUpstreamException("获取趋势条目被中断", e);
-                }
-            }
+            TrendingSubjectsVo vo = bangumiCacheService.getOrLoad(
+                    cacheKey,
+                    TrendingSubjectsVo.class,
+                    BangumiConstants.BANGUMI_TRENDING_CACHE_TTL_SECONDS,
+                    "获取趋势条目超时，请稍后重试",
+                    "获取趋势条目被中断",
+                    loader,
+                    () -> log.info("趋势条目(命中缓存), type={}, limit={}, offset={}", type, limit, offset));
+            return Result.success(ResponseCode.SUCCESS, vo);
         }
-
-        TrendingSubjectsDto dto = bangumiClient.getTrendingSubjects(type, limit, offset);
-        if (dto.getData() != null) {
-            for (TrendingSubjectsDto.Item item : dto.getData()) {
-                if (item == null || item.getSubject() == null) {
-                    continue;
-                }
-                Utils.applyWsrvCdnInPlace(item.getSubject().getImages());
-            }
-        }
-        TrendingSubjectsVo vo = new TrendingSubjectsVo();
-        BeanUtils.copyProperties(dto, vo);
-        return Result.success(ResponseCode.SUCCESS, vo);
+        return Result.success(ResponseCode.SUCCESS, loader.get());
     }
 
     /**
-     * 搜索条目；全局串行执行，两次请求之间至少间隔 1.5 秒。
+     * 搜索条目。
+     * 对应 Bangumi {@code POST /p1/search/subjects}；全站串行限流，两次请求间隔至少 1.5 秒。
      * 携带 Authorization Bearer 时返回当前用户 {@code interest}，否则不含该字段。
+     *
+     * @param limit       每页条数，1–100
+     * @param offset      偏移量
+     * @param body        搜索关键词与筛选条件
+     * @param accessToken 可选 Bearer，来自可选鉴权拦截器
      */
     @PostMapping("/search/subjects")
     public Result<SubjectsVo> searchSubjects(
@@ -326,7 +211,11 @@ public class BangumiController {
     }
 
     /**
-     * 条目详情；携带 Authorization Bearer 时返回当前用户 {@code interest}，否则不含该字段。
+     * 条目详情。
+     * 对应 Bangumi {@code GET /p1/subjects/{id}}。未登录时对近期放送条目缓存；登录后带 token 直查以返回 {@code interest}。
+     *
+     * @param subjectId   Bangumi 条目 ID
+     * @param accessToken 可选 Bearer
      */
     @GetMapping("/subjects/{subjectId}")
     public Result<SubjectDetailVo> subjectDetail(
@@ -335,65 +224,23 @@ public class BangumiController {
             String accessToken) {
         if (!StringUtils.hasText(accessToken)) {
             String cacheKey = BangumiConstants.BANGUMI_SUBJECT_DETAIL_CACHE_KEY_PREFIX + ':' + subjectId;
-            String lockKey = cacheKey + ":lock";
-            long deadline = System.currentTimeMillis() + BangumiConstants.BANGUMI_CALENDAR_CACHE_WAIT_MILLIS;
-            while (true) {
-                Object cached = redisTemplate.opsForValue().get(cacheKey);
-                if (cached instanceof SubjectDetailVo subjectDetailVo) {
-                    log.info("条目详情(命中缓存), subjectId={}", subjectId);
-                    return Result.success(ResponseCode.SUCCESS, subjectDetailVo);
-                }
-
-                Boolean locked = redisTemplate.opsForValue().setIfAbsent(
-                        lockKey,
-                        "1",
-                        BangumiConstants.BANGUMI_CALENDAR_LOCK_TTL_SECONDS,
-                        TimeUnit.SECONDS
-                );
-                if (Boolean.TRUE.equals(locked)) {
-                    try {
-                        cached = redisTemplate.opsForValue().get(cacheKey);
-                        if (cached instanceof SubjectDetailVo subjectDetailVo) {
-                            log.info("条目详情(命中缓存), subjectId={}", subjectId);
-                            return Result.success(ResponseCode.SUCCESS, subjectDetailVo);
-                        }
-
+            SubjectDetailVo vo = bangumiCacheService.getOrLoad(
+                    cacheKey,
+                    BangumiCacheService.lockKey(cacheKey),
+                    SubjectDetailVo.class,
+                    BangumiConstants.BANGUMI_SUBJECT_DETAIL_CACHE_TTL_SECONDS,
+                    "获取条目详情超时，请稍后重试",
+                    "获取条目详情被中断",
+                    () -> {
                         SubjectDetailDto dto = bangumiClient.getSubject(subjectId, null);
                         Utils.applyWsrvCdnInPlace(dto.getImages());
-                        SubjectDetailVo vo = new SubjectDetailVo();
-                        BeanUtils.copyProperties(dto, vo);
-                        SubjectDetailDto.Airtime airtime = vo.getAirtime();
-                        if (airtime != null && StringUtils.hasText(airtime.getDate())) {
-                            try {
-                                LocalDate airtimeDate = LocalDate.parse(airtime.getDate());
-                                LocalDate today = LocalDate.now();
-                                if (!airtimeDate.isBefore(today.minusMonths(4)) && !airtimeDate.isAfter(today)) {
-                                    redisTemplate.opsForValue().set(
-                                            cacheKey,
-                                            vo,
-                                            BangumiConstants.BANGUMI_SUBJECT_DETAIL_CACHE_TTL_SECONDS,
-                                            TimeUnit.SECONDS
-                                    );
-                                }
-                            } catch (DateTimeParseException ignored) {
-                            }
-                        }
-                        return Result.success(ResponseCode.SUCCESS, vo);
-                    } finally {
-                        redisTemplate.delete(lockKey);
-                    }
-                }
-
-                if (System.currentTimeMillis() >= deadline) {
-                    throw new BangumiUpstreamException("获取条目详情超时，请稍后重试");
-                }
-                try {
-                    Thread.sleep(BangumiConstants.BANGUMI_CALENDAR_CACHE_POLL_INTERVAL_MILLIS);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new BangumiUpstreamException("获取条目详情被中断", e);
-                }
-            }
+                        SubjectDetailVo detailVo = new SubjectDetailVo();
+                        BeanUtils.copyProperties(dto, detailVo);
+                        return detailVo;
+                    },
+                    BangumiController::shouldCacheSubjectDetail,
+                    () -> log.info("条目详情(命中缓存), subjectId={}", subjectId));
+            return Result.success(ResponseCode.SUCCESS, vo);
         }
 
         SubjectDetailDto dto = bangumiClient.getSubject(subjectId, accessToken);
@@ -404,7 +251,12 @@ public class BangumiController {
     }
 
     /**
-     * 条目章节列表
+     * 条目章节列表。
+     * 对应 Bangumi {@code GET /p1/subjects/{id}/episodes}，不做 Redis 缓存。
+     *
+     * @param subjectId 条目 ID
+     * @param limit     每页条数
+     * @param offset    偏移量
      */
     @GetMapping("/subjects/{subjectId}/episodes")
     public Result<SubjectEpisodesVo> subjectEpisodes(
@@ -418,7 +270,66 @@ public class BangumiController {
     }
 
     /**
-     * 章节评论列表
+     * 条目角色与声优列表。
+     * 对应 Bangumi {@code GET /p1/subjects/{id}/characters}；前 10 页走缓存。
+     *
+     * @param subjectId 条目 ID
+     * @param limit     每页条数，默认 10
+     * @param offset    偏移量，默认 0
+     * @param type      角色类型筛选，可选
+     */
+    @GetMapping("/subjects/{subjectId}/characters")
+    public Result<SubjectCharactersVo> subjectCharacters(
+            @NotNull @PathVariable int subjectId,
+            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(required = false) Integer type) {
+        Supplier<SubjectCharactersVo> loader = () -> {
+            SubjectCharactersDto dto = bangumiClient.getSubjectCharacters(subjectId, limit, offset, type);
+            if (dto.getData() != null) {
+                for (SubjectCharactersDto.Item item : dto.getData()) {
+                    if (item == null) {
+                        continue;
+                    }
+                    if (item.getCharacter() != null) {
+                        Utils.applyWsrvCdnInPlace(item.getCharacter().getImages());
+                    }
+                    if (item.getCasts() != null) {
+                        for (SubjectCharactersDto.Cast cast : item.getCasts()) {
+                            if (cast != null && cast.getPerson() != null) {
+                                Utils.applyWsrvCdnInPlace(cast.getPerson().getImages());
+                            }
+                        }
+                    }
+                }
+            }
+            SubjectCharactersVo vo = new SubjectCharactersVo();
+            BeanUtils.copyProperties(dto, vo);
+            return vo;
+        };
+        if (limit > 0 && offset / limit + 1 <= BangumiConstants.BANGUMI_SUBJECT_CHARACTERS_MAX_CACHE_PAGE) {
+            String typeKey = type != null ? type.toString() : "none";
+            String cacheKey = BangumiConstants.BANGUMI_SUBJECT_CHARACTERS_CACHE_KEY_PREFIX + ':' + subjectId
+                    + ':' + typeKey + ':' + limit + ':' + offset;
+            SubjectCharactersVo vo = bangumiCacheService.getOrLoad(
+                    cacheKey,
+                    SubjectCharactersVo.class,
+                    BangumiConstants.BANGUMI_SUBJECT_CHARACTERS_CACHE_TTL_SECONDS,
+                    "获取条目角色超时，请稍后重试",
+                    "获取条目角色被中断",
+                    loader,
+                    () -> log.info("条目角色(命中缓存), subjectId={}, type={}, limit={}, offset={}",
+                            subjectId, type, limit, offset));
+            return Result.success(ResponseCode.SUCCESS, vo);
+        }
+        return Result.success(ResponseCode.SUCCESS, loader.get());
+    }
+
+    /**
+     * 章节评论列表（含嵌套回复）。
+     * 对应 Bangumi {@code GET /p1/episodes/{id}/comments}，用户头像走 CDN 替换。
+     *
+     * @param episodeId Bangumi 章节 ID
      */
     @GetMapping("/episodes/{episodeId}/comments")
     public Result<List<EpisodeCommentDto>> episodeComments(@NotNull @PathVariable long episodeId) {
@@ -438,6 +349,29 @@ public class BangumiController {
         return Result.success(ResponseCode.SUCCESS, comments);
     }
 
+    /**
+     * 仅当条目放送日在「今天起往前 4 个月」内时才写入详情缓存，避免陈旧条目长期占位。
+     */
+    private static boolean shouldCacheSubjectDetail(SubjectDetailVo vo) {
+        SubjectDetailDto.Airtime airtime = vo.getAirtime();
+        if (airtime == null || !StringUtils.hasText(airtime.getDate())) {
+            return false;
+        }
+        try {
+            LocalDate airtimeDate = LocalDate.parse(airtime.getDate());
+            LocalDate today = LocalDate.now();
+            return !airtimeDate.isBefore(today.minusMonths(4)) && !airtimeDate.isAfter(today);
+        } catch (DateTimeParseException e) {
+            return false;
+        }
+    }
+
+    /**
+     * 在全局搜索锁与冷却键约束下串行执行 {@code action}，满足 Bangumi 搜索频率限制。
+     *
+     * @param action 实际搜索逻辑
+     * @return 搜索结果
+     */
     private <T> T executeSearchWithSerialLimit(Supplier<T> action) {
         long deadline = System.currentTimeMillis() + BangumiConstants.BANGUMI_SEARCH_WAIT_MILLIS;
         while (true) {
@@ -453,8 +387,7 @@ public class BangumiController {
                     BangumiConstants.BANGUMI_SEARCH_LOCK_KEY,
                     "1",
                     BangumiConstants.BANGUMI_SEARCH_LOCK_TTL_SECONDS,
-                    TimeUnit.SECONDS
-            );
+                    TimeUnit.SECONDS);
             if (Boolean.TRUE.equals(locked)) {
                 try {
                     if (redisTemplate.hasKey(BangumiConstants.BANGUMI_SEARCH_COOLDOWN_KEY)) {
@@ -465,8 +398,7 @@ public class BangumiController {
                             BangumiConstants.BANGUMI_SEARCH_COOLDOWN_KEY,
                             "1",
                             BangumiConstants.BANGUMI_SEARCH_COOLDOWN_MILLIS,
-                            TimeUnit.MILLISECONDS
-                    );
+                            TimeUnit.MILLISECONDS);
                     return result;
                 } finally {
                     redisTemplate.delete(BangumiConstants.BANGUMI_SEARCH_LOCK_KEY);
@@ -480,6 +412,9 @@ public class BangumiController {
         }
     }
 
+    /**
+     * 搜索排队等待，被中断时抛出 {@link BangumiUpstreamException}。
+     */
     private void sleepForSearchQueue() {
         try {
             Thread.sleep(BangumiConstants.BANGUMI_SEARCH_POLL_INTERVAL_MILLIS);

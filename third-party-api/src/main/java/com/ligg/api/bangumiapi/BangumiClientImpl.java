@@ -14,6 +14,7 @@ import com.ligg.common.thirdparty.bangumi.response.CalendarDto;
 import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentDto;
 import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectCharactersDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
 import com.ligg.common.thirdparty.bangumi.response.TrendingSubjectsDto;
@@ -165,6 +166,24 @@ public class BangumiClientImpl implements BangumiClient {
                         .build(subjectId))
                 .retrieve()
                 .bodyToMono(SubjectEpisodesDto.class));
+    }
+
+    @Override
+    public SubjectCharactersDto getSubjectCharacters(int subjectId, int limit, int offset, Integer type) {
+        log.info("获取条目角色 subjectId={} limit={} offset={} type={}", subjectId, limit, offset, type);
+        return blockBangumi(bangumiNextClient.get()
+                .uri(uriBuilder -> {
+                    var builder = uriBuilder
+                            .path(BangumiApiPath.P1_SUBJECT_CHARACTERS)
+                            .queryParam("limit", limit)
+                            .queryParam("offset", offset);
+                    if (type != null) {
+                        builder.queryParam("type", type);
+                    }
+                    return builder.build(subjectId);
+                })
+                .retrieve()
+                .bodyToMono(SubjectCharactersDto.class));
     }
 
     @Override
