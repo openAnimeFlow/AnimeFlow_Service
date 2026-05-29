@@ -10,6 +10,8 @@ import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
+import com.ligg.common.thirdparty.bangumi.response.CharacterCommentDto;
+import com.ligg.common.thirdparty.bangumi.response.CharacterCommentsDto;
 import com.ligg.common.thirdparty.bangumi.response.CharacterCastsDto;
 import com.ligg.common.thirdparty.bangumi.response.CharacterDetailDto;
 import com.ligg.common.thirdparty.bangumi.response.CalendarDto;
@@ -197,6 +199,24 @@ public class BangumiClientImpl implements BangumiClient {
                 .uri(BangumiApiPath.P1_CHARACTER, characterId)
                 .retrieve()
                 .bodyToMono(CharacterDetailDto.class));
+    }
+
+    @Override
+    public CharacterCommentsDto getCharacterComments(int characterId, int limit, int offset) {
+        log.info("获取角色吐槽 characterId={} limit={} offset={}", characterId, limit, offset);
+        return blockBangumi(bangumiNextClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path(BangumiApiPath.P1_CHARACTER_COMMENTS)
+                        .queryParam("limit", limit)
+                        .queryParam("offset", offset)
+                        .build(characterId))
+                .retrieve()
+                .bodyToMono(new ParameterizedTypeReference<List<CharacterCommentDto>>() {})
+                .map(comments -> {
+                    CharacterCommentsDto dto = new CharacterCommentsDto();
+                    dto.setData(comments);
+                    return dto;
+                }));
     }
 
     @Override

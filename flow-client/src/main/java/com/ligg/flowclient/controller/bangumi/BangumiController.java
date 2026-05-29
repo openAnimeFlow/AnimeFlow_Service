@@ -352,6 +352,43 @@ public class BangumiController {
     }
 
     /**
+     * 角色吐槽列表（含嵌套回复）。
+     * 对应 Bangumi {@code GET /p1/characters/{id}/comments}；前 2 页走缓存，缓存 1 分钟。
+     *
+     * @param characterId 角色 ID
+     * @param limit       每页条数，默认 20
+     * @param offset      偏移量，默认 0
+     */
+    @GetMapping("/characters/{characterId}/comments")
+    public Result<CharacterCommentsVo> characterComments(
+            @NotNull @PathVariable int characterId,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "0") int offset) {
+        Supplier<CharacterCommentsVo> loader = () -> {
+            CharacterCommentsDto dto = bangumiClient.getCharacterComments(characterId, limit, offset);
+            applyCharacterCommentAvatarCdn(dto.getData());
+            CharacterCommentsVo vo = new CharacterCommentsVo();
+            BeanUtils.copyProperties(dto, vo);
+            return vo;
+        };
+        if (limit > 0 && offset / limit + 1 <= BangumiConstants.BANGUMI_CHARACTER_COMMENTS_MAX_CACHE_PAGE) {
+            String cacheKey = BangumiConstants.BANGUMI_CHARACTER_COMMENTS_CACHE_KEY_PREFIX + ':' + characterId
+                    + ':' + limit + ':' + offset;
+            CharacterCommentsVo vo = bangumiCacheService.getOrLoad(
+                    cacheKey,
+                    CharacterCommentsVo.class,
+                    BangumiConstants.BANGUMI_CHARACTER_COMMENTS_CACHE_TTL_SECONDS,
+                    "获取角色吐槽超时，请稍后重试",
+                    "获取角色吐槽被中断",
+                    loader,
+                    () -> log.info("角色吐槽(命中缓存), characterId={}, limit={}, offset={}",
+                            characterId, limit, offset));
+            return Result.success(ResponseCode.SUCCESS, vo);
+        }
+        return Result.success(ResponseCode.SUCCESS, loader.get());
+    }
+
+    /**
      * 角色出演作品列表。
      * 对应 Bangumi {@code GET /p1/characters/{id}/casts}；前 2 页走缓存。
      *
@@ -501,19 +538,45 @@ public class BangumiController {
     @GetMapping("/episodes/{episodeId}/comments")
     public Result<List<EpisodeCommentDto>> episodeComments(@NotNull @PathVariable long episodeId) {
         List<EpisodeCommentDto> comments = bangumiClient.getEpisodeComments(episodeId).getData();
-        if (comments != null) {
-            Deque<EpisodeCommentDto> pending = new ArrayDeque<>(comments);
-            while (!pending.isEmpty()) {
-                EpisodeCommentDto comment = pending.pop();
-                if (comment.getUser() != null) {
-                    Utils.applyWsrvCdnInPlace(comment.getUser().getAvatar());
-                }
-                if (comment.getReplies() != null) {
-                    pending.addAll(comment.getReplies());
+        applyEpisodeCommentAvatarCdn(comments);
+        return Result.success(ResponseCode.SUCCESS, comments);
+    }
+
+    private static void applyEpisodeCommentAvatarCdn(List<EpisodeCommentDto> comments) {
+        if (comments == null) {
+            return;
+        }
+        Deque<EpisodeCommentDto> pending = new ArrayDeque<>(comments);
+        while (!pending.isEmpty()) {
+            EpisodeCommentDto comment = pending.pop();
+            if (comment.getUser() != null) {
+                Utils.applyWsrvCdnInPlace(comment.getUser().getAvatar());
+            }
+            if (comment.getReplies() != null) {
+                pending.addAll(comment.getReplies());
+            }
+        }
+    }
+
+    private static void applyCharacterCommentAvatarCdn(List<CharacterCommentDto> comments) {
+        if (comments == null) {
+            return;
+        }
+        for (CharacterCommentDto comment : comments) {
+            if (comment == null) {
+                continue;
+            }
+            if (comment.getUser() != null) {
+                Utils.applyWsrvCdnInPlace(comment.getUser().getAvatar());
+            }
+            if (comment.getReplies() != null) {
+                for (CharacterCommentDto.Reply reply : comment.getReplies()) {
+                    if (reply != null && reply.getUser() != null) {
+                        Utils.applyWsrvCdnInPlace(reply.getUser().getAvatar());
+                    }
                 }
             }
         }
-        return Result.success(ResponseCode.SUCCESS, comments);
     }
 
     /**
