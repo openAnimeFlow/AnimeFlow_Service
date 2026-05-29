@@ -3,9 +3,12 @@ package com.ligg.flowclient.service;
 import com.ligg.common.constants.bangumi.BangumiConstants;
 import com.ligg.common.exception.BangumiUpstreamException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.SerializationException;
 import org.springframework.stereotype.Service;
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -13,11 +16,20 @@ import java.util.function.Supplier;
 /**
  * Bangumi 接口共用的 Redis 缓存击穿保护（读缓存 → 分布式锁 → 回源 → 写缓存）。
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BangumiCacheService {
 
+    /**
+     * 脏缓存清理后的冷却时间：期间跳过对该键的 Redis 读取，避免轮询中反复 get/delete。
+     */
+    private static final long CORRUPT_CACHE_COOLDOWN_MS = 30_000L;
+
     private final RedisTemplate<String, Object> redisTemplate;
+
+    /** 全局记录近期已判定为脏数据的缓存键及冷却截止时间（毫秒时间戳）。 */
+    private final ConcurrentHashMap<String, Long> corruptCacheUntil = new ConcurrentHashMap<>();
 
     /**
      * 由缓存键派生分布式锁键（{@code {cacheKey}:lock}）。
@@ -106,8 +118,9 @@ public class BangumiCacheService {
             Predicate<T> shouldCache,
             Runnable onCacheHit) {
         long deadline = System.currentTimeMillis() + BangumiConstants.BANGUMI_CALENDAR_CACHE_WAIT_MILLIS;
+        CacheReadContext readContext = new CacheReadContext();
         while (true) {
-            T cached = getCached(cacheKey, type);
+            T cached = getCached(cacheKey, type, readContext);
             if (cached != null) {
                 if (onCacheHit != null) {
                     onCacheHit.run();
@@ -122,7 +135,7 @@ public class BangumiCacheService {
                     TimeUnit.SECONDS);
             if (Boolean.TRUE.equals(locked)) {
                 try {
-                    cached = getCached(cacheKey, type);
+                    cached = getCached(cacheKey, type, readContext);
                     if (cached != null) {
                         if (onCacheHit != null) {
                             onCacheHit.run();
@@ -133,6 +146,7 @@ public class BangumiCacheService {
                     T value = loader.get();
                     if (shouldCache.test(value)) {
                         redisTemplate.opsForValue().set(cacheKey, value, ttlSeconds, TimeUnit.SECONDS);
+                        clearCorruptCooldown(cacheKey);
                     }
                     return value;
                 } finally {
@@ -147,14 +161,96 @@ public class BangumiCacheService {
         }
     }
 
-    /** 从 Redis 读取并做类型校验，类型不匹配视为未命中。 */
+    /**
+     * 从 Redis 读取并做类型校验。
+     * 反序列化失败或类型不匹配时最多清理一次，随后在本轮 {@link #getOrLoad} 内跳过读缓存，直接回源。
+     */
     @SuppressWarnings("unchecked")
-    private <T> T getCached(String cacheKey, Class<T> type) {
-        Object cached = redisTemplate.opsForValue().get(cacheKey);
-        if (type.isInstance(cached)) {
-            return (T) cached;
+    private <T> T getCached(String cacheKey, Class<T> type, CacheReadContext readContext) {
+        if (readContext.skipRead || isInCorruptCooldown(cacheKey)) {
+            readContext.skipRead = true;
+            return null;
         }
-        return null;
+        try {
+            Object cached = redisTemplate.opsForValue().get(cacheKey);
+            if (cached == null) {
+                return null;
+            }
+            if (type.isInstance(cached)) {
+                clearCorruptCooldown(cacheKey);
+                return (T) cached;
+            }
+            log.warn("缓存类型不匹配，已清理 cacheKey={}, expected={}, actual={}",
+                    cacheKey, type.getName(), cached.getClass().getName());
+            evictCorruptCache(cacheKey, readContext, "type mismatch");
+            return null;
+        } catch (RuntimeException e) {
+            if (isCacheDeserializationFailure(e)) {
+                evictCorruptCache(cacheKey, readContext, e.getMessage());
+                return null;
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * 每个 {@link #getOrLoad} 调用独享：避免同一次等待循环内对同一 key 反复 get/delete。
+     */
+    private static final class CacheReadContext {
+        private boolean skipRead;
+        private boolean evicted;
+    }
+
+    private void evictCorruptCache(String cacheKey, CacheReadContext readContext, String reason) {
+        readContext.skipRead = true;
+        if (readContext.evicted) {
+            return;
+        }
+        readContext.evicted = true;
+        corruptCacheUntil.put(cacheKey, System.currentTimeMillis() + CORRUPT_CACHE_COOLDOWN_MS);
+        log.warn("缓存数据不可用，已清理脏数据 cacheKey={}, reason={}", cacheKey, reason);
+        safeDelete(cacheKey);
+    }
+
+    private boolean isInCorruptCooldown(String cacheKey) {
+        Long until = corruptCacheUntil.get(cacheKey);
+        if (until == null) {
+            return false;
+        }
+        if (System.currentTimeMillis() < until) {
+            return true;
+        }
+        corruptCacheUntil.remove(cacheKey, until);
+        return false;
+    }
+
+    private void clearCorruptCooldown(String cacheKey) {
+        corruptCacheUntil.remove(cacheKey);
+    }
+
+    private void safeDelete(String cacheKey) {
+        try {
+            redisTemplate.delete(cacheKey);
+        } catch (RuntimeException deleteEx) {
+            log.warn("清理脏缓存失败 cacheKey={}, message={}", cacheKey, deleteEx.getMessage());
+        }
+    }
+
+    private static boolean isCacheDeserializationFailure(Throwable error) {
+        for (Throwable current = error; current != null; current = current.getCause()) {
+            if (current instanceof SerializationException) {
+                return true;
+            }
+            String message = current.getMessage();
+            if (message != null
+                    && (message.contains("Could not read JSON")
+                    || message.contains("Could not resolve type id")
+                    || message.contains("Unexpected token")
+                    || message.contains("Cannot deserialize"))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** 缓存重建等待轮询，被中断时包装为 {@link BangumiUpstreamException}。 */

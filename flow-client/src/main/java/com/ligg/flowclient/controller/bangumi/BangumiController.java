@@ -326,6 +326,92 @@ public class BangumiController {
     }
 
     /**
+     * 条目制作人员列表。
+     * 对应 Bangumi {@code GET /p1/subjects/{id}/staffs/persons}；前 10 页走缓存。
+     *
+     * @param subjectId 条目 ID
+     * @param limit     每页条数，默认 10
+     * @param offset    偏移量，默认 0
+     */
+    @GetMapping("/subjects/{subjectId}/staffs/persons")
+    public Result<SubjectStaffPersonsVo> subjectStaffPersons(
+            @NotNull @PathVariable int subjectId,
+            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(defaultValue = "0") int offset) {
+        Supplier<SubjectStaffPersonsVo> loader = () -> {
+            SubjectStaffPersonsDto dto = bangumiClient.getSubjectStaffPersons(subjectId, limit, offset);
+            if (dto.getData() != null) {
+                for (SubjectStaffPersonsDto.Item item : dto.getData()) {
+                    if (item != null && item.getStaff() != null) {
+                        Utils.applyWsrvCdnInPlace(item.getStaff().getImages());
+                    }
+                }
+            }
+            SubjectStaffPersonsVo vo = new SubjectStaffPersonsVo();
+            BeanUtils.copyProperties(dto, vo);
+            return vo;
+        };
+        if (limit > 0 && offset / limit + 1 <= BangumiConstants.BANGUMI_SUBJECT_STAFF_PERSONS_MAX_CACHE_PAGE) {
+            String cacheKey = BangumiConstants.BANGUMI_SUBJECT_STAFF_PERSONS_CACHE_KEY_PREFIX + ':' + subjectId
+                    + ':' + limit + ':' + offset;
+            SubjectStaffPersonsVo vo = bangumiCacheService.getOrLoad(
+                    cacheKey,
+                    SubjectStaffPersonsVo.class,
+                    BangumiConstants.BANGUMI_SUBJECT_STAFF_PERSONS_CACHE_TTL_SECONDS,
+                    "获取条目制作人员超时，请稍后重试",
+                    "获取条目制作人员被中断",
+                    loader,
+                    () -> log.info("条目制作人员(命中缓存), subjectId={}, limit={}, offset={}",
+                            subjectId, limit, offset));
+            return Result.success(ResponseCode.SUCCESS, vo);
+        }
+        return Result.success(ResponseCode.SUCCESS, loader.get());
+    }
+
+    /**
+     * 条目评论列表。
+     * 对应 Bangumi {@code GET /p1/subjects/{id}/comments}；前 10 页走缓存。
+     *
+     * @param subjectId 条目 ID
+     * @param limit     每页条数，默认 20
+     * @param offset    偏移量，默认 0
+     */
+    @GetMapping("/subjects/{subjectId}/comments")
+    public Result<SubjectCommentsVo> subjectComments(
+            @NotNull @PathVariable int subjectId,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "0") int offset) {
+        Supplier<SubjectCommentsVo> loader = () -> {
+            SubjectCommentsDto dto = bangumiClient.getSubjectComments(subjectId, limit, offset);
+            if (dto.getData() != null) {
+                for (SubjectCommentsDto.Comment comment : dto.getData()) {
+                    if (comment != null && comment.getUser() != null) {
+                        Utils.applyWsrvCdnInPlace(comment.getUser().getAvatar());
+                    }
+                }
+            }
+            SubjectCommentsVo vo = new SubjectCommentsVo();
+            BeanUtils.copyProperties(dto, vo);
+            return vo;
+        };
+        if (limit > 0 && offset / limit + 1 <= BangumiConstants.BANGUMI_SUBJECT_COMMENTS_MAX_CACHE_PAGE) {
+            String cacheKey = BangumiConstants.BANGUMI_SUBJECT_COMMENTS_CACHE_KEY_PREFIX + ':' + subjectId
+                    + ':' + limit + ':' + offset;
+            SubjectCommentsVo vo = bangumiCacheService.getOrLoad(
+                    cacheKey,
+                    SubjectCommentsVo.class,
+                    BangumiConstants.BANGUMI_SUBJECT_COMMENTS_CACHE_TTL_SECONDS,
+                    "获取条目评论超时，请稍后重试",
+                    "获取条目评论被中断",
+                    loader,
+                    () -> log.info("条目评论(命中缓存), subjectId={}, limit={}, offset={}",
+                            subjectId, limit, offset));
+            return Result.success(ResponseCode.SUCCESS, vo);
+        }
+        return Result.success(ResponseCode.SUCCESS, loader.get());
+    }
+
+    /**
      * 章节评论列表（含嵌套回复）。
      * 对应 Bangumi {@code GET /p1/episodes/{id}/comments}，用户头像走 CDN 替换。
      *

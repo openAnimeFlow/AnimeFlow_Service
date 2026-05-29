@@ -16,6 +16,8 @@ import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectCharactersDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectCommentsDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectStaffPersonsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
 import com.ligg.common.thirdparty.bangumi.response.TrendingSubjectsDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
@@ -184,6 +186,32 @@ public class BangumiClientImpl implements BangumiClient {
                 })
                 .retrieve()
                 .bodyToMono(SubjectCharactersDto.class));
+    }
+
+    @Override
+    public SubjectStaffPersonsDto getSubjectStaffPersons(int subjectId, int limit, int offset) {
+        log.info("获取条目制作人员 subjectId={} limit={} offset={}", subjectId, limit, offset);
+        return blockBangumi(bangumiNextClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path(BangumiApiPath.P1_SUBJECT_STAFF_PERSONS)
+                        .queryParam("limit", limit)
+                        .queryParam("offset", offset)
+                        .build(subjectId))
+                .retrieve()
+                .bodyToMono(SubjectStaffPersonsDto.class));
+    }
+
+    @Override
+    public SubjectCommentsDto getSubjectComments(int subjectId, int limit, int offset) {
+        log.info("获取条目评论 subjectId={} limit={} offset={}", subjectId, limit, offset);
+        return blockBangumi(bangumiNextClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path(BangumiApiPath.P1_SUBJECT_COMMENTS)
+                        .queryParam("limit", limit)
+                        .queryParam("offset", offset)
+                        .build(subjectId))
+                .retrieve()
+                .bodyToMono(SubjectCommentsDto.class));
     }
 
     @Override

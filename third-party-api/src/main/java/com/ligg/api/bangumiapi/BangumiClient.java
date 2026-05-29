@@ -11,6 +11,8 @@ import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectCharactersDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectCommentsDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectStaffPersonsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
 import com.ligg.common.thirdparty.bangumi.response.TrendingSubjectsDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
@@ -67,6 +69,16 @@ public interface BangumiClient {
      * @param type 角色类型筛选，可为空
      */
     SubjectCharactersDto getSubjectCharacters(int subjectId, int limit, int offset, Integer type);
+
+    /**
+     * 获取条目制作人员列表
+     */
+    SubjectStaffPersonsDto getSubjectStaffPersons(int subjectId, int limit, int offset);
+
+    /**
+     * 获取条目评论列表
+     */
+    SubjectCommentsDto getSubjectComments(int subjectId, int limit, int offset);
 
     /**
      * 获取章节评论列表
