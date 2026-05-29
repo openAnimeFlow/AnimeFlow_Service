@@ -2,11 +2,12 @@
  * @author Ligg
  * @date 2026/5/28 01:52
  */
-package com.ligg.common.thirdparty;
+package com.ligg.common.thirdparty.bangumi.response;
 
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.ligg.common.thirdparty.bangumi.model.BangumiSubject;
 import lombok.Data;
 
 import java.util.LinkedHashMap;

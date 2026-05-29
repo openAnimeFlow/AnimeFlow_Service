@@ -8,13 +8,15 @@ import com.ligg.common.apipath.BangumiApiPath;
 import com.ligg.common.constants.ApiConstant;
 import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.exception.LoginExpiredException;
-import com.ligg.common.thirdparty.CalendarDto;
-import com.ligg.common.thirdparty.EpisodeCommentDto;
-import com.ligg.common.thirdparty.EpisodeCommentsDto;
-import com.ligg.common.thirdparty.SubjectDetailDto;
-import com.ligg.common.thirdparty.SubjectEpisodesDto;
-import com.ligg.common.thirdparty.SubjectsDto;
-import com.ligg.common.thirdparty.TrendingSubjectsDto;
+import com.ligg.common.thirdparty.bangumi.enums.SubjectSort;
+import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
+import com.ligg.common.thirdparty.bangumi.response.CalendarDto;
+import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentDto;
+import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentsDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
+import com.ligg.common.thirdparty.bangumi.response.TrendingSubjectsDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -102,13 +104,13 @@ public class BangumiClientImpl implements BangumiClient {
     }
 
     @Override
-    public SubjectsDto getSubjects(String sort, int page, int type, Integer year, Integer month) {
-        log.info("获取条目列表 sort={} page={} type={} year={} month={}", sort, page, type, year, month);
+    public SubjectsDto getSubjects(SubjectSort sort, int page, int type, Integer year, Integer month) {
+        log.info("获取条目列表 sort={} page={} type={} year={} month={}", sort.getValue(), page, type, year, month);
         return blockBangumi(bangumiNextClient.get()
                 .uri(uriBuilder -> {
                     var builder = uriBuilder
                             .path(BangumiApiPath.P1_SUBJECTS)
-                            .queryParam("sort", sort)
+                            .queryParam("sort", sort.getValue())
                             .queryParam("page", page)
                             .queryParam("type", type);
                     if (year != null) {
@@ -121,6 +123,25 @@ public class BangumiClientImpl implements BangumiClient {
                 })
                 .retrieve()
                 .bodyToMono(SubjectsDto.class));
+    }
+
+    @Override
+    public SubjectsDto searchSubjects(SearchSubjectsBody body, int limit, int offset, String accessToken) {
+        SearchSubjectsBody upstreamBody = body.toUpstreamBody();
+        log.info("搜索条目 keyword={} limit={} offset={} withAuth={}",
+                upstreamBody.getKeyword(), limit, offset, StringUtils.hasText(accessToken));
+        var request = bangumiNextClient.post()
+                .uri(uriBuilder -> uriBuilder
+                        .path(BangumiApiPath.P1_SEARCH_SUBJECTS)
+                        .queryParam("limit", limit)
+                        .queryParam("offset", offset)
+                        .build())
+                .header(HttpHeaders.ACCEPT, "application/json")
+                .bodyValue(upstreamBody);
+        if (StringUtils.hasText(accessToken)) {
+            request = request.headers(headers -> headers.setBearerAuth(accessToken));
+        }
+        return blockBangumi(request.retrieve().bodyToMono(SubjectsDto.class));
     }
 
     @Override
@@ -168,6 +189,11 @@ public class BangumiClientImpl implements BangumiClient {
         } catch (WebClientResponseException e) {
             if (e.getStatusCode().value() == 401) {
                 throw new LoginExpiredException(e);
+            }
+            if (e.getStatusCode().is4xxClientError()) {
+                String responseBody = e.getResponseBodyAsString();
+                log.warn("Bangumi 请求被拒绝 status={} body={}", e.getStatusCode().value(), responseBody);
+                throw new BangumiUpstreamException("Bangumi 请求参数无效: " + responseBody, e);
             }
             throw e;
         } catch (WebClientRequestException e) {

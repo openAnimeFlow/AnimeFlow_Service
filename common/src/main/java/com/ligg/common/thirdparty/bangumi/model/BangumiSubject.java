@@ -1,4 +1,4 @@
-package com.ligg.common.thirdparty;
+package com.ligg.common.thirdparty.bangumi.model;
 
 import com.ligg.common.model.CoverImages;
 import lombok.Data;

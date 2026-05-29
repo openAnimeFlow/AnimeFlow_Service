@@ -1,5 +1,6 @@
-package com.ligg.common.thirdparty;
+package com.ligg.common.thirdparty.bangumi.response;
 
+import com.ligg.common.thirdparty.bangumi.model.BangumiSubject;
 import lombok.Data;
 
 import java.util.List;

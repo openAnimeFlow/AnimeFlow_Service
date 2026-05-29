@@ -1,6 +1,6 @@
 package com.ligg.common.vo.bangumi;
 
-import com.ligg.common.thirdparty.SubjectEpisodesDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 

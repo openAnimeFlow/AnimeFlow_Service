@@ -9,12 +9,14 @@ import com.ligg.common.constants.bangumi.BangumiConstants;
 import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
-import com.ligg.common.thirdparty.CalendarDto;
-import com.ligg.common.thirdparty.EpisodeCommentDto;
-import com.ligg.common.thirdparty.SubjectDetailDto;
-import com.ligg.common.thirdparty.SubjectEpisodesDto;
-import com.ligg.common.thirdparty.SubjectsDto;
-import com.ligg.common.thirdparty.TrendingSubjectsDto;
+import com.ligg.common.thirdparty.bangumi.enums.SubjectSort;
+import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
+import com.ligg.common.thirdparty.bangumi.response.CalendarDto;
+import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
+import com.ligg.common.thirdparty.bangumi.response.TrendingSubjectsDto;
 import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.bangumi.CalendarVo;
 import com.ligg.common.vo.bangumi.SubjectDetailVo;
@@ -22,6 +24,9 @@ import com.ligg.common.vo.bangumi.SubjectEpisodesVo;
 import com.ligg.common.vo.bangumi.SubjectsVo;
 import com.ligg.common.vo.bangumi.TrendingSubjectsVo;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +36,9 @@ import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,6 +46,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.function.Supplier;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.concurrent.TimeUnit;
@@ -122,7 +130,7 @@ public class BangumiController {
      */
     @GetMapping("/subjects")
     public Result<SubjectsVo> subjects(
-            @RequestParam(defaultValue = "rank") String sort,
+            @RequestParam(defaultValue = "rank") SubjectSort sort,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "2") int type,
             @RequestParam(required = false) Integer year,
@@ -130,7 +138,7 @@ public class BangumiController {
         if (page >= 1 && page <= BangumiConstants.BANGUMI_SUBJECTS_MAX_CACHE_PAGE) {
             String yearKey = year != null ? year.toString() : "none";
             String monthKey = month != null ? month.toString() : "none";
-            String cacheKey = BangumiConstants.BANGUMI_SUBJECTS_CACHE_KEY_PREFIX + ':' + sort + ':' + type + ':'
+            String cacheKey = BangumiConstants.BANGUMI_SUBJECTS_CACHE_KEY_PREFIX + ':' + sort.getValue() + ':' + type + ':'
                     + yearKey + ':' + monthKey + ":page:" + page;
             String lockKey = cacheKey + ":lock";
             long deadline = System.currentTimeMillis() + BangumiConstants.BANGUMI_CALENDAR_CACHE_WAIT_MILLIS;
@@ -288,6 +296,36 @@ public class BangumiController {
     }
 
     /**
+     * 搜索条目；全局串行执行，两次请求之间至少间隔 1.5 秒。
+     * 携带 Authorization Bearer 时返回当前用户 {@code interest}，否则不含该字段。
+     */
+    @PostMapping("/search/subjects")
+    public Result<SubjectsVo> searchSubjects(
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int limit,
+            @RequestParam(defaultValue = "0") @Min(0) int offset,
+            @RequestBody @Valid SearchSubjectsBody body,
+            @RequestAttribute(name = AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, required = false)
+            String accessToken) {
+        SubjectsVo vo = executeSearchWithSerialLimit(() -> {
+            SubjectsDto dto = bangumiClient.searchSubjects(body, limit, offset, accessToken);
+            if (dto.getData() != null) {
+                for (var subject : dto.getData()) {
+                    if (subject == null) {
+                        continue;
+                    }
+                    Utils.applyWsrvCdnInPlace(subject.getImages());
+                }
+            }
+            SubjectsVo result = new SubjectsVo();
+            BeanUtils.copyProperties(dto, result);
+            return result;
+        });
+        log.info("搜索条目 keyword={}, limit={}, offset={}, total={}",
+                body.getKeyword(), limit, offset, vo.getTotal());
+        return Result.success(ResponseCode.SUCCESS, vo);
+    }
+
+    /**
      * 条目详情；携带 Authorization Bearer 时返回当前用户 {@code interest}，否则不含该字段。
      */
     @GetMapping("/subjects/{subjectId}")
@@ -398,5 +436,56 @@ public class BangumiController {
             }
         }
         return Result.success(ResponseCode.SUCCESS, comments);
+    }
+
+    private <T> T executeSearchWithSerialLimit(Supplier<T> action) {
+        long deadline = System.currentTimeMillis() + BangumiConstants.BANGUMI_SEARCH_WAIT_MILLIS;
+        while (true) {
+            if (redisTemplate.hasKey(BangumiConstants.BANGUMI_SEARCH_COOLDOWN_KEY)) {
+                if (System.currentTimeMillis() >= deadline) {
+                    throw new BangumiUpstreamException("搜索请求排队超时，请稍后重试");
+                }
+                sleepForSearchQueue();
+                continue;
+            }
+
+            Boolean locked = redisTemplate.opsForValue().setIfAbsent(
+                    BangumiConstants.BANGUMI_SEARCH_LOCK_KEY,
+                    "1",
+                    BangumiConstants.BANGUMI_SEARCH_LOCK_TTL_SECONDS,
+                    TimeUnit.SECONDS
+            );
+            if (Boolean.TRUE.equals(locked)) {
+                try {
+                    if (redisTemplate.hasKey(BangumiConstants.BANGUMI_SEARCH_COOLDOWN_KEY)) {
+                        continue;
+                    }
+                    T result = action.get();
+                    redisTemplate.opsForValue().set(
+                            BangumiConstants.BANGUMI_SEARCH_COOLDOWN_KEY,
+                            "1",
+                            BangumiConstants.BANGUMI_SEARCH_COOLDOWN_MILLIS,
+                            TimeUnit.MILLISECONDS
+                    );
+                    return result;
+                } finally {
+                    redisTemplate.delete(BangumiConstants.BANGUMI_SEARCH_LOCK_KEY);
+                }
+            }
+
+            if (System.currentTimeMillis() >= deadline) {
+                throw new BangumiUpstreamException("搜索请求排队超时，请稍后重试");
+            }
+            sleepForSearchQueue();
+        }
+    }
+
+    private void sleepForSearchQueue() {
+        try {
+            Thread.sleep(BangumiConstants.BANGUMI_SEARCH_POLL_INTERVAL_MILLIS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BangumiUpstreamException("搜索请求被中断", e);
+        }
     }
 }

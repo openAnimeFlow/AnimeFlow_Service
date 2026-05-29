@@ -4,12 +4,14 @@
  */
 package com.ligg.api.bangumiapi;
 
-import com.ligg.common.thirdparty.CalendarDto;
-import com.ligg.common.thirdparty.EpisodeCommentsDto;
-import com.ligg.common.thirdparty.SubjectDetailDto;
-import com.ligg.common.thirdparty.SubjectEpisodesDto;
-import com.ligg.common.thirdparty.SubjectsDto;
-import com.ligg.common.thirdparty.TrendingSubjectsDto;
+import com.ligg.common.thirdparty.bangumi.enums.SubjectSort;
+import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
+import com.ligg.common.thirdparty.bangumi.response.CalendarDto;
+import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentsDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
+import com.ligg.common.thirdparty.bangumi.response.TrendingSubjectsDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
 
 public interface BangumiClient {
@@ -41,7 +43,12 @@ public interface BangumiClient {
      * @param year  放送年份，可为空
      * @param month 放送月份，可为空
      */
-    SubjectsDto getSubjects(String sort, int page, int type, Integer year, Integer month);
+    SubjectsDto getSubjects(SubjectSort sort, int page, int type, Integer year, Integer month);
+
+    /**
+     * 搜索条目；{@code accessToken} 为空时不带 Bearer，响应不含 {@code interest}。
+     */
+    SubjectsDto searchSubjects(SearchSubjectsBody body, int limit, int offset, String accessToken);
 
     /**
      * 获取条目详情；{@code accessToken} 为空时不带 Bearer，响应不含 {@code interest}。

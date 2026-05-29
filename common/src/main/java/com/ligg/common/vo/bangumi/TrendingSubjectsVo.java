@@ -1,6 +1,6 @@
 package com.ligg.common.vo.bangumi;
 
-import com.ligg.common.thirdparty.TrendingSubjectsDto;
+import com.ligg.common.thirdparty.bangumi.response.TrendingSubjectsDto;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 

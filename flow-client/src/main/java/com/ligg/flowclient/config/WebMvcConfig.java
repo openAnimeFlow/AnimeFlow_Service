@@ -1,11 +1,13 @@
 package com.ligg.flowclient.config;
 
+import com.ligg.common.thirdparty.bangumi.enums.SubjectSort;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.interceptor.IpRateLimitInterceptor;
 import com.ligg.flowclient.interceptor.OptionalAuthorizationInterceptor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.format.FormatterRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -35,7 +37,15 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .order(1);
 
         registry.addInterceptor(optionalAuthorizationInterceptor)
-                .addPathPatterns("/api/v1/bangumi/subjects/**")
+                .addPathPatterns("/api/v1/bangumi/subjects/**", "/api/v1/bangumi/search/subjects")
                 .order(2);
+    }
+
+    /**
+     * 注册 String → SubjectSort 转换器，支持 query 传 "rank"、"match" 等小写值
+     */
+    @Override
+    public void addFormatters(FormatterRegistry registry) {
+        registry.addConverter(String.class, SubjectSort.class, SubjectSort::fromValue);
     }
 }

@@ -1,4 +1,4 @@
-package com.ligg.common.thirdparty;
+package com.ligg.common.thirdparty.bangumi.response;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;

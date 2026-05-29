@@ -4,7 +4,7 @@
  */
 package com.ligg.common.vo.bangumi;
 
-import com.ligg.common.thirdparty.CalendarDto;
+import com.ligg.common.thirdparty.bangumi.response.CalendarDto;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 

@@ -24,6 +24,11 @@ public class BangumiApiPath {
     public static final String P1_SUBJECTS = "/p1/subjects";
 
     /**
+     * 条目搜索
+     */
+    public static final String P1_SEARCH_SUBJECTS = "/p1/search/subjects";
+
+    /**
      * 条目章节列表
      */
     public static final String P1_SUBJECT_EPISODES = "/p1/subjects/{subjectId}/episodes";

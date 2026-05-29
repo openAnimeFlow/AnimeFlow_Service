@@ -1,8 +1,10 @@
-package com.ligg.common.thirdparty;
+package com.ligg.common.thirdparty.bangumi.response;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ligg.common.model.CoverImages;
+import com.ligg.common.thirdparty.bangumi.model.BangumiRating;
 import lombok.Data;
 
 import java.util.List;
@@ -92,7 +94,7 @@ public class SubjectDetailDto {
         private List<String> tags;
         private Integer epStatus;
         private Integer volStatus;
-        @com.fasterxml.jackson.annotation.JsonProperty("private")
+        @JsonProperty("private")
         private Boolean privately;
         private Long updatedAt;
     }
