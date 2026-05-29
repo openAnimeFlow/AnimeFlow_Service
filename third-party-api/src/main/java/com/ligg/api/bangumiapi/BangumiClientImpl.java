@@ -10,6 +10,7 @@ import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
+import com.ligg.common.thirdparty.bangumi.response.CharacterDetailDto;
 import com.ligg.common.thirdparty.bangumi.response.CalendarDto;
 import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentDto;
 import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentsDto;
@@ -186,6 +187,15 @@ public class BangumiClientImpl implements BangumiClient {
                 })
                 .retrieve()
                 .bodyToMono(SubjectCharactersDto.class));
+    }
+
+    @Override
+    public CharacterDetailDto getCharacter(int characterId) {
+        log.info("获取角色详情 characterId={}", characterId);
+        return blockBangumi(bangumiNextClient.get()
+                .uri(BangumiApiPath.P1_CHARACTER, characterId)
+                .retrieve()
+                .bodyToMono(CharacterDetailDto.class));
     }
 
     @Override

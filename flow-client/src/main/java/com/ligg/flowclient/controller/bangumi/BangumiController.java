@@ -326,6 +326,32 @@ public class BangumiController {
     }
 
     /**
+     * 角色详情。
+     * 对应 Bangumi {@code GET /p1/characters/{id}}，结果缓存 2 分钟。
+     *
+     * @param characterId Bangumi 角色 ID
+     */
+    @GetMapping("/characters/{characterId}")
+    public Result<CharacterDetailVo> characterDetail(@NotNull @PathVariable int characterId) {
+        String cacheKey = BangumiConstants.BANGUMI_CHARACTER_DETAIL_CACHE_KEY_PREFIX + ':' + characterId;
+        CharacterDetailVo vo = bangumiCacheService.getOrLoad(
+                cacheKey,
+                CharacterDetailVo.class,
+                BangumiConstants.BANGUMI_CHARACTER_DETAIL_CACHE_TTL_SECONDS,
+                "获取角色详情超时，请稍后重试",
+                "获取角色详情被中断",
+                () -> {
+                    CharacterDetailDto dto = bangumiClient.getCharacter(characterId);
+                    Utils.applyWsrvCdnInPlace(dto.getImages());
+                    CharacterDetailVo detailVo = new CharacterDetailVo();
+                    BeanUtils.copyProperties(dto, detailVo);
+                    return detailVo;
+                },
+                () -> log.info("角色详情(命中缓存), characterId={}", characterId));
+        return Result.success(ResponseCode.SUCCESS, vo);
+    }
+
+    /**
      * 条目制作人员列表。
      * 对应 Bangumi {@code GET /p1/subjects/{id}/staffs/persons}；前 10 页走缓存。
      *

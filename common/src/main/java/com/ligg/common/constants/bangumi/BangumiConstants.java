@@ -121,6 +121,16 @@ public class BangumiConstants {
     public static final long BANGUMI_SUBJECT_COMMENTS_CACHE_TTL_SECONDS = 900;
 
     /**
+     * Bangumi 角色详情缓存键前缀
+     */
+    public static final String BANGUMI_CHARACTER_DETAIL_CACHE_KEY_PREFIX = "bangumi:character:detail";
+
+    /**
+     * Bangumi 角色详情缓存时长（秒）
+     */
+    public static final long BANGUMI_CHARACTER_DETAIL_CACHE_TTL_SECONDS = 120;
+
+    /**
      * Bangumi 条目搜索串行执行锁
      */
     public static final String BANGUMI_SEARCH_LOCK_KEY = "bangumi:search:lock";

@@ -6,6 +6,7 @@ package com.ligg.api.bangumiapi;
 
 import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
+import com.ligg.common.thirdparty.bangumi.response.CharacterDetailDto;
 import com.ligg.common.thirdparty.bangumi.response.CalendarDto;
 import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
@@ -69,6 +70,11 @@ public interface BangumiClient {
      * @param type 角色类型筛选，可为空
      */
     SubjectCharactersDto getSubjectCharacters(int subjectId, int limit, int offset, Integer type);
+
+    /**
+     * 获取角色详情
+     */
+    CharacterDetailDto getCharacter(int characterId);
 
     /**
      * 获取条目制作人员列表
