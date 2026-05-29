@@ -64,6 +64,11 @@ public class BangumiApiPath {
     public static final String P1_SUBJECT_COMMENTS = "/p1/subjects/{subjectId}/comments";
 
     /**
+     * 条目关联列表
+     */
+    public static final String P1_SUBJECT_RELATIONS = "/p1/subjects/{subjectId}/relations";
+
+    /**
      * 章节评论列表，{@code {episodeId}} 为 Bangumi episode id
      */
     public static final String P1_EPISODE_COMMENTS = "/p1/episodes/{episodeId}/comments";

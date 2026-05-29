@@ -21,6 +21,7 @@ import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectCharactersDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectCommentsDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectRelationsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectStaffPersonsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
 import com.ligg.common.thirdparty.bangumi.response.TrendingSubjectsDto;
@@ -262,6 +263,23 @@ public class BangumiClientImpl implements BangumiClient {
                         .build(subjectId))
                 .retrieve()
                 .bodyToMono(SubjectCommentsDto.class));
+    }
+
+    @Override
+    public SubjectRelationsDto getSubjectRelations(int subjectId, int limit, int offset, Integer type) {
+        log.info("获取条目关联 subjectId={} type={} limit={} offset={}", subjectId, type, limit, offset);
+        return blockBangumi(bangumiNextClient.get()
+                .uri(uriBuilder -> {
+                    uriBuilder.path(BangumiApiPath.P1_SUBJECT_RELATIONS)
+                            .queryParam("limit", limit)
+                            .queryParam("offset", offset);
+                    if (type != null) {
+                        uriBuilder.queryParam("type", type);
+                    }
+                    return uriBuilder.build(subjectId);
+                })
+                .retrieve()
+                .bodyToMono(SubjectRelationsDto.class));
     }
 
     @Override

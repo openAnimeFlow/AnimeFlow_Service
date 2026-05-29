@@ -121,6 +121,21 @@ public class BangumiConstants {
     public static final long BANGUMI_SUBJECT_COMMENTS_CACHE_TTL_SECONDS = 900;
 
     /**
+     * Bangumi 条目关联列表缓存键前缀
+     */
+    public static final String BANGUMI_SUBJECT_RELATIONS_CACHE_KEY_PREFIX = "bangumi:subject:relations";
+
+    /**
+     * Bangumi 条目关联列表最多缓存页数
+     */
+    public static final int BANGUMI_SUBJECT_RELATIONS_MAX_CACHE_PAGE = 1;
+
+    /**
+     * Bangumi 条目关联列表缓存时长（秒）
+     */
+    public static final long BANGUMI_SUBJECT_RELATIONS_CACHE_TTL_SECONDS = 60;
+
+    /**
      * Bangumi 角色详情缓存键前缀
      */
     public static final String BANGUMI_CHARACTER_DETAIL_CACHE_KEY_PREFIX = "bangumi:character:detail";

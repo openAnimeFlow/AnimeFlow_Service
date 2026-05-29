@@ -15,6 +15,7 @@ import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectCharactersDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectCommentsDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectRelationsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectStaffPersonsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
 import com.ligg.common.thirdparty.bangumi.response.TrendingSubjectsDto;
@@ -99,6 +100,13 @@ public interface BangumiClient {
      * 获取条目评论列表
      */
     SubjectCommentsDto getSubjectComments(int subjectId, int limit, int offset);
+
+    /**
+     * 获取条目关联列表
+     *
+     * @param type 条目类型筛选，2=动画，可为空
+     */
+    SubjectRelationsDto getSubjectRelations(int subjectId, int limit, int offset, Integer type);
 
     /**
      * 获取章节评论列表
