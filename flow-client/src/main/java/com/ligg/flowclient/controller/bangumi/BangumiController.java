@@ -117,7 +117,8 @@ public class BangumiController {
     }
 
     /**
-     * 条目列表（默认动画 type=2，按 rank 排序）
+     * 条目列表
+     *（默认动画 type=2，按 rank 排序）
      */
     @GetMapping("/subjects")
     public Result<SubjectsVo> subjects(
@@ -204,7 +205,8 @@ public class BangumiController {
     }
 
     /**
-     * 获取趋势条目（默认动画 type=2）
+     * 获取趋势条目
+     *（默认动画 type=2）
      */
     @GetMapping("/trending/subjects")
     public Result<TrendingSubjectsVo> trendingSubjects(
