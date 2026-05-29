@@ -27,6 +27,19 @@ mybatis-plus:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 anime-flow:
+  api-auth:
+    enabled: true
+    app_id: ${ANIME_FLOW_APP_ID}
+    secret: ${ANIME_FLOW_SECRET}
+    timestamp-skew-seconds: 300
+    path-patterns:
+      - /api/**
+    exclude-path-patterns:
+      - /api/oauth/callback
+      - /api/no_session
+      - /api/oauth-success
+      - /api/success
+      
   dandanplay:
     app_id: ${DANDANPLAY_ID}
     secret: ${DANDANPLAY_SECRET}
@@ -38,6 +51,7 @@ anime-flow:
     user-agent: openAnimeFlow/AnimeFlow_Service (https://github.com/openAnimeFlow/AnimeFlow_Service) #bangumi使用的 User Agent(官方要求)
     # 调用 Bangumi Next API（如 /p1/me）超时时间（秒），不低于 5
     request-timeout-seconds: 30
+
   ## 接口限流
   rate-limit:
     enabled: true
