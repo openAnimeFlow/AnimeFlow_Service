@@ -25,7 +25,6 @@ import reactor.netty.http.client.HttpClient;
 import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
 
 import io.netty.handler.timeout.ReadTimeoutException;
 

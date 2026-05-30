@@ -19,6 +19,7 @@ import com.ligg.common.thirdparty.bangumi.response.SubjectRelationsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectStaffPersonsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
 import com.ligg.common.thirdparty.bangumi.response.TrendingSubjectsDto;
+import com.ligg.common.thirdparty.bangumi.response.UserCollectionsDto;
 import com.ligg.common.thirdparty.bangumi.response.UserProfileDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
 
@@ -120,4 +121,15 @@ public interface BangumiClient {
      * @param username Bangumi 用户名
      */
     UserProfileDto getUser(String username);
+
+    /**
+     * 获取用户条目收藏
+     *
+     * @param username    Bangumi 用户名或用户 ID
+     * @param subjectType 条目大类，2=动画
+     * @param type        收藏状态（在看/看过等）
+     * @param limit       每页条数
+     * @param offset      偏移量
+     */
+    UserCollectionsDto getUserCollections(String username, int subjectType, int type, int limit, int offset);
 }

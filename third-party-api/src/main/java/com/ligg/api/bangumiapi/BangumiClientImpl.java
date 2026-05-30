@@ -25,6 +25,7 @@ import com.ligg.common.thirdparty.bangumi.response.SubjectRelationsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectStaffPersonsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
 import com.ligg.common.thirdparty.bangumi.response.TrendingSubjectsDto;
+import com.ligg.common.thirdparty.bangumi.response.UserCollectionsDto;
 import com.ligg.common.thirdparty.bangumi.response.UserProfileDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
 import lombok.extern.slf4j.Slf4j;
@@ -304,6 +305,22 @@ public class BangumiClientImpl implements BangumiClient {
                 .uri(BangumiNextApiPath.P1_USER, username)
                 .retrieve()
                 .bodyToMono(UserProfileDto.class));
+    }
+
+    @Override
+    public UserCollectionsDto getUserCollections(String username, int subjectType, int type, int limit, int offset) {
+        log.info("获取用户收藏 username={} subjectType={} type={} limit={} offset={}",
+                username, subjectType, type, limit, offset);
+        return blockBangumi(bangumiNextClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path(BangumiNextApiPath.P1_USER_COLLECTION_SUBJECTS)
+                        .queryParam("subjectType", subjectType)
+                        .queryParam("type", type)
+                        .queryParam("limit", limit)
+                        .queryParam("offset", offset)
+                        .build(username))
+                .retrieve()
+                .bodyToMono(UserCollectionsDto.class));
     }
 
     private <T> T blockBangumi(Mono<T> mono) {

@@ -196,6 +196,21 @@ public class BangumiConstants {
     public static final long BANGUMI_USER_STATISTICS_CACHE_TTL_SECONDS = 300;
 
     /**
+     * Bangumi 用户条目收藏缓存键前缀
+     */
+    public static final String BANGUMI_USER_COLLECTIONS_CACHE_KEY_PREFIX = "bangumi:user:collections";
+
+    /**
+     * Bangumi 用户条目收藏最多缓存页数
+     */
+    public static final int BANGUMI_USER_COLLECTIONS_MAX_CACHE_PAGE = 5;
+
+    /**
+     * Bangumi 用户条目收藏缓存时长（秒）
+     */
+    public static final long BANGUMI_USER_COLLECTIONS_CACHE_TTL_SECONDS = 120;
+
+    /**
      * Bangumi 条目搜索串行执行锁
      */
     public static final String BANGUMI_SEARCH_LOCK_KEY = "bangumi:search:lock";
