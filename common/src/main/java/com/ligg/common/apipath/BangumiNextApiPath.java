@@ -4,8 +4,9 @@
  */
 package com.ligg.common.apipath;
 
-public class BangumiApiPath {
-    public static final String BANGUMI_API_BASE_URL = "https://api.bgm.tv";
+public class BangumiNextApiPath {
+
+    private BangumiNextApiPath() {}
     public static final String BANGUMI_NEXT_API_BASE_URL = "https://next.bgm.tv";
 
     /**
@@ -72,4 +73,9 @@ public class BangumiApiPath {
      * 章节评论列表，{@code {episodeId}} 为 Bangumi episode id
      */
     public static final String P1_EPISODE_COMMENTS = "/p1/episodes/{episodeId}/comments";
+
+    /**
+     * 用户资料，{@code {username}} 为 Bangumi 用户名
+     */
+    public static final String P1_USER = "/p1/users/{username}";
 }
