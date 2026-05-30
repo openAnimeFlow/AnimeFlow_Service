@@ -18,10 +18,11 @@
     <description>AnimeFlow</description>
 
     <properties>
-        <revision>0.0.4</revision>
+        <revision>0.0.5</revision>
         <java.version>17</java.version>
         <hutool.version>5.8.38</hutool.version>
         <mybatis-plus.version>3.5.15</mybatis-plus.version>
+        <jsoup.version>1.18.3</jsoup.version>
     </properties>
 
     <dependencyManagement>
@@ -48,6 +49,11 @@
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-jsqlparser</artifactId>
                 <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jsoup</groupId>
+                <artifactId>jsoup</artifactId>
+                <version>${jsoup.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

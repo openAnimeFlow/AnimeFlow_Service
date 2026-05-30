@@ -4,7 +4,7 @@
  */
 package com.ligg.api.bangumiapi;
 
-import com.ligg.common.apipath.BangumiApiPath;
+import com.ligg.common.apipath.BangumiNextApiPath;
 import com.ligg.common.constants.ApiConstant;
 import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.exception.LoginExpiredException;
@@ -25,6 +25,7 @@ import com.ligg.common.thirdparty.bangumi.response.SubjectRelationsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectStaffPersonsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
 import com.ligg.common.thirdparty.bangumi.response.TrendingSubjectsDto;
+import com.ligg.common.thirdparty.bangumi.response.UserProfileDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -68,7 +69,7 @@ public class BangumiClientImpl implements BangumiClient {
         this.bangumiNextClient = WebClient.builder()
                 .exchangeStrategies(DANDAN_EXCHANGE_STRATEGIES)
                 .clientConnector(new ReactorClientHttpConnector(reactorHttpClient))
-                .baseUrl(BangumiApiPath.BANGUMI_NEXT_API_BASE_URL)
+                .baseUrl(BangumiNextApiPath.BANGUMI_NEXT_API_BASE_URL)
                 .defaultHeader(HttpHeaders.USER_AGENT, bangumiUserAgent)
                 .build();
     }
@@ -92,7 +93,7 @@ public class BangumiClientImpl implements BangumiClient {
     public CalendarDto getCalendar() {
         log.info("获取每日放送");
         return blockBangumi(bangumiNextClient.get()
-                .uri(BangumiApiPath.P1_CALENDAR)
+                .uri(BangumiNextApiPath.P1_CALENDAR)
                 .retrieve()
                 .bodyToMono(CalendarDto.class));
     }
@@ -102,7 +103,7 @@ public class BangumiClientImpl implements BangumiClient {
         log.info("获取趋势条目 type={} limit={} offset={}", type, limit, offset);
         return blockBangumi(bangumiNextClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path(BangumiApiPath.P1_TRENDING_SUBJECTS)
+                        .path(BangumiNextApiPath.P1_TRENDING_SUBJECTS)
                         .queryParam("type", type)
                         .queryParam("limit", limit)
                         .queryParam("offset", offset)
@@ -117,7 +118,7 @@ public class BangumiClientImpl implements BangumiClient {
         return blockBangumi(bangumiNextClient.get()
                 .uri(uriBuilder -> {
                     var builder = uriBuilder
-                            .path(BangumiApiPath.P1_SUBJECTS)
+                            .path(BangumiNextApiPath.P1_SUBJECTS)
                             .queryParam("sort", sort.getValue())
                             .queryParam("page", page)
                             .queryParam("type", type);
@@ -140,7 +141,7 @@ public class BangumiClientImpl implements BangumiClient {
                 upstreamBody.getKeyword(), limit, offset, StringUtils.hasText(accessToken));
         var request = bangumiNextClient.post()
                 .uri(uriBuilder -> uriBuilder
-                        .path(BangumiApiPath.P1_SEARCH_SUBJECTS)
+                        .path(BangumiNextApiPath.P1_SEARCH_SUBJECTS)
                         .queryParam("limit", limit)
                         .queryParam("offset", offset)
                         .build())
@@ -155,7 +156,7 @@ public class BangumiClientImpl implements BangumiClient {
     @Override
     public SubjectDetailDto getSubject(int subjectId, String accessToken) {
         log.info("获取条目详情 subjectId={} withAuth={}", subjectId, StringUtils.hasText(accessToken));
-        var request = bangumiNextClient.get().uri(BangumiApiPath.P1_SUBJECTS + '/' + subjectId);
+        var request = bangumiNextClient.get().uri(BangumiNextApiPath.P1_SUBJECTS + '/' + subjectId);
         if (StringUtils.hasText(accessToken)) {
             request = request.headers(headers -> headers.setBearerAuth(accessToken));
         }
@@ -167,7 +168,7 @@ public class BangumiClientImpl implements BangumiClient {
         log.info("获取条目章节 subjectId={} limit={} offset={}", subjectId, limit, offset);
         return blockBangumi(bangumiNextClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path(BangumiApiPath.P1_SUBJECT_EPISODES)
+                        .path(BangumiNextApiPath.P1_SUBJECT_EPISODES)
                         .queryParam("limit", limit)
                         .queryParam("offset", offset)
                         .build(subjectId))
@@ -181,7 +182,7 @@ public class BangumiClientImpl implements BangumiClient {
         return blockBangumi(bangumiNextClient.get()
                 .uri(uriBuilder -> {
                     var builder = uriBuilder
-                            .path(BangumiApiPath.P1_SUBJECT_CHARACTERS)
+                            .path(BangumiNextApiPath.P1_SUBJECT_CHARACTERS)
                             .queryParam("limit", limit)
                             .queryParam("offset", offset);
                     if (type != null) {
@@ -197,7 +198,7 @@ public class BangumiClientImpl implements BangumiClient {
     public CharacterDetailDto getCharacter(int characterId) {
         log.info("获取角色详情 characterId={}", characterId);
         return blockBangumi(bangumiNextClient.get()
-                .uri(BangumiApiPath.P1_CHARACTER, characterId)
+                .uri(BangumiNextApiPath.P1_CHARACTER, characterId)
                 .retrieve()
                 .bodyToMono(CharacterDetailDto.class));
     }
@@ -207,7 +208,7 @@ public class BangumiClientImpl implements BangumiClient {
         log.info("获取角色吐槽 characterId={} limit={} offset={}", characterId, limit, offset);
         return blockBangumi(bangumiNextClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path(BangumiApiPath.P1_CHARACTER_COMMENTS)
+                        .path(BangumiNextApiPath.P1_CHARACTER_COMMENTS)
                         .queryParam("limit", limit)
                         .queryParam("offset", offset)
                         .build(characterId))
@@ -227,7 +228,7 @@ public class BangumiClientImpl implements BangumiClient {
         return blockBangumi(bangumiNextClient.get()
                 .uri(uriBuilder -> {
                     var builder = uriBuilder
-                            .path(BangumiApiPath.P1_CHARACTER_CASTS)
+                            .path(BangumiNextApiPath.P1_CHARACTER_CASTS)
                             .queryParam("limit", limit)
                             .queryParam("offset", offset);
                     if (subjectType != null) {
@@ -244,7 +245,7 @@ public class BangumiClientImpl implements BangumiClient {
         log.info("获取条目制作人员 subjectId={} limit={} offset={}", subjectId, limit, offset);
         return blockBangumi(bangumiNextClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path(BangumiApiPath.P1_SUBJECT_STAFF_PERSONS)
+                        .path(BangumiNextApiPath.P1_SUBJECT_STAFF_PERSONS)
                         .queryParam("limit", limit)
                         .queryParam("offset", offset)
                         .build(subjectId))
@@ -257,7 +258,7 @@ public class BangumiClientImpl implements BangumiClient {
         log.info("获取条目评论 subjectId={} limit={} offset={}", subjectId, limit, offset);
         return blockBangumi(bangumiNextClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path(BangumiApiPath.P1_SUBJECT_COMMENTS)
+                        .path(BangumiNextApiPath.P1_SUBJECT_COMMENTS)
                         .queryParam("limit", limit)
                         .queryParam("offset", offset)
                         .build(subjectId))
@@ -270,7 +271,7 @@ public class BangumiClientImpl implements BangumiClient {
         log.info("获取条目关联 subjectId={} type={} limit={} offset={}", subjectId, type, limit, offset);
         return blockBangumi(bangumiNextClient.get()
                 .uri(uriBuilder -> {
-                    uriBuilder.path(BangumiApiPath.P1_SUBJECT_RELATIONS)
+                    uriBuilder.path(BangumiNextApiPath.P1_SUBJECT_RELATIONS)
                             .queryParam("limit", limit)
                             .queryParam("offset", offset);
                     if (type != null) {
@@ -286,7 +287,7 @@ public class BangumiClientImpl implements BangumiClient {
     public EpisodeCommentsDto getEpisodeComments(long episodeId) {
         log.info("获取章节评论 episodeId={}", episodeId);
         return blockBangumi(bangumiNextClient.get()
-                .uri(BangumiApiPath.P1_EPISODE_COMMENTS, episodeId)
+                .uri(BangumiNextApiPath.P1_EPISODE_COMMENTS, episodeId)
                 .retrieve()
                 .bodyToMono(new ParameterizedTypeReference<List<EpisodeCommentDto>>() {})
                 .map(comments -> {
@@ -294,6 +295,15 @@ public class BangumiClientImpl implements BangumiClient {
                     dto.setData(comments);
                     return dto;
                 }));
+    }
+
+    @Override
+    public UserProfileDto getUser(String username) {
+        log.info("获取用户资料 username={}", username);
+        return blockBangumi(bangumiNextClient.get()
+                .uri(BangumiNextApiPath.P1_USER, username)
+                .retrieve()
+                .bodyToMono(UserProfileDto.class));
     }
 
     private <T> T blockBangumi(Mono<T> mono) {

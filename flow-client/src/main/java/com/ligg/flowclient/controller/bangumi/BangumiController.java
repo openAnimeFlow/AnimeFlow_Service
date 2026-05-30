@@ -5,6 +5,8 @@
 package com.ligg.flowclient.controller.bangumi;
 
 import com.ligg.api.bangumiapi.BangumiClient;
+import com.ligg.api.bgmtvapi.BgmTvClient;
+import com.ligg.api.bgmtvapi.BgmUserPageHtmlParser;
 import com.ligg.common.constants.bangumi.BangumiConstants;
 import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.response.Result;
@@ -19,6 +21,7 @@ import com.ligg.flowclient.service.BangumiCacheService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +50,8 @@ import java.util.function.Supplier;
 public class BangumiController {
 
     private final BangumiClient bangumiClient;
+    private final BgmTvClient bgmTvClient;
+    private final BgmUserPageHtmlParser bgmUserPageHtmlParser;
     private final BangumiCacheService bangumiCacheService;
     private final RedisTemplate<String, Object> redisTemplate;
 
@@ -572,6 +577,52 @@ public class BangumiController {
             return Result.success(ResponseCode.SUCCESS, vo);
         }
         return Result.success(ResponseCode.SUCCESS, loader.get());
+    }
+
+    /**
+     * 用户资料。
+     * 对应 Bangumi {@code GET /p1/users/{username}}，头像走 CDN 替换，按用户名缓存 5 分钟。
+     *
+     * @param username Bangumi 用户名
+     */
+    @GetMapping("/users/{username}")
+    public Result<UserProfileVo> userProfile(@NotBlank @PathVariable String username) {
+        String cacheKey = BangumiConstants.BANGUMI_USER_PROFILE_CACHE_KEY_PREFIX + ':' + username;
+        UserProfileVo vo = bangumiCacheService.getOrLoad(
+                cacheKey,
+                UserProfileVo.class,
+                BangumiConstants.BANGUMI_USER_PROFILE_CACHE_TTL_SECONDS,
+                "获取用户资料超时，请稍后重试",
+                "获取用户资料被中断",
+                () -> {
+                    var dto = bangumiClient.getUser(username);
+                    Utils.applyWsrvCdnInPlace(dto.getAvatar());
+                    UserProfileVo profileVo = new UserProfileVo();
+                    BeanUtils.copyProperties(dto, profileVo);
+                    return profileVo;
+                },
+                () -> log.info("用户资料(命中缓存), username={}", username));
+        return Result.success(ResponseCode.SUCCESS, vo);
+    }
+
+    /**
+     * 用户主页统计（收藏、完成、完成率、平均分等）。
+     * 对应 {@code GET https://bgm.tv/user/{username}} 页面中 {@code #userStats_all} 的解析结果。
+     *
+     * @param username Bangumi 用户名或用户 ID
+     */
+    @GetMapping("/users/{username}/statistics")
+    public Result<BgmUserStatisticsVo> userStatistics(@NotBlank @PathVariable String username) {
+        String cacheKey = BangumiConstants.BANGUMI_USER_STATISTICS_CACHE_KEY_PREFIX + ':' + username;
+        BgmUserStatisticsVo vo = bangumiCacheService.getOrLoad(
+                cacheKey,
+                BgmUserStatisticsVo.class,
+                BangumiConstants.BANGUMI_USER_STATISTICS_CACHE_TTL_SECONDS,
+                "获取用户统计超时，请稍后重试",
+                "获取用户统计被中断",
+                () -> bgmUserPageHtmlParser.parseUserStatistics(bgmTvClient.fetchUserPage(username)),
+                () -> log.info("用户统计(命中缓存), username={}", username));
+        return Result.success(ResponseCode.SUCCESS, vo);
     }
 
     /**

@@ -176,6 +176,26 @@ public class BangumiConstants {
     public static final long BANGUMI_CHARACTER_COMMENTS_CACHE_TTL_SECONDS = 60;
 
     /**
+     * Bangumi 用户资料缓存键前缀
+     */
+    public static final String BANGUMI_USER_PROFILE_CACHE_KEY_PREFIX = "bangumi:user:profile";
+
+    /**
+     * Bangumi 用户资料缓存时长（秒）
+     */
+    public static final long BANGUMI_USER_PROFILE_CACHE_TTL_SECONDS = 300;
+
+    /**
+     * Bangumi 用户主页统计缓存键前缀（bgm.tv HTML 解析）
+     */
+    public static final String BANGUMI_USER_STATISTICS_CACHE_KEY_PREFIX = "bangumi:user:statistics";
+
+    /**
+     * Bangumi 用户主页统计缓存时长（秒）
+     */
+    public static final long BANGUMI_USER_STATISTICS_CACHE_TTL_SECONDS = 300;
+
+    /**
      * Bangumi 条目搜索串行执行锁
      */
     public static final String BANGUMI_SEARCH_LOCK_KEY = "bangumi:search:lock";

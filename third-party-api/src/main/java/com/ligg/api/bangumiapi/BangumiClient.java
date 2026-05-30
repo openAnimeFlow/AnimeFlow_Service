@@ -19,6 +19,7 @@ import com.ligg.common.thirdparty.bangumi.response.SubjectRelationsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectStaffPersonsDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
 import com.ligg.common.thirdparty.bangumi.response.TrendingSubjectsDto;
+import com.ligg.common.thirdparty.bangumi.response.UserProfileDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
 
 public interface BangumiClient {
@@ -112,4 +113,11 @@ public interface BangumiClient {
      * 获取章节评论列表
      */
     EpisodeCommentsDto getEpisodeComments(long episodeId);
+
+    /**
+     * 获取用户资料
+     *
+     * @param username Bangumi 用户名
+     */
+    UserProfileDto getUser(String username);
 }

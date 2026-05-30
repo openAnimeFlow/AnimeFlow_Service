@@ -4,7 +4,7 @@ import com.ligg.common.response.*;
 import com.ligg.common.constants.Constants;
 import com.ligg.common.statuenum.Platform;
 import com.ligg.common.statuenum.ResponseCode;
-import com.ligg.flowclient.service.OAuthService;
+import com.ligg.api.bgmtvapi.BgmTvClient;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 @RequestMapping("/api/oauth")
 public class OAuthController {
 
-    private final OAuthService oAuthService;
+    private final BgmTvClient bgmTvClient;
     private final RedisTemplate<String, Object> redisTemplate;
 
     @PostMapping("/token")
@@ -40,7 +40,7 @@ public class OAuthController {
             return Result.error(ResponseCode.PARAM_ERROR);
         }
 
-        AccessToken token = oAuthService.getToken(code);
+        AccessToken token = bgmTvClient.exchangeToken(code);
         log.info("返回的token: {}", token);
         return Result.success(ResponseCode.SUCCESS, token);
     }
@@ -91,7 +91,7 @@ public class OAuthController {
                 String redirectUrl = Constants.MOBILE_CALLBACK_URL + "?code=" + URLEncoder.encode(code, StandardCharsets.UTF_8) + "&state=" + state;
                 response.sendRedirect(redirectUrl);
             } else {
-                AccessToken token = oAuthService.getToken(code);
+                AccessToken token = bgmTvClient.exchangeToken(code);
                 redisTemplate.opsForValue().set(Constants.AUTO_TOKEN_KEY + ':' + state, token, token.getExpires_in(), TimeUnit.SECONDS);
                 response.sendRedirect("/api/oauth-success?state=" + state);
             }
@@ -125,7 +125,7 @@ public class OAuthController {
         if (!StringUtils.hasText(refreshToken)) {
             return Result.error(ResponseCode.PARAM_ERROR);
         }
-        TokenVo token = oAuthService.refreshToken(refreshToken);
+        TokenVo token = bgmTvClient.refreshToken(refreshToken);
         return Result.success(ResponseCode.SUCCESS, token);
     }
 }

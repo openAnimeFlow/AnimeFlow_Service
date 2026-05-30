@@ -5,11 +5,18 @@
 package com.ligg.common.utils;
 
 import com.ligg.common.constants.ApiConstant;
+import com.ligg.common.constants.Constants;
 import com.ligg.common.model.CoverImages;
 import com.ligg.common.model.ImageFour;
 import com.ligg.common.model.ImageUrls;
 
+import java.util.List;
+import java.util.Random;
+
 public final class Utils {
+
+    private Utils() {
+    }
 
     /**
      * 原地替换图片 URL 为 wsrv CDN。
@@ -42,5 +49,13 @@ public final class Utils {
             return imageUrl;
         }
         return ApiConstant.WSRV_CDN + "/?url=" + imageUrl;
+    }
+
+    /**
+     * 获取随机UA
+     */
+    public static String getRandomUserAgent() {
+        final List<String> userAgentList = Constants.userAgentList;
+        return userAgentList.get(new Random().nextInt(userAgentList.size()));
     }
 }
