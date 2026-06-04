@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnimeFlow 邮箱验证码</title>
+</head>
+<body style="margin: 0">
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%"
+       style="width:100%;border-collapse:collapse;">
+    <tr>
+        <td align="center">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                    <td style="padding:0;">
+                        <table cellpadding="0" cellspacing="0" border="0"
+                               style="width:100%;border-collapse:separate;border-spacing:0;">
+                            <tr>
+                                <td align="left" valign="top" style="padding:0;position:relative;">
+                                    <img width="100%" alt=""
+                                         style="display:block;width:100%;max-width:100%;height:auto;border:0;"
+                                         src="{{headerBgUrl}}">
+                                    <div
+                                            style="position:absolute;bottom:0;left:0;width:100%;height:88px;line-height:0;font-size:0;background:linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.72) 52%, #ffffff 100%);">
+                                    </div>
+                                    <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+                                           style="position:absolute;top:0;left:0;width:100%;">
+                                        <tr>
+                                            <td align="left" valign="top" style="padding:10px 10px;">
+                                                <div style="line-height:42px;font-weight:700;color:#ffffff;text-shadow:-1px -1px 0 rgba(172,172,172,0.74), 1px -1px 0 rgba(172,172,172,0.74), -1px 1px 0 rgba(172,172,172,0.74), 1px 1px 0 rgba(114,74,199,0.5);">
+                                                    欢迎使用AnimeFlow
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td align="center">
+                                    <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+                                           width="100%"
+                                           style="width:100%;max-width:620px;">
+                                        <tr>
+                                            <td style="text-align:center;">
+                                                <div
+                                                        style="font-size:34px;line-height:44px;font-weight:700;color:#2b2340;">
+                                                    你好呀，未来的动漫迷！
+                                                </div>
+                                                <div style="padding: 0 10px; font-size:16px;line-height:28px;color:#655b7a;margin-top:14px;">
+                                                    感谢你选择 <span
+                                                        style="color:#7d57f2;font-weight:700;">AnimeFlow</span>
+                                                    请输入下面的验证码完成邮箱验证。
+                                                </div>
+
+                                                <table role="presentation" cellpadding="0" cellspacing="0"
+                                                       border="0" align="center"
+                                                       style="margin:10px auto 0;border-collapse:separate;border-spacing:8px 0;">
+                                                    <tr>
+                                                        <td style="padding: 0 5px;  width:52px;height:62px;border-radius:16px;background:linear-gradient(180deg,#faf7ff 0%,#f0e8ff 100%);border:1px solid #e5d8ff;font-size:30px;line-height:62px;font-weight:700;color:#6f46ea;text-align:center;">
+                                                            {{code}}
+                                                        </td>
+                                                    </tr>
+                                                </table>
+
+                                                <div style="font-size:14px;line-height:24px;color:#8b82a5;margin-top:16px;">
+                                                    验证码 <span
+                                                        style="color:#6f46ea;font-weight:700;">{{expireMinutes}}</span>
+                                                    分钟内有效，请尽快完成验证。
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="padding:20px 26px 0;">
+                                    <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+                                           width="100%"
+                                           style="width:100%;border-collapse:collapse;">
+                                        <tr>
+                                            <td
+                                                    style="padding:10px 16px 0;text-align:center;font-size:13px;line-height:24px;color:#8a80a3;">
+                                                如果这不是你的操作，请忽略此邮件。<br>
+                                                官方网站：
+                                                <a href="{{supportWeb}}"
+                                                   style="color:#7d57f2;text-decoration:none;">{{supportWeb}}</a>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td
+                                                    style="padding:14px 16px 26px;text-align:center;font-size:12px;line-height:20px;color:#a298b8;">
+                                                © {{year}} AnimeFlow 版权所有
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>
