@@ -52,6 +52,10 @@ anime-flow:
     # 调用 Bangumi Next API（如 /p1/me）超时时间（秒），不低于 5
     request-timeout-seconds: 30
 
+  resend:
+    api_key: ${RESEND_API_KEY}
+    domain: ${RESEND_DOMAIN}
+
   ## 接口限流
   rate-limit:
     enabled: true

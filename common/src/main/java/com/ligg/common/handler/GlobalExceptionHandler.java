@@ -1,6 +1,7 @@
 package com.ligg.common.handler;
 
 import com.ligg.common.exception.BangumiUpstreamException;
+import com.ligg.common.exception.EmailSendException;
 import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.exception.AuthorizationException;
 import com.ligg.common.exception.RateLimitExceededException;
@@ -142,6 +143,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BangumiUpstreamException.class)
     public Result<Void> handleBangumiUpstream(BangumiUpstreamException e) {
         log.warn("Bangumi 上游不可用: {}", e.getMessage());
+        return Result.error(ResponseCode.ERROR, e.getMessage());
+    }
+
+    /**
+     * 邮件发送失败
+     */
+    @ExceptionHandler(EmailSendException.class)
+    public Result<Void> handleEmailSend(EmailSendException e) {
+        log.warn("邮件发送失败: {}", e.getMessage(), e);
         return Result.error(ResponseCode.ERROR, e.getMessage());
     }
 
