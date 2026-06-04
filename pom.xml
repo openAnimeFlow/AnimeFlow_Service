@@ -23,6 +23,8 @@
         <hutool.version>5.8.38</hutool.version>
         <mybatis-plus.version>3.5.15</mybatis-plus.version>
         <jsoup.version>1.18.3</jsoup.version>
+        <hutool-captcha.version>5.8.38</hutool-captcha.version>
+        <resend-java.version>4.13.0</resend-java.version>
     </properties>
 
     <dependencyManagement>
@@ -39,12 +41,28 @@
                 <artifactId>hutool-extra</artifactId>
                 <version>${hutool.version}</version>
             </dependency>
+
+            <!-- 验证码工具包 -->
+            <dependency>
+                <groupId>cn.hutool</groupId>
+                <artifactId>hutool-captcha</artifactId>
+                <version>${hutool-captcha.version}</version>
+            </dependency>
+
             <!-- MyBatis-Plus（Spring Boot 3 + 分页 JSqlParser） -->
             <dependency>
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
                 <version>${mybatis-plus.version}</version>
             </dependency>
+
+            <!-- Resend Java SDK -->
+            <dependency>
+                <groupId>com.resend</groupId>
+                <artifactId>resend-java</artifactId>
+                <version>${resend-java.version}</version>
+            </dependency>
+
             <dependency>
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-jsqlparser</artifactId>

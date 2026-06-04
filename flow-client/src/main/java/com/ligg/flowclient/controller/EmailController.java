@@ -8,6 +8,8 @@ import com.ligg.api.resend.ResendClient;
 import com.ligg.common.constants.Constants;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
+import com.ligg.flowclient.module.CaptchaResponse;
+import com.ligg.flowclient.service.CaptchaService;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,8 @@ public class EmailController {
 
     private final RedisTemplate<String, Object> redisTemplate;
 
+    private final CaptchaService captchaService;
+
     /**
      * 发送邮件验证码
      */
@@ -53,6 +57,6 @@ public class EmailController {
                 CODE_EXPIRE_MINUTES,
                 TimeUnit.MINUTES
         );
-        return Result.success(ResponseCode.SUCCESS, String.valueOf(emailId));
+        return Result.success(ResponseCode.SUCCESS, emailId);
     }
 }
