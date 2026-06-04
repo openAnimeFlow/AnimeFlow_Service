@@ -1,16 +1,19 @@
 package com.ligg.common.handler;
 
 import com.ligg.common.exception.BangumiUpstreamException;
+import com.ligg.common.exception.CaptchaExpiredException;
 import com.ligg.common.exception.EmailSendException;
 import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.exception.AuthorizationException;
 import com.ligg.common.exception.RateLimitExceededException;
+import com.ligg.common.exception.VerificationCodeException;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
@@ -21,7 +24,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
-import org.yaml.snakeyaml.constructor.DuplicateKeyException;
 
 /**
  * 全局异常处理器
@@ -164,6 +166,24 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.TOO_MANY_REQUESTS)
                 .body(Result.error(ResponseCode.TOO_MANY_REQUESTS, ResponseCode.TOO_MANY_REQUESTS.getMessage()));
+    }
+
+    /**
+     * 验证码过期
+     */
+    @ExceptionHandler(CaptchaExpiredException.class)
+    public Result<Void> handleCaptchaExpired(CaptchaExpiredException e) {
+        log.warn("验证码已过期: {}", e.getMessage());
+        return Result.error(ResponseCode.PARAM_ERROR, e.getMessage());
+    }
+
+    /**
+     * 验证码错误
+     */
+    @ExceptionHandler(VerificationCodeException.class)
+    public Result<Void> handleVerificationCode(VerificationCodeException e) {
+        log.warn("验证码错误: {}", e.getMessage());
+        return Result.error(ResponseCode.PARAM_ERROR, e.getMessage());
     }
 
     /**

@@ -42,4 +42,10 @@ public class Constants {
      * 邮箱验证码 Redis 键前缀，完整键为 email:verification:{email}
      */
     public static final String EMAIL_VERIFICATION_KEY = "email:verification";
+
+    /**
+     * 新用户默认头像
+     */
+    public static final String DEFAULT_USER_AVATAR_URL =
+            "https://wsrv.nl/?url=https://raw.githubusercontent.com/openAnimeFlow/animeFlow-assets/main/image/default_avatar.webp";
 }
