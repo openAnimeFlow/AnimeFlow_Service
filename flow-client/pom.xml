@@ -12,7 +12,7 @@
 
     <artifactId>flow-client</artifactId>
     <name>flow-client</name>
-    <description>面向客户端的 AnimeFlow HTTP 服务（原单体应用）</description>
+    <description>面向客户端的 AnimeFlow HTTP 服务</description>
 
     <dependencies>
         <dependency>
