@@ -29,7 +29,7 @@ public class CaptchaServiceImpl implements CaptchaService {
     @Override
     public CaptchaResponse generateCaptcha(@NotNull int codeCount, @NotNull int expirationDate) {
         // 宽、高、验证码位数、干扰圆圈数
-        CircleCaptcha circleCaptcha = new CircleCaptcha(200, 50, codeCount, 15);
+        CircleCaptcha circleCaptcha = new CircleCaptcha(200, 50, codeCount, 10);
         String code = circleCaptcha.getCode();
         String imageBase64 = circleCaptcha.getImageBase64();
 
@@ -39,10 +39,10 @@ public class CaptchaServiceImpl implements CaptchaService {
     }
 
     @Override
-    public boolean verifyCaptcha(String captchaId, String code) {
+    public boolean verifyCaptcha(String captchaId, String captcha) {
         String key = CAPTCHA_KEY + captchaId;
         String stored = redisTemplate.opsForValue().get(key);
-        if (stored == null || !stored.equalsIgnoreCase(code.trim())) {
+        if (stored == null || !stored.equalsIgnoreCase(captcha.trim())) {
             return false;
         }
         redisTemplate.delete(key);

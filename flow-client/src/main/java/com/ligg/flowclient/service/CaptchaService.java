@@ -27,8 +27,8 @@ public interface CaptchaService {
      * 校验图片验证码；校验成功后删除 Redis 中的记录（一次性使用）。
      *
      * @param captchaId 生成接口返回的验证码 id
-     * @param code      用户输入的验证码
+     * @param captcha      用户输入的验证码
      * @return 校验是否通过
      */
-    boolean verifyCaptcha(@NotBlank String captchaId, @NotBlank String code);
+    boolean verifyCaptcha(@NotBlank String captchaId, @NotBlank String captcha);
 }
