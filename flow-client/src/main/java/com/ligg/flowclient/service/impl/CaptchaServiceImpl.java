@@ -48,4 +48,12 @@ public class CaptchaServiceImpl implements CaptchaService {
         redisTemplate.delete(key);
         return true;
     }
+
+    @Override
+    public void deleteCaptcha(String captchaId) {
+        if (captchaId == null || captchaId.isBlank()) {
+            return;
+        }
+        redisTemplate.delete(CAPTCHA_KEY + captchaId);
+    }
 }

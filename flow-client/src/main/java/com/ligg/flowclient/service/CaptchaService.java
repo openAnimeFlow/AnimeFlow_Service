@@ -31,4 +31,11 @@ public interface CaptchaService {
      * @return 校验是否通过
      */
     boolean verifyCaptcha(@NotBlank String captchaId, @NotBlank String captcha);
+
+    /**
+     * 删除指定验证码（刷新验证码时清理旧记录）。
+     *
+     * @param captchaId 待删除的验证码 id，为空时忽略
+     */
+    void deleteCaptcha(String captchaId);
 }
