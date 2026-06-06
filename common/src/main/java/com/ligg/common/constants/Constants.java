@@ -44,6 +44,11 @@ public class Constants {
     public static final String EMAIL_VERIFICATION_KEY = "email:verification";
 
     /**
+     * 邮件发送成功后的冷却 Redis 键前缀，完整键为 animeflow:email:send:cooldown:{email}
+     */
+    public static final String EMAIL_SEND_COOLDOWN_KEY = "animeflow:email:send:cooldown";
+
+    /**
      * 新用户默认头像
      */
     public static final String DEFAULT_USER_AVATAR_URL =

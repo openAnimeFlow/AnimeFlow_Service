@@ -12,6 +12,7 @@ import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.flowclient.annotation.IpEndpointRateLimit;
 import com.ligg.flowclient.module.dto.SendEmailDto;
 import com.ligg.flowclient.service.CaptchaService;
+import com.ligg.flowclient.service.EmailService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -37,17 +38,21 @@ public class EmailController {
 
     private final CaptchaService captchaService;
 
+    private final EmailService emailService;
+
     /**
      * 发送邮件验证码
+     * 一个 ip 一分钟最多 5 次
      */
     @PostMapping("/send")
-    @IpEndpointRateLimit(keyPrefix = "animeflow:email:send:ip:", seconds = 360)
+    @IpEndpointRateLimit(keyPrefix = "animeflow:email:send:ip:", seconds = 60, maxRequests = 5)
     public Result<String> sendEmail(@Valid SendEmailDto sendEmailDto) {
-        if(!captchaService.verifyCaptcha(sendEmailDto.getCaptchaId(), sendEmailDto.getCaptcha())) {
+        if (!captchaService.verifyCaptcha(sendEmailDto.getCaptchaId(), sendEmailDto.getCaptcha())) {
             throw new EmailSendException("验证码错误");
         }
 
         final String email = sendEmailDto.getEmail();
+        emailService.checkSendCooldown(email);
 
         String code = String.format("%06d", SECURE_RANDOM.nextInt(1_000_000));
         String emailId = resendClient.sendEmail(email, code, CODE_EXPIRE_MINUTES);
@@ -57,6 +62,7 @@ public class EmailController {
                 CODE_EXPIRE_MINUTES,
                 TimeUnit.MINUTES
         );
+        emailService.markSendSuccess(email);
         return Result.success(ResponseCode.SUCCESS, emailId);
     }
 }

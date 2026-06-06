@@ -29,7 +29,7 @@ public class CaptchaServiceImpl implements CaptchaService {
     @Override
     public CaptchaResponse generateCaptcha(@NotNull int codeCount, @NotNull int expirationDate) {
         // 宽、高、验证码位数、干扰圆圈数
-        CircleCaptcha circleCaptcha = new CircleCaptcha(200, 50, codeCount, 10);
+        CircleCaptcha circleCaptcha = new CircleCaptcha(200, 50, codeCount, 5);
         String code = circleCaptcha.getCode();
         String imageBase64 = circleCaptcha.getImageBase64();
 
