@@ -31,7 +31,7 @@ public class AccountController {
     @PostMapping("/register")
     @IpEndpointRateLimit(keyPrefix = "animeflow:account:register:ip:", seconds = 60, maxRequests = 10)
     public Result<Void> register(@Valid @RequestBody RegisterDto registerDto) {
-        emailService.verifyEmailCode(registerDto.getEmail(), registerDto.getEmailCode());
+        emailService.verifyEmailCode(registerDto.getEmail(), registerDto.getEmailCaptcha());
         userService.register(registerDto);
         return Result.success();
     }

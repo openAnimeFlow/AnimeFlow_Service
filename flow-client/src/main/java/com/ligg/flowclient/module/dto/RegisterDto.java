@@ -22,5 +22,5 @@ public class RegisterDto {
 
     @NotBlank(message = "邮箱验证码不能为空")
     @Size(min = 6, max = 6, message = "邮箱验证码长度必须为6")
-    private String emailCode;
+    private String emailCaptcha;
 }
