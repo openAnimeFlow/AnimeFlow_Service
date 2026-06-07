@@ -1,4 +1,4 @@
-# Anime Flow Service（多模块父工程）
+# Anime Flow Service
 
 本仓库为 **Maven 多模块** 项目，根目录 `pom.xml` 为父工程（`packaging=pom`），统一 Spring Boot 版本与公共构建配置。
 
