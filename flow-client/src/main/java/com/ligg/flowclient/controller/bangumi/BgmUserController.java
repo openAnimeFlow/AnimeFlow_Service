@@ -30,7 +30,7 @@ import java.util.function.Supplier;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/bangumi/users")
-public class UserController {
+public class BgmUserController {
 
     private final BangumiClient bangumiClient;
     private final BgmTvClient bgmTvClient;

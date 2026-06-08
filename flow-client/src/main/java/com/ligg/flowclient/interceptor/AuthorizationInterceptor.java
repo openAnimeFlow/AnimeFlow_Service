@@ -21,7 +21,7 @@ public class AuthorizationInterceptor implements HandlerInterceptor {
     public static final String AUTHORIZATION_REQUEST_ATTRIBUTE = "com.ligg.forum.comment.authorization";
 
     /**
-     * 解析后的 access_token（已去掉 {@code Bearer } 前缀），供调用 Bangumi 等接口使用。
+     * 解析后的 access_token（已去掉 {@code Bearer } 前缀）。
      */
     public static final String ACCESS_TOKEN_REQUEST_ATTRIBUTE = "com.ligg.forum.comment.accessToken";
 

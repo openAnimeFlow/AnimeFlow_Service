@@ -18,7 +18,7 @@ public class RateLimitProperties {
     /**
      * 单个时间窗口内允许的最大请求次数。
      */
-    private int maxRequests = 30;
+    private int maxRequests = 60;
 
     /**
      * 时间窗口长度（秒）。

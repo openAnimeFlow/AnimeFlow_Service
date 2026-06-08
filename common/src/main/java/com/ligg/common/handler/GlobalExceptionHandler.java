@@ -4,6 +4,7 @@ import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.exception.CaptchaExpiredException;
 import com.ligg.common.exception.EmailSendException;
 import com.ligg.common.exception.LoginExpiredException;
+import com.ligg.common.exception.AuthenticationFailedException;
 import com.ligg.common.exception.AuthorizationException;
 import com.ligg.common.exception.RateLimitExceededException;
 import com.ligg.common.exception.VerificationCodeException;
@@ -127,6 +128,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthorizationException.class)
     public Result<Void> handleMissingAuthorization(AuthorizationException e) {
         log.warn("未授权: {}", e.getMessage());
+        return Result.error(ResponseCode.UNAUTHORIZED, e.getMessage());
+    }
+
+    /**
+     * 授权登录失败
+     */
+    @ExceptionHandler(AuthenticationFailedException.class)
+    public Result<Void> handleAuthenticationFailed(AuthenticationFailedException e) {
+        log.warn("登录失败: {}", e.getMessage());
         return Result.error(ResponseCode.UNAUTHORIZED, e.getMessage());
     }
 

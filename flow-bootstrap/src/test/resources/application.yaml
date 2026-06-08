@@ -7,6 +7,12 @@ bangumi:
   client_secret: test-client-secret
   redirect_uri: http://localhost:1024/callback
 
+anime-flow:
+  jwt:
+    secret: test-jwt-secret-key-at-least-32-chars
+    expire-seconds: 3600
+    refresh-expire-seconds: 86400
+
 spring:
   datasource:
     url: jdbc:h2:mem:flow_bootstrap_test;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE

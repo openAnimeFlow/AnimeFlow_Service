@@ -49,6 +49,26 @@ public class Constants {
     public static final String EMAIL_SEND_COOLDOWN_KEY = "animeflow:email:send:cooldown";
 
     /**
+     * AnimeFlow access_token Redis 键前缀，完整键为 animeflow:auth:token:{accessJti}
+     */
+    public static final String AUTH_TOKEN_KEY = "animeflow:auth:token";
+
+    /**
+     * AnimeFlow refresh_token Redis 键前缀，完整键为 animeflow:auth:refresh:{refreshJti}
+     */
+    public static final String AUTH_REFRESH_TOKEN_KEY = "animeflow:auth:refresh";
+
+    /**
+     * AnimeFlow 登录会话 Redis 键前缀，完整键为 animeflow:auth:session:{sessionId}
+     */
+    public static final String AUTH_SESSION_KEY = "animeflow:auth:session";
+
+    /**
+     * 用户活跃会话索引，完整键为 animeflow:auth:user:sessions:{userId}，值为 sessionId 集合
+     */
+    public static final String AUTH_USER_SESSIONS_KEY = "animeflow:auth:user:sessions";
+
+    /**
      * 新用户默认头像
      */
     public static final String DEFAULT_USER_AVATAR_URL =

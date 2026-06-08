@@ -56,10 +56,15 @@ anime-flow:
     api_key: ${RESEND_API_KEY}
     domain: ${RESEND_DOMAIN}
 
+  jwt:
+    secret: ${JWT_SECRET}
+    expire-seconds: 7200
+    refresh-expire-seconds: 604800
+
   ## 接口限流
   rate-limit:
     enabled: true
-    max-requests: 30   #单个时间窗口内允许的最大请求次数。
+    max-requests: 60   #单个时间窗口内允许的最大请求次数。
     window-seconds: 60  #时间窗口长度（秒）。
     path-patterns: #拦截路径
       - /api/v1/**

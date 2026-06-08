@@ -17,8 +17,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  * Web MVC 拦截器注册
  */
 @Configuration
-@EnableConfigurationProperties({RateLimitProperties.class, ApiAuthProperties.class})
 @RequiredArgsConstructor
+@EnableConfigurationProperties({RateLimitProperties.class, ApiAuthProperties.class, JwtProperties.class})
 public class WebMvcConfig implements WebMvcConfigurer {
 
     private final ApiSignatureInterceptor apiSignatureInterceptor;
@@ -41,7 +41,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .order(1);
 
         registry.addInterceptor(authorizationInterceptor)
-                .addPathPatterns("/api/forum/comment/**", "/api/v1/danmaku")
+                .addPathPatterns(
+                        "/api/forum/comment/**",
+                        "/api/v1/danmaku",
+                        "/api/v1/users/**"
+                )
                 .excludePathPatterns("/api/forum/comment/list")
                 .order(2);
 
