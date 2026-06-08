@@ -69,6 +69,11 @@ public class Constants {
     public static final String AUTH_USER_SESSIONS_KEY = "animeflow:auth:user:sessions";
 
     /**
+     * user_oauth.platform 字段：Bangumi 第三方登录
+     */
+    public static final String BANGUMI_OAUTH_PLATFORM = "bangumi";
+
+    /**
      * 新用户默认头像
      */
     public static final String DEFAULT_USER_AVATAR_URL =

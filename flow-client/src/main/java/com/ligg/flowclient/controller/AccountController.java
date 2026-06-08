@@ -8,15 +8,21 @@ import com.ligg.common.response.FlowTokenVo;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.flowclient.annotation.IpEndpointRateLimit;
+import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
+import com.ligg.flowclient.module.dto.BindBangumiDto;
 import com.ligg.flowclient.module.dto.LoginDto;
 import com.ligg.flowclient.module.dto.RefreshTokenDto;
 import com.ligg.flowclient.module.dto.RegisterDto;
+import com.ligg.flowclient.module.vo.BangumiBindVo;
 import com.ligg.flowclient.service.EmailService;
 import com.ligg.flowclient.service.JwtTokenService;
+import com.ligg.flowclient.service.UserOauthService;
 import com.ligg.flowclient.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -31,6 +37,8 @@ public class AccountController {
     private final UserService userService;
 
     private final JwtTokenService jwtTokenService;
+
+    private final UserOauthService userOauthService;
 
     /**
      * 注册账户
@@ -61,5 +69,29 @@ public class AccountController {
     public Result<FlowTokenVo> refresh(@Valid @RequestBody RefreshTokenDto refreshTokenDto) {
         FlowTokenVo loginVo = jwtTokenService.refreshToken(refreshTokenDto.getRefreshToken());
         return Result.success(ResponseCode.SUCCESS, loginVo);
+    }
+
+    /**
+     * 查询当前 AnimeFlow 账号的 Bangumi 绑定状态。
+     */
+    @GetMapping("/oauth/bangumi")
+    public Result<BangumiBindVo> getBangumiBind(
+            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken) {
+        Long userId = jwtTokenService.validateAccessToken(accessToken);
+        BangumiBindVo bindVo = userOauthService.getBangumiBind(userId);
+        return Result.success(ResponseCode.SUCCESS, bindVo);
+    }
+
+    /**
+     * 绑定 Bangumi 账号（需已登录 AnimeFlow，Body 传 OAuth 授权码 code）。
+     */
+    @PostMapping("/oauth/bangumi/bind")
+    @IpEndpointRateLimit(keyPrefix = "animeflow:account:bind-bangumi:ip:", seconds = 60, maxRequests = 10)
+    public Result<BangumiBindVo> bindBangumi(
+            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
+            @Valid @RequestBody BindBangumiDto bindBangumiDto) {
+        Long userId = jwtTokenService.validateAccessToken(accessToken);
+        BangumiBindVo bindVo = userOauthService.bindBangumi(userId, bindBangumiDto.getCode());
+        return Result.success(ResponseCode.SUCCESS, bindVo);
     }
 }

@@ -44,7 +44,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .addPathPatterns(
                         "/api/forum/comment/**",
                         "/api/v1/danmaku",
-                        "/api/v1/users/**"
+                        "/api/v1/users/**",
+                        "/api/v1/account/oauth/**"
                 )
                 .excludePathPatterns("/api/forum/comment/list")
                 .order(2);

@@ -63,32 +63,34 @@ CREATE TABLE `forum_comment`  (
 -- ----------------------------
 DROP TABLE IF EXISTS `user`;
 CREATE TABLE `user`  (
-  `id` bigint NOT NULL,
-  `email` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '邮箱',
-  `password` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
-  `avatar` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
-  `create_time` datetime NOT NULL,
-  `nickname` char(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `id` bigint NOT NULL COMMENT '主键 ID（雪花）',
+  `email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '邮箱',
+  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT 'BCrypt 哈希密码',
+  `avatar` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '头像地址',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `nickname` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '昵称',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_email`(`email` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = 'AnimeFlow 用户表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for user_oauth
 -- ----------------------------
 DROP TABLE IF EXISTS `user_oauth`;
 CREATE TABLE `user_oauth`  (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `user_id` bigint NULL DEFAULT NULL,
-  `platform` char(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
-  `platform_uid` bigint NULL DEFAULT NULL,
-  `access_token` char(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
-  `refresh_token` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL,
-  `expire_time` bigint NULL DEFAULT NULL,
-  `create_time` datetime NULL DEFAULT NULL,
-  `update_time` datetime NULL DEFAULT NULL,
-  `status` tinyint NULL DEFAULT NULL,
-  PRIMARY KEY (`id`) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = Dynamic;
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键 ID',
+  `user_id` bigint NOT NULL COMMENT 'AnimeFlow 用户 ID',
+  `platform` char(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '第三方平台，如 bangumi',
+  `platform_uid` bigint NOT NULL COMMENT '第三方平台用户 ID',
+  `access_token` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '第三方 access_token',
+  `refresh_token` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '第三方 refresh_token',
+  `expire_time` bigint NOT NULL COMMENT 'access_token 过期时间（Unix 秒）',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `status` tinyint NOT NULL DEFAULT 1 COMMENT '1=有效，0=失效',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_user_platform`(`user_id` ASC, `platform` ASC) USING BTREE COMMENT '同一用户每个平台仅一条绑定',
+  UNIQUE INDEX `uk_platform_uid`(`platform` ASC, `platform_uid` ASC) USING BTREE COMMENT '同一第三方账号仅绑定一个用户'
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户第三方 OAuth 绑定' ROW_FORMAT = Dynamic;
 
 SET FOREIGN_KEY_CHECKS = 1;
