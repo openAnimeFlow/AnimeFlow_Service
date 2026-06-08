@@ -1,26 +1,29 @@
+/**
+ * @author Ligg
+ * @date 2025/8/7
+ **/
 package com.ligg.flowclient.controller;
 
-import com.ligg.common.response.*;
+import com.ligg.api.bgmtvapi.BgmTvClient;
 import com.ligg.common.constants.Constants;
+import com.ligg.common.response.*;
 import com.ligg.common.statuenum.Platform;
 import com.ligg.common.statuenum.ResponseCode;
-import com.ligg.api.bgmtvapi.BgmTvClient;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-/**
- * @Author Ligg
- * @Time 2025/8/7
- **/
 @Slf4j
 @RestController
 @RequiredArgsConstructor
@@ -84,7 +87,7 @@ public class OAuthController {
                 response.sendRedirect("/api/no_session");
                 return;
             }
-            
+
             redisTemplate.delete(Constants.SESSION_KEY + ':' + state);
             Platform platform = sessionDto.getPlatform();
             if (platform == Platform.ANDROID || platform == Platform.IOS) {
