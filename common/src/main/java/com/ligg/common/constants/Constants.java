@@ -77,5 +77,5 @@ public class Constants {
      * 新用户默认头像
      */
     public static final String DEFAULT_USER_AVATAR_URL =
-            "https://wsrv.nl/?url=https://raw.githubusercontent.com/openAnimeFlow/animeFlow-assets/main/image/default_avatar.webp";
+            "https://wsrv.nl/?url=https://raw.githubusercontent.com/openAnimeFlow/animeFlow-assets/main/image/logo1.webp";
 }
