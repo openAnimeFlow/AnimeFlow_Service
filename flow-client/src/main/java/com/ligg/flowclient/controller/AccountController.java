@@ -54,7 +54,7 @@ public class AccountController {
     /**
      * 邮箱密码登录
      */
-    @PostMapping("/login")
+    @PostMapping("/email/login")
     @IpEndpointRateLimit(keyPrefix = "animeflow:account:login:ip:", seconds = 60, maxRequests = 20)
     public Result<FlowTokenVo> login(@Valid @RequestBody LoginDto loginDto) {
         FlowTokenVo loginVo = userService.login(loginDto);

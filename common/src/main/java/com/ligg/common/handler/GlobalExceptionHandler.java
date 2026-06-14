@@ -136,7 +136,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(AuthenticationFailedException.class)
     public Result<Void> handleAuthenticationFailed(AuthenticationFailedException e) {
-        log.warn("登录失败: {}", e.getMessage());
+        log.warn(e.getMessage());
         return Result.error(ResponseCode.UNAUTHORIZED, e.getMessage());
     }
 
