@@ -93,4 +93,55 @@ CREATE TABLE `user_oauth`  (
   UNIQUE INDEX `uk_platform_uid`(`platform` ASC, `platform_uid` ASC) USING BTREE COMMENT '同一第三方账号仅绑定一个用户'
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户第三方 OAuth 绑定' ROW_FORMAT = Dynamic;
 
+-- ----------------------------
+-- Table structure for bgm_subject
+-- ----------------------------
+DROP TABLE IF EXISTS `bgm_subject`;
+CREATE TABLE `bgm_subject`  (
+  `id` int NOT NULL COMMENT 'Bangumi 条目 ID',
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '日文名',
+  `name_cn` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT '' COMMENT '中文名',
+  `type` tinyint NOT NULL COMMENT '条目类型 1=书籍 2=动画 3=音乐 4=游戏 6=三次元',
+  `info` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '条目信息摘要',
+  `rating_rank` int NOT NULL DEFAULT 0 COMMENT '评分排名',
+  `rating_score` decimal(4, 2) NOT NULL DEFAULT 0.00 COMMENT '评分',
+  `rating_total` int NOT NULL DEFAULT 0 COMMENT '评分人数',
+  `rating_count` json NULL COMMENT '各分值人数分布 [1-10星]',
+  `locked` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否锁定 0=否 1=是',
+  `nsfw` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否NSFW 0=否 1=是',
+  `img_large` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT '' COMMENT '大图封面 URL',
+  `img_common` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT '' COMMENT '普通封面 URL',
+  `img_medium` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT '' COMMENT '中图封面 URL',
+  `img_small` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT '' COMMENT '小图封面 URL',
+  `img_grid` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT '' COMMENT '网格封面 URL',
+  `sync_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后同步时间',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '首次入库时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_type`(`type` ASC) USING BTREE,
+  INDEX `idx_rating_score`(`rating_score` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = 'Bangumi 条目表' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for user_bgm_collection
+-- ----------------------------
+DROP TABLE IF EXISTS `user_bgm_collection`;
+CREATE TABLE `user_bgm_collection`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键 ID',
+  `user_id` bigint NOT NULL COMMENT 'AnimeFlow 用户 ID，关联 user.id',
+  `subject_id` int NOT NULL COMMENT 'Bangumi 条目 ID，关联 bgm_subject.id',
+  `bgm_interest_id` bigint NOT NULL COMMENT 'Bangumi 收藏记录 ID（interest.id）',
+  `rate` tinyint NOT NULL DEFAULT 0 COMMENT '用户评分 0-10，0 表示未评分',
+  `type` tinyint NOT NULL COMMENT '收藏类型 1=想看 2=看过 3=在看 4=搁置 5=抛弃',
+  `comment` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '收藏评论',
+  `tags` json NULL COMMENT '收藏标签 JSON 数组',
+  `bgm_updated_at` bigint NOT NULL COMMENT 'Bangumi 收藏更新时间 Unix 秒（interest.updatedAt）',
+  `sync_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后同步时间',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '首次入库时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_bgm_interest_id`(`bgm_interest_id` ASC) USING BTREE COMMENT 'Bangumi 收藏 ID 唯一',
+  UNIQUE INDEX `uk_user_subject`(`user_id` ASC, `subject_id` ASC) USING BTREE COMMENT '同一用户对同一条目仅一条收藏',
+  INDEX `idx_user_type`(`user_id` ASC, `type` ASC) USING BTREE,
+  INDEX `idx_subject_id`(`subject_id` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏关系表' ROW_FORMAT = Dynamic;
+
 SET FOREIGN_KEY_CHECKS = 1;
