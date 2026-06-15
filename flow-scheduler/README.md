@@ -11,6 +11,7 @@ AnimeFlow 定时任务模块，随 `flow-bootstrap` 启动。当前主要实现 
 | 组件 | 作用 |
 |------|------|
 | `BangumiArchiveSyncScheduler` | 按 cron 触发同步 |
+| `BangumiArchiveSyncStartupRunner` | 启动时若无 Redis 同步记录则触发一次 |
 | `BangumiArchiveSyncService` | 检查是否有新数据、抢锁、编排整次同步 |
 | `BangumiArchiveHttpService` | 拉取 `latest.json`、下载 Release 资源文件 |
 | `BangumiArchiveJsonlinesSyncService` | 流式读取 jsonlines，分批写入数据库 |
@@ -36,7 +37,16 @@ anime-flow:
 
 调度器本身只做两件事：检查 `enabled` 是否为 `true`，然后调用 `BangumiArchiveSyncService.triggerSyncAsync()`。
 
-### 2. 异步执行，不阻塞主线程
+### 2. 启动时触发（首次部署）
+
+`BangumiArchiveSyncStartupRunner` 在应用启动完成后检查 Redis 键 `animeflow:bangumi:archive:source_updated_at`：
+
+- **不存在或为空** → 异步触发一次同步（适合首次部署、Redis 被清空后）
+- **已存在** → 跳过，避免每次重启都重复全量导入
+
+可通过 `run-on-startup-if-missing: false` 关闭该行为。
+
+### 3. 异步执行，不阻塞主线程
 
 `triggerSyncAsync()` 标注了 `@Async("bangumiArchiveSyncExecutor")`，实际同步逻辑在 **专用单线程池** 中运行：
 
@@ -44,7 +54,7 @@ anime-flow:
 - 队列容量为 1
 - 避免与 HTTP 请求处理争抢线程，也避免多线程并发跑两份同步任务
 
-### 3. 何时真正开始同步
+### 4. 何时真正开始同步
 
 定时任务触发后，**不一定**会下载数据。`syncIfNeeded()` 会依次判断：
 
@@ -54,7 +64,7 @@ anime-flow:
 4. Redis 分布式锁已被其他实例占用 → 跳过（已有节点在同步）
 5. 以上均通过 → 开始整次同步
 
-首次部署或 Redis 无记录时，会认为需要同步并执行全量导入。
+首次部署或 Redis 无 `source_updated_at` 记录时，启动阶段会触发同步；之后仅在有新版本或 cron 触发时同步。
 
 ---
 
@@ -174,6 +184,7 @@ on duplicate key update
 anime-flow:
   bangumi-archive-sync:
     enabled: true                                          # 是否启用同步
+    run-on-startup-if-missing: true                        # Redis 无记录时启动即同步
     latest-url: https://raw.githubusercontent.com/openAnimeFlow/animeFlow-assets/main/archive/latest.json
     cron: "0 0 3 * * *"                                    # 定时表达式（每天 03:00）
     batch-size: 500                                        # 每批 upsert 行数

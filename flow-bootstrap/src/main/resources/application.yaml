@@ -54,6 +54,7 @@ anime-flow:
 
   bangumi-archive-sync:
     enabled: true
+    run-on-startup-if-missing: true
     latest-url: https://raw.githubusercontent.com/openAnimeFlow/animeFlow-assets/main/archive/latest.json
     cron: "0 0 3 * * *"
     batch-size: 500

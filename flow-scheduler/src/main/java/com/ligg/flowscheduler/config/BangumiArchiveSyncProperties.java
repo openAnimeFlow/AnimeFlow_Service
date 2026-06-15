@@ -18,6 +18,11 @@ public class BangumiArchiveSyncProperties {
     private boolean enabled = true;
 
     /**
+     * 启动时若 Redis 无 source_updated_at 记录，则触发一次同步（首次部署场景）
+     */
+    private boolean runOnStartupIfMissing = true;
+
+    /**
      * archive/latest.json 地址
      */
     private String latestUrl =
