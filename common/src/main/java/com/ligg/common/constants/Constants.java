@@ -78,4 +78,14 @@ public class Constants {
      */
     public static final String DEFAULT_USER_AVATAR_URL =
             "https://wsrv.nl/?url=https://raw.githubusercontent.com/openAnimeFlow/animeFlow-assets/main/image/logo1.webp";
+
+    /**
+     * Bangumi Archive 同步分布式锁，完整键为 animeflow:bangumi:archive:sync:lock
+     */
+    public static final String BANGUMI_ARCHIVE_SYNC_LOCK_KEY = "animeflow:bangumi:archive:sync:lock";
+
+    /**
+     * 已同步的 Bangumi Archive source_updated_at
+     */
+    public static final String BANGUMI_ARCHIVE_SYNC_UPDATED_AT_KEY = "animeflow:bangumi:archive:source_updated_at";
 }

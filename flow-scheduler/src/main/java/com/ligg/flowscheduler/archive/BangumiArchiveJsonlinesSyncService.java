@@ -1,0 +1,99 @@
+package com.ligg.flowscheduler.archive;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.io.BufferedReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 流式读取 jsonlines 文件，分批解析并写入数据库。
+ *
+ * @author Ligg
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class BangumiArchiveJsonlinesSyncService {
+
+    private final BangumiArchiveLineParser lineParser;
+    private final BangumiArchiveUpsertService upsertService;
+
+    public void syncFile(Path file, ArchiveDataType dataType) throws Exception {
+        int batchSize = upsertService.batchSize();
+        long delayMs = upsertService.batchDelayMs();
+        long total = 0;
+
+        try (BufferedReader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+            switch (dataType) {
+                case SUBJECT -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parseSubject,
+                        upsertService::upsertSubjectBatch);
+                case CHARACTER -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parseCharacter,
+                        upsertService::upsertCharacterBatch);
+                case PERSON -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parsePerson,
+                        upsertService::upsertPersonBatch);
+                case EPISODE -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parseEpisode,
+                        upsertService::upsertEpisodeBatch);
+                case PERSON_CHARACTER -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parsePersonCharacter,
+                        upsertService::upsertPersonCharacterBatch);
+                case PERSON_RELATION -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parsePersonRelation,
+                        upsertService::upsertPersonRelationBatch);
+                case SUBJECT_CHARACTER -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parseSubjectCharacter,
+                        upsertService::upsertSubjectCharacterBatch);
+                case SUBJECT_PERSON -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parseSubjectPerson,
+                        upsertService::upsertSubjectPersonBatch);
+                case SUBJECT_RELATION -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parseSubjectRelation,
+                        upsertService::upsertSubjectRelationBatch);
+            }
+        }
+
+        log.info("Synced {} rows from {} ({})", total, file.getFileName(), dataType.getFileSuffix());
+    }
+
+    private <T> long readAndUpsert(
+            BufferedReader reader,
+            int batchSize,
+            long delayMs,
+            LineParser<T> parser,
+            BatchConsumer<T> consumer) throws Exception {
+        long total = 0;
+        List<T> batch = new ArrayList<>(batchSize);
+        String line;
+        while ((line = reader.readLine()) != null) {
+            if (line.isBlank()) {
+                continue;
+            }
+            batch.add(parser.parse(line));
+            if (batch.size() >= batchSize) {
+                consumer.accept(batch);
+                total += batch.size();
+                batch.clear();
+                pause(delayMs);
+            }
+        }
+        if (!batch.isEmpty()) {
+            consumer.accept(batch);
+            total += batch.size();
+        }
+        return total;
+    }
+
+    private static void pause(long delayMs) throws InterruptedException {
+        if (delayMs > 0) {
+            Thread.sleep(delayMs);
+        }
+    }
+
+    private interface LineParser<T> {
+        T parse(String line) throws Exception;
+    }
+
+    private interface BatchConsumer<T> {
+        void accept(List<T> batch);
+    }
+}

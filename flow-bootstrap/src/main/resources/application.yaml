@@ -52,6 +52,17 @@ anime-flow:
     # 调用 Bangumi Next API（如 /p1/me）超时时间（秒），不低于 5
     request-timeout-seconds: 30
 
+  bangumi-archive-sync:
+    enabled: true
+    latest-url: https://raw.githubusercontent.com/openAnimeFlow/animeFlow-assets/main/archive/latest.json
+    cron: "0 0 3 * * *"
+    batch-size: 500
+    batch-delay-ms: 50
+    download-dir: ${java.io.tmpdir}/bangumi-archive
+    lock-ttl-seconds: 21600
+    connect-timeout-seconds: 30
+    read-timeout-seconds: 3600
+
   resend:
     api_key: ${RESEND_API_KEY}
     domain: ${RESEND_DOMAIN}

@@ -107,6 +107,7 @@
         <module>common</module>
         <module>third-party-api</module>
         <module>flow-client</module>
+        <module>flow-scheduler</module>
         <module>flow-bootstrap</module>
     </modules>
 
