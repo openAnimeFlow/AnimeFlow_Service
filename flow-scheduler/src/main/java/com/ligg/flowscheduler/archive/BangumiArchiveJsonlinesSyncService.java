@@ -1,7 +1,9 @@
 package com.ligg.flowscheduler.archive;
 
+import com.ligg.common.entity.BangumiEpisodeEntity;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -37,8 +39,7 @@ public class BangumiArchiveJsonlinesSyncService {
                         upsertService::upsertCharacterBatch);
                 case PERSON -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parsePerson,
                         upsertService::upsertPersonBatch);
-                case EPISODE -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parseEpisode,
-                        upsertService::upsertEpisodeBatch);
+                case EPISODE -> total = readAndUpsertEpisodes(reader, batchSize, delayMs);
                 case PERSON_CHARACTER -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parsePersonCharacter,
                         upsertService::upsertPersonCharacterBatch);
                 case PERSON_RELATION -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parsePersonRelation,
@@ -53,6 +54,76 @@ public class BangumiArchiveJsonlinesSyncService {
         }
 
         log.info("Synced {} rows from {} ({})", total, file.getFileName(), dataType.getFileSuffix());
+    }
+
+    private long readAndUpsertEpisodes(BufferedReader reader, int batchSize, long delayMs) throws Exception {
+        long total = 0;
+        long skipped = 0;
+        List<BangumiEpisodeEntity> batch = new ArrayList<>(batchSize);
+        String line;
+        while ((line = reader.readLine()) != null) {
+            if (line.isBlank()) {
+                continue;
+            }
+            BangumiEpisodeEntity entity;
+            try {
+                entity = lineParser.parseEpisode(line);
+            } catch (Exception e) {
+                skipped++;
+                log.warn("Skip episode line (parse error): {}", e.getMessage());
+                continue;
+            }
+            if (!lineParser.isStorableEpisode(entity)) {
+                skipped++;
+                log.warn(
+                        "Skip episode id={}: invalid field (sort={}, disc={}, type={})",
+                        entity.getId(),
+                        entity.getSort(),
+                        entity.getDisc(),
+                        entity.getType());
+                continue;
+            }
+            batch.add(entity);
+            if (batch.size() >= batchSize) {
+                total += upsertEpisodeBatchSkippingInvalid(batch);
+                batch.clear();
+                pause(delayMs);
+            }
+        }
+        if (!batch.isEmpty()) {
+            total += upsertEpisodeBatchSkippingInvalid(batch);
+        }
+        if (skipped > 0) {
+            log.warn("Skipped {} invalid episode line(s) in file", skipped);
+        }
+        return total;
+    }
+
+  /**
+   * 批量写入 episode；若整批失败则逐条写入并跳过仍无法入库的记录。
+   */
+    private int upsertEpisodeBatchSkippingInvalid(List<BangumiEpisodeEntity> batch) {
+        try {
+            upsertService.upsertEpisodeBatch(batch);
+            return batch.size();
+        } catch (DataIntegrityViolationException batchError) {
+            log.warn(
+                    "Episode batch upsert failed, retrying row by row: {}",
+                    batchError.getMostSpecificCause().getMessage());
+            int ok = 0;
+            for (BangumiEpisodeEntity entity : batch) {
+                try {
+                    upsertService.upsertEpisodeBatch(List.of(entity));
+                    ok++;
+                } catch (DataIntegrityViolationException rowError) {
+                    log.warn(
+                            "Skip episode id={}: {}",
+                            entity.getId(),
+                            rowError.getMostSpecificCause().getMessage());
+                }
+            }
+            return ok;
+        }
     }
 
     private <T> long readAndUpsert(

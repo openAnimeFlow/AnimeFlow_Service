@@ -46,6 +46,25 @@ public class BangumiArchiveLineParser {
         return entity;
     }
 
+    /**
+     * 校验 episode 各字段是否可写入当前表结构（unsigned 列范围等）。
+     */
+    public boolean isStorableEpisode(BangumiEpisodeEntity entity) {
+        return fitsUnsignedInt(entity.getId())
+                && fitsUnsignedInt(entity.getSubjectId())
+                && fitsUnsignedTinyint(entity.getDisc())
+                && fitsUnsignedTinyint(entity.getType())
+                && entity.getSort() != null;
+    }
+
+    private static boolean fitsUnsignedInt(Integer value) {
+        return value != null && value >= 0;
+    }
+
+    private static boolean fitsUnsignedTinyint(Integer value) {
+        return value == null || (value >= 0 && value <= 255);
+    }
+
     public BangumiPersonEntity parsePerson(String line) throws Exception {
         JsonNode node = objectMapper.readTree(line);
         BangumiPersonEntity entity = new BangumiPersonEntity();
