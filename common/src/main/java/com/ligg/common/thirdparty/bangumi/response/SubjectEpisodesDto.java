@@ -7,7 +7,7 @@ import lombok.Data;
 import java.util.List;
 
 /**
- * Bangumi 条目章节 {@code GET /p1/subjects/{id}/episodes} 响应。
+ * Bangumi 条目章节
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)

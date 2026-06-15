@@ -14,6 +14,7 @@ import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.bangumi.*;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.service.BangumiCacheService;
+import com.ligg.flowclient.service.BangumiService;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ public class SubjectsController {
 
     private final BangumiClient bangumiClient;
     private final BangumiCacheService bangumiCacheService;
+    private final BangumiService bangumiService;
 
     /**
      * 条目章节列表。
@@ -49,7 +51,7 @@ public class SubjectsController {
             @NotNull @PathVariable int subjectId,
             @RequestParam(defaultValue = "100") int limit,
             @RequestParam(defaultValue = "0") int offset) {
-        SubjectEpisodesDto dto = bangumiClient.getSubjectEpisodes(subjectId, limit, offset);
+        SubjectEpisodesDto dto = bangumiService.getEpisodes(subjectId, limit, offset);
         SubjectEpisodesVo vo = new SubjectEpisodesVo();
         BeanUtils.copyProperties(dto, vo);
         return Result.success(ResponseCode.SUCCESS, vo);
