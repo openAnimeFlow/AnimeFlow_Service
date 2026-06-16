@@ -15,6 +15,9 @@ import com.ligg.flowclient.mapper.UserMapper;
 import com.ligg.flowclient.module.dto.BindEmailDto;
 import com.ligg.flowclient.module.dto.LoginDto;
 import com.ligg.flowclient.module.dto.RegisterDto;
+import com.ligg.flowclient.module.dto.UpdateUserDto;
+import com.ligg.flowclient.module.dto.UserProfileRow;
+import com.ligg.flowclient.module.vo.UserCollectionCountsVo;
 import com.ligg.flowclient.module.vo.UserVo;
 import com.ligg.flowclient.service.EmailService;
 import com.ligg.flowclient.service.JwtTokenService;
@@ -78,17 +81,28 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserVo getUserInfo(String accessToken) {
         Long userId = jwtTokenService.validateAccessToken(accessToken);
+        return loadUserVo(userId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public UserVo updateUserInfo(String accessToken, UpdateUserDto updateUserDto) {
+        if (!updateUserDto.hasUpdateField()) {
+            throw new IllegalArgumentException("至少需要更新一个用户信息字段");
+        }
+        Long userId = jwtTokenService.validateAccessToken(accessToken);
         UserEntity user = userMapper.selectById(userId);
         if (user == null) {
             throw new LoginExpiredException();
         }
-        return new UserVo(
-                user.getId(),
-                user.getEmail(),
-                user.getNickname(),
-                user.getAvatar(),
-                user.getCreateTime()
-        );
+        if (StringUtils.hasText(updateUserDto.getNickname())) {
+            user.setNickname(updateUserDto.getNickname().trim());
+        }
+        if (StringUtils.hasText(updateUserDto.getAvatar())) {
+            user.setAvatar(updateUserDto.getAvatar().trim());
+        }
+        userMapper.updateById(user);
+        return loadUserVo(userId);
     }
 
     @Override
@@ -120,12 +134,32 @@ public class UserServiceImpl implements UserService {
 
         jwtTokenService.updateUserEmail(userId, bindEmailDto.getEmail());
 
+        return loadUserVo(userId);
+    }
+
+    private UserVo loadUserVo(Long userId) {
+        UserProfileRow row = userMapper.selectProfileById(userId);
+        if (row == null) {
+            throw new LoginExpiredException();
+        }
+        return toUserVo(row);
+    }
+
+    private static UserVo toUserVo(UserProfileRow row) {
+        UserCollectionCountsVo collectionCounts = new UserCollectionCountsVo(
+                row.getPlanToWatch(),
+                row.getWatched(),
+                row.getWatching(),
+                row.getOnHold(),
+                row.getAbandoned()
+        );
         return new UserVo(
-                user.getId(),
-                user.getEmail(),
-                user.getNickname(),
-                user.getAvatar(),
-                user.getCreateTime()
+                row.getId(),
+                row.getEmail(),
+                row.getNickname(),
+                row.getAvatar(),
+                row.getCreateTime(),
+                collectionCounts
         );
     }
 }

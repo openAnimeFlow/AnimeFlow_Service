@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ligg.flowclient.mapper.UserMapper">
+
+    <select id="selectProfileById" resultType="com.ligg.flowclient.module.dto.UserProfileRow">
+        select u.id,
+               u.email,
+               u.nickname,
+               u.avatar,
+               u.create_time as createTime,
+               coalesce(sum(case when c.type = 1 then 1 else 0 end), 0) as planToWatch,
+               coalesce(sum(case when c.type = 2 then 1 else 0 end), 0) as watched,
+               coalesce(sum(case when c.type = 3 then 1 else 0 end), 0) as watching,
+               coalesce(sum(case when c.type = 4 then 1 else 0 end), 0) as onHold,
+               coalesce(sum(case when c.type = 5 then 1 else 0 end), 0) as abandoned
+        from user u
+                 left join user_bgm_collection c on c.user_id = u.id
+        where u.id = #{userId}
+        group by u.id, u.email, u.nickname, u.avatar, u.create_time
+    </select>
+</mapper>

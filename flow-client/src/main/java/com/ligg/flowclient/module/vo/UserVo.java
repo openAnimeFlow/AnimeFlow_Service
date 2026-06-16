@@ -19,4 +19,7 @@ public class UserVo {
     private String nickname;
     private String avatar;
     private LocalDateTime createTime;
+
+    /** 本地 Bangumi 收藏各状态数量 */
+    private UserCollectionCountsVo collectionCounts;
 }
