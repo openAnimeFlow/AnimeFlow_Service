@@ -80,6 +80,17 @@ public class AccountController {
     }
 
     /**
+     * 登出当前会话，销毁 Redis 中的 access/refresh token 及 session。
+     */
+    @PostMapping("/logout")
+    @IpEndpointRateLimit(keyPrefix = "animeflow:account:logout:ip:", seconds = 60, maxRequests = 30)
+    public Result<Void> logout(
+            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken) {
+        jwtTokenService.logout(accessToken);
+        return Result.success();
+    }
+
+    /**
      * Bangumi 第三方授权登录
      * 未绑定本地账号时自动创建（邮箱/密码为空），返回 Flow token。
      */

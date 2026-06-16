@@ -8,6 +8,7 @@ import com.ligg.common.statuenum.Platform;
 import com.ligg.flowclient.config.JwtProperties;
 import com.ligg.flowclient.module.dto.AuthSessionDto;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -78,6 +79,32 @@ public class JwtTokenService {
 
         removeTokenIndexes(session);
         return issueTokenPair(session);
+    }
+
+    /**
+     * 登出当前会话：删除 Redis 中的 session、access/refresh 索引及用户会话集合项。
+     * 令牌已失效或会话不存在时幂等成功。
+     */
+    public void logout(String accessToken) {
+        if (!StringUtils.hasText(accessToken)) {
+            return;
+        }
+        Claims claims = parseAccessClaimsLenient(accessToken);
+        if (claims == null || !TYPE_ACCESS.equals(claims.get(CLAIM_TYPE, String.class))) {
+            return;
+        }
+
+        String sessionId = claims.get(CLAIM_SESSION, String.class);
+        AuthSessionDto session = loadSession(sessionId);
+        if (session != null) {
+            revokeSession(session);
+            return;
+        }
+
+        String accessJti = claims.getId();
+        if (StringUtils.hasText(accessJti)) {
+            redisTemplate.delete(accessRedisKey(accessJti));
+        }
     }
 
     /**
@@ -215,6 +242,12 @@ public class JwtTokenService {
         redisTemplate.delete(refreshRedisKey(session.getRefreshJti()));
     }
 
+    private void revokeSession(AuthSessionDto session) {
+        removeTokenIndexes(session);
+        redisTemplate.delete(sessionRedisKey(session.getSessionId()));
+        redisTemplate.opsForSet().remove(userSessionsRedisKey(session.getUserId()), session.getSessionId());
+    }
+
     private AuthSessionDto loadSession(String sessionId) {
         if (!StringUtils.hasText(sessionId)) {
             return null;
@@ -240,6 +273,23 @@ public class JwtTokenService {
             return claims;
         } catch (JwtException e) {
             throw new AuthenticationFailedException("刷新令牌无效或已过期");
+        }
+    }
+
+    /**
+     * 解析 access_token 声明；签名仍校验，过期令牌也返回 claims（用于登出）。
+     */
+    private Claims parseAccessClaimsLenient(String accessToken) {
+        try {
+            return Jwts.parser()
+                    .verifyWith(secretKey)
+                    .build()
+                    .parseSignedClaims(accessToken)
+                    .getPayload();
+        } catch (ExpiredJwtException e) {
+            return e.getClaims();
+        } catch (JwtException e) {
+            return null;
         }
     }
 

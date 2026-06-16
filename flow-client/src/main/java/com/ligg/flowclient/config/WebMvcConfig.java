@@ -45,6 +45,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/forum/comment/**",
                         "/api/v1/danmaku",
                         "/api/v1/users/**",
+                        "/api/v1/account/logout",
                         "/api/v1/account/oauth/**",
                         "/api/v1/account/email/bind"
                 )
