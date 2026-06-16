@@ -39,6 +39,11 @@ public class Constants {
     public static final String AUTO_TOKEN_KEY = "auto_token";
 
     /**
+     * 桌面端 Bangumi 绑定模式缓存的 OAuth 授权码
+     */
+    public static final String BIND_CODE_KEY = "bind_code";
+
+    /**
      * 邮箱验证码 Redis 键前缀，完整键为 email:verification:{email}
      */
     public static final String EMAIL_VERIFICATION_KEY = "email:verification";

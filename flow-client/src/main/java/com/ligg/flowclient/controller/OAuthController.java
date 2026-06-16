@@ -17,6 +17,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URLEncoder;
@@ -52,7 +53,9 @@ public class OAuthController {
      * 申请session
      */
     @GetMapping("/session")
-    public Result<SessionVo> session(Platform platform) {
+    public Result<SessionVo> session(
+            Platform platform,
+            @RequestParam(required = false, defaultValue = "false") Boolean bindMode) {
         String sessionId = "animeFlow" + new Random().nextInt(100000);
         int expiresIn = 60;
         SessionVo sessionVo = new SessionVo();
@@ -63,6 +66,7 @@ public class OAuthController {
         sessionDto.setSessionId(sessionId);
         sessionDto.setExpiresIn(expiresIn);
         sessionDto.setPlatform(platform);
+        sessionDto.setBindMode(bindMode);
         redisTemplate.opsForValue().set(Constants.SESSION_KEY + ':' + sessionId, sessionDto, expiresIn, TimeUnit.SECONDS);
         return Result.success(ResponseCode.SUCCESS, sessionVo);
     }
@@ -93,6 +97,13 @@ public class OAuthController {
             if (platform == Platform.ANDROID || platform == Platform.IOS) {
                 String redirectUrl = Constants.MOBILE_CALLBACK_URL + "?code=" + URLEncoder.encode(code, StandardCharsets.UTF_8) + "&state=" + state;
                 response.sendRedirect(redirectUrl);
+            } else if (Boolean.TRUE.equals(sessionDto.getBindMode())) {
+                redisTemplate.opsForValue().set(
+                        Constants.BIND_CODE_KEY + ':' + state,
+                        code,
+                        sessionDto.getExpiresIn(),
+                        TimeUnit.SECONDS);
+                response.sendRedirect("/api/oauth-success?state=" + state);
             } else {
                 AccessToken token = bgmTvClient.exchangeToken(code);
                 redisTemplate.opsForValue().set(Constants.AUTO_TOKEN_KEY + ':' + state, token, token.getExpires_in(), TimeUnit.SECONDS);
@@ -118,6 +129,20 @@ public class OAuthController {
         }
         redisTemplate.delete(Constants.AUTO_TOKEN_KEY + ':' + sessionId);
         return Result.success(ResponseCode.SUCCESS, token);
+    }
+
+    /**
+     * 桌面端绑定模式：获取缓存的 OAuth 授权码
+     */
+    @GetMapping("/bind-code")
+    public Result<String> getBindCode(String sessionId) {
+        log.info("获取绑定授权码 sessionId: {}", sessionId);
+        Object code = redisTemplate.opsForValue().get(Constants.BIND_CODE_KEY + ':' + sessionId);
+        if (!(code instanceof String bindCode) || !StringUtils.hasText(bindCode)) {
+            return Result.error(ResponseCode.PARAM_ERROR);
+        }
+        redisTemplate.delete(Constants.BIND_CODE_KEY + ':' + sessionId);
+        return Result.success(ResponseCode.SUCCESS, bindCode);
     }
 
     /**

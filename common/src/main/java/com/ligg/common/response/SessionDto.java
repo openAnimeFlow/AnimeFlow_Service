@@ -17,4 +17,5 @@ public class SessionDto {
     private String sessionId;
     private Integer expiresIn;
     private Platform platform;
+    private Boolean bindMode;
 }

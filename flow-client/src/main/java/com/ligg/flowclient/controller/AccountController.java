@@ -9,6 +9,7 @@ import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.flowclient.annotation.IpEndpointRateLimit;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
+import com.ligg.flowclient.module.dto.BangumiLoginDto;
 import com.ligg.flowclient.module.dto.BindBangumiDto;
 import com.ligg.flowclient.module.dto.LoginDto;
 import com.ligg.flowclient.module.dto.RefreshTokenDto;
@@ -68,6 +69,19 @@ public class AccountController {
     @IpEndpointRateLimit(keyPrefix = "animeflow:account:refresh:ip:", seconds = 60, maxRequests = 30)
     public Result<FlowTokenVo> refresh(@Valid @RequestBody RefreshTokenDto refreshTokenDto) {
         FlowTokenVo loginVo = jwtTokenService.refreshToken(refreshTokenDto.getRefreshToken());
+        return Result.success(ResponseCode.SUCCESS, loginVo);
+    }
+
+    /**
+     * Bangumi 第三方授权登录
+     * 未绑定本地账号时自动创建（邮箱/密码为空），返回 Flow token。
+     */
+    @PostMapping("/oauth/bangumi/login")
+    @IpEndpointRateLimit(keyPrefix = "animeflow:account:bangumi-login:ip:", seconds = 60, maxRequests = 20)
+    public Result<FlowTokenVo> loginBangumi(@Valid @RequestBody BangumiLoginDto bangumiLoginDto) {
+        FlowTokenVo loginVo = userOauthService.loginBangumi(
+                bangumiLoginDto.getCode(),
+                bangumiLoginDto.getPlatform());
         return Result.success(ResponseCode.SUCCESS, loginVo);
     }
 

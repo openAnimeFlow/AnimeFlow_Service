@@ -47,7 +47,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/v1/users/**",
                         "/api/v1/account/oauth/**"
                 )
-                .excludePathPatterns("/api/forum/comment/list")
+                .excludePathPatterns(
+                        "/api/forum/comment/list",
+                        "/api/v1/account/oauth/bangumi/login"
+                )
                 .order(2);
 
         registry.addInterceptor(optionalAuthorizationInterceptor)
