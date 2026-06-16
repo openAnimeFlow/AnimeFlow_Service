@@ -35,7 +35,7 @@ public class FlowUserController {
     }
 
     /**
-     * 获取当前用户已同步到本地的 Bangumi 收藏列表。
+     * 获取当前用户收藏列表。
      *
      * @param subjectType 条目大类，默认 2（动画）
      * @param type        收藏状态，默认 2（看过）
