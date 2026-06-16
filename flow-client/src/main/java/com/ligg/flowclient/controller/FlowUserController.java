@@ -8,10 +8,12 @@ package com.ligg.flowclient.controller;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
+import com.ligg.flowclient.module.dto.UpdateUserCollectionDto;
 import com.ligg.flowclient.module.vo.UserVo;
 import com.ligg.common.vo.bangumi.UserCollectionsVo;
 import com.ligg.flowclient.service.UserBgmCollectionService;
 import com.ligg.flowclient.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -52,5 +54,17 @@ public class FlowUserController {
         UserCollectionsVo vo = userBgmCollectionService.listMyCollections(
                 accessToken, subjectType, type, limit, offset);
         return Result.success(ResponseCode.SUCCESS, vo);
+    }
+
+    /**
+     * 更新当前用户对条目的 Bangumi 收藏（需登录且已绑定 Bangumi）。
+     */
+    @PutMapping("/collections/{subjectId}")
+    public Result<Void> updateCollection(
+            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
+            @PathVariable int subjectId,
+            @Valid @RequestBody UpdateUserCollectionDto body) {
+        userBgmCollectionService.updateCollection(accessToken, subjectId, body);
+        return Result.success();
     }
 }

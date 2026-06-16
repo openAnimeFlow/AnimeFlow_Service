@@ -11,6 +11,7 @@ import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
+import com.ligg.common.thirdparty.bangumi.request.UpdateCollectionBody;
 import com.ligg.common.thirdparty.bangumi.response.CharacterCommentDto;
 import com.ligg.common.thirdparty.bangumi.response.CharacterCommentsDto;
 import com.ligg.common.thirdparty.bangumi.response.CharacterCastsDto;
@@ -324,6 +325,17 @@ public class BangumiClientImpl implements BangumiClient {
                 .headers(headers -> headers.setBearerAuth(accessToken))
                 .retrieve()
                 .bodyToMono(UserCollectionsDto.class));
+    }
+
+    @Override
+    public void updateCollection(String accessToken, int subjectId, UpdateCollectionBody body) {
+        log.info("更新条目收藏 subjectId={}", subjectId);
+        blockBangumi(bangumiNextClient.put()
+                .uri(BangumiNextApiPath.P1_COLLECTION_SUBJECTS + '/' + subjectId)
+                .headers(headers -> headers.setBearerAuth(accessToken))
+                .bodyValue(body)
+                .retrieve()
+                .toBodilessEntity());
     }
 
     private <T> T blockBangumi(Mono<T> mono) {

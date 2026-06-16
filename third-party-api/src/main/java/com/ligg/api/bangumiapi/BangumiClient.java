@@ -6,6 +6,7 @@ package com.ligg.api.bangumiapi;
 
 import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
+import com.ligg.common.thirdparty.bangumi.request.UpdateCollectionBody;
 import com.ligg.common.thirdparty.bangumi.response.CharacterCommentsDto;
 import com.ligg.common.thirdparty.bangumi.response.CharacterCastsDto;
 import com.ligg.common.thirdparty.bangumi.response.CharacterDetailDto;
@@ -137,4 +138,9 @@ public interface BangumiClient {
      * 获取当前用户的条目收藏
      */
     UserCollectionsDto getMeCollections(String accessToken, int subjectType, int type, int limit, int offset);
+
+    /**
+     * 更新当前用户对条目的收藏。
+     */
+    void updateCollection(String accessToken, int subjectId, UpdateCollectionBody body);
 }
