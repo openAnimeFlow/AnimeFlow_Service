@@ -29,6 +29,7 @@ public class UserBgmCollectionSyncRunner {
     private static final int[] COLLECTION_TYPES = {1, 2, 3, 4, 5};
 
     private final BangumiOAuthTokenService bangumiOAuthTokenService;
+    private final BangumiOAuthExecutor bangumiOAuthExecutor;
     private final BangumiClient bangumiClient;
     private final UserBgmCollectionMapper userBgmCollectionMapper;
     private final UserBgmCollectionSyncStatusStore statusStore;
@@ -60,8 +61,11 @@ public class UserBgmCollectionSyncRunner {
         for (int collectionType : COLLECTION_TYPES) {
             int offset = 0;
             while (true) {
-                UserCollectionsDto page = bangumiClient.getMeCollections(
-                        oauth.getAccessToken(), subjectType, collectionType, PAGE_SIZE, offset);
+                final int type = collectionType;
+                final int pageOffset = offset;
+                UserCollectionsDto page = bangumiOAuthExecutor.execute(oauth, accessToken ->
+                        bangumiClient.getMeCollections(
+                                accessToken, subjectType, type, PAGE_SIZE, pageOffset));
                 List<UserCollectionsDto.Item> items = page.getData();
                 if (items == null || items.isEmpty()) {
                     break;
