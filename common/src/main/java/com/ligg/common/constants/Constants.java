@@ -93,4 +93,14 @@ public class Constants {
      * 已同步的 Bangumi Archive source_updated_at
      */
     public static final String BANGUMI_ARCHIVE_SYNC_UPDATED_AT_KEY = "animeflow:bangumi:archive:source_updated_at";
+
+    /**
+     * Bangumi 收藏同步任务状态，完整键为 animeflow:sync:bgm-collection:status:{userId}
+     */
+    public static final String BGM_COLLECTION_SYNC_STATUS_KEY = "animeflow:sync:bgm-collection:status";
+
+    /**
+     * Bangumi 收藏同步分布式锁，完整键为 animeflow:sync:bgm-collection:lock:{userId}
+     */
+    public static final String BGM_COLLECTION_SYNC_LOCK_KEY = "animeflow:sync:bgm-collection:lock";
 }

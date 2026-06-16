@@ -1,6 +1,7 @@
 package com.ligg.common.thirdparty.bangumi.response;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ligg.common.model.CoverImages;
 import com.ligg.common.thirdparty.bangumi.model.BangumiRating;
 import lombok.Data;
@@ -40,6 +41,10 @@ public class UserCollectionsDto {
         private Integer type;
         private String comment;
         private List<String> tags;
+        private Integer epStatus;
+        private Integer volStatus;
+        @JsonProperty("private")
+        private Boolean private_;
         private Long updatedAt;
     }
 }

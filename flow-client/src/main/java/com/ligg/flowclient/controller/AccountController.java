@@ -15,8 +15,10 @@ import com.ligg.flowclient.module.dto.LoginDto;
 import com.ligg.flowclient.module.dto.RefreshTokenDto;
 import com.ligg.flowclient.module.dto.RegisterDto;
 import com.ligg.flowclient.module.vo.BangumiBindVo;
+import com.ligg.flowclient.module.vo.UserBgmCollectionSyncStatusVo;
 import com.ligg.flowclient.service.EmailService;
 import com.ligg.flowclient.service.JwtTokenService;
+import com.ligg.flowclient.service.UserBgmCollectionSyncService;
 import com.ligg.flowclient.service.UserOauthService;
 import com.ligg.flowclient.service.UserService;
 import jakarta.validation.Valid;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -40,6 +43,8 @@ public class AccountController {
     private final JwtTokenService jwtTokenService;
 
     private final UserOauthService userOauthService;
+
+    private final UserBgmCollectionSyncService userBgmCollectionSyncService;
 
     /**
      * 注册账户
@@ -107,5 +112,30 @@ public class AccountController {
         Long userId = jwtTokenService.validateAccessToken(accessToken);
         BangumiBindVo bindVo = userOauthService.bindBangumi(userId, bindBangumiDto.getCode());
         return Result.success(ResponseCode.SUCCESS, bindVo);
+    }
+
+    /**
+     * 提交 Bangumi 收藏同步任务（异步执行，立即返回任务状态）。
+     * 从 user_oauth 读取 Bangumi token 拉取收藏并写入 user_bgm_collection。
+     */
+    @PostMapping("/oauth/bangumi/collections/sync")
+    @IpEndpointRateLimit(keyPrefix = "animeflow:account:sync-bgm-collection:ip:", seconds = 60, maxRequests = 5)
+    public Result<UserBgmCollectionSyncStatusVo> syncBangumiCollections(
+            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
+            @RequestParam(defaultValue = "2") int subjectType) {
+        Long userId = jwtTokenService.validateAccessToken(accessToken);
+        UserBgmCollectionSyncStatusVo status = userBgmCollectionSyncService.triggerSync(userId, subjectType);
+        return Result.success(ResponseCode.SUCCESS, status);
+    }
+
+    /**
+     * 查询 Bangumi 收藏同步任务状态。
+     */
+    @GetMapping("/oauth/bangumi/collections/sync")
+    public Result<UserBgmCollectionSyncStatusVo> getBangumiCollectionSyncStatus(
+            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken) {
+        Long userId = jwtTokenService.validateAccessToken(accessToken);
+        UserBgmCollectionSyncStatusVo status = userBgmCollectionSyncService.getSyncStatus(userId);
+        return Result.success(ResponseCode.SUCCESS, status);
     }
 }

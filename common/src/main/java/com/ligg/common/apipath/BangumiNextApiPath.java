@@ -83,4 +83,9 @@ public class BangumiNextApiPath {
      * 用户条目收藏，{@code {username}} 为 Bangumi 用户名或用户 ID
      */
     public static final String P1_USER_COLLECTION_SUBJECTS = "/p1/users/{username}/collections/subjects";
+
+    /**
+     * 条目收藏
+     */
+    public static final String P1_COLLECTION_SUBJECTS = "/p1/collections/subjects";
 }

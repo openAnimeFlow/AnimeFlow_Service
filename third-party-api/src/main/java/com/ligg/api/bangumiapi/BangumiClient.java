@@ -132,4 +132,9 @@ public interface BangumiClient {
      * @param offset      偏移量
      */
     UserCollectionsDto getUserCollections(String username, int subjectType, int type, int limit, int offset);
+
+    /**
+     * 获取当前用户的条目收藏
+     */
+    UserCollectionsDto getMeCollections(String accessToken, int subjectType, int type, int limit, int offset);
 }

@@ -4,6 +4,7 @@
  */
 package com.ligg.api.bangumiapi;
 
+import com.ligg.api.bangumiapi.config.BangumiWebClientConfig;
 import com.ligg.common.apipath.BangumiNextApiPath;
 import com.ligg.common.constants.ApiConstant;
 import com.ligg.common.exception.BangumiUpstreamException;
@@ -29,18 +30,16 @@ import com.ligg.common.thirdparty.bangumi.response.UserCollectionsDto;
 import com.ligg.common.thirdparty.bangumi.response.UserProfileDto;
 import com.ligg.common.vo.BangumiUserinfoVO;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.util.StringUtils;
-import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
-import reactor.netty.http.client.HttpClient;
 
 import java.net.SocketTimeoutException;
 import java.time.Duration;
@@ -56,23 +55,11 @@ public class BangumiClientImpl implements BangumiClient {
     private final Duration requestTimeout;
     private final WebClient bangumiNextClient;
 
-    private static final int MAX_IN_MEMORY_BODY_BYTES = 10 * 1024 * 1024;
-
-    private static final ExchangeStrategies DANDAN_EXCHANGE_STRATEGIES = ExchangeStrategies.builder()
-            .codecs(c -> c.defaultCodecs().maxInMemorySize(MAX_IN_MEMORY_BODY_BYTES))
-            .build();
-
     public BangumiClientImpl(
-            @Value("${anime-flow.bangumi.user-agent}") String bangumiUserAgent,
+            @Qualifier(BangumiWebClientConfig.BANGUMI_NEXT_WEB_CLIENT) WebClient bangumiNextClient,
             @Value("${anime-flow.bangumi.request-timeout-seconds:30}") int requestTimeoutSeconds) {
+        this.bangumiNextClient = bangumiNextClient;
         this.requestTimeout = Duration.ofSeconds(Math.max(5, requestTimeoutSeconds));
-        HttpClient reactorHttpClient = HttpClient.create().responseTimeout(this.requestTimeout);
-        this.bangumiNextClient = WebClient.builder()
-                .exchangeStrategies(DANDAN_EXCHANGE_STRATEGIES)
-                .clientConnector(new ReactorClientHttpConnector(reactorHttpClient))
-                .baseUrl(BangumiNextApiPath.BANGUMI_NEXT_API_BASE_URL)
-                .defaultHeader(HttpHeaders.USER_AGENT, bangumiUserAgent)
-                .build();
     }
 
     /**
@@ -319,6 +306,22 @@ public class BangumiClientImpl implements BangumiClient {
                         .queryParam("limit", limit)
                         .queryParam("offset", offset)
                         .build(username))
+                .retrieve()
+                .bodyToMono(UserCollectionsDto.class));
+    }
+
+    @Override
+    public UserCollectionsDto getMeCollections(String accessToken, int subjectType, int type, int limit, int offset) {
+        log.info("获取当前用户收藏 subjectType={} type={} limit={} offset={}", subjectType, type, limit, offset);
+        return blockBangumi(bangumiNextClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path(BangumiNextApiPath.P1_COLLECTION_SUBJECTS)
+                        .queryParam("subjectType", subjectType)
+                        .queryParam("type", type)
+                        .queryParam("limit", limit)
+                        .queryParam("offset", offset)
+                        .build())
+                .headers(headers -> headers.setBearerAuth(accessToken))
                 .retrieve()
                 .bodyToMono(UserCollectionsDto.class));
     }
