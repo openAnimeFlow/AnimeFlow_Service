@@ -21,6 +21,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -109,6 +110,36 @@ public class JwtTokenService {
             return parseUserIdOrExpired(claims.getSubject());
         } catch (JwtException e) {
             throw new LoginExpiredException(e);
+        }
+    }
+
+    /**
+     * 绑定邮箱后同步更新 Redis 中该用户所有活跃会话的 email，刷新 token 时新 JWT 会携带最新邮箱。
+     */
+    public void updateUserEmail(Long userId, String email) {
+        Set<Object> sessionIds = redisTemplate.opsForSet().members(userSessionsRedisKey(userId));
+        if (sessionIds == null || sessionIds.isEmpty()) {
+            return;
+        }
+        for (Object sessionIdObj : sessionIds) {
+            if (sessionIdObj == null) {
+                continue;
+            }
+            String sessionId = sessionIdObj.toString();
+            AuthSessionDto session = loadSession(sessionId);
+            if (session == null) {
+                continue;
+            }
+            session.setEmail(email);
+            Long ttlSeconds = redisTemplate.getExpire(sessionRedisKey(sessionId), TimeUnit.SECONDS);
+            if (ttlSeconds != null && ttlSeconds > 0) {
+                redisTemplate.opsForValue().set(
+                        sessionRedisKey(sessionId),
+                        session,
+                        ttlSeconds,
+                        TimeUnit.SECONDS
+                );
+            }
         }
     }
 

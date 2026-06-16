@@ -11,11 +11,13 @@ import com.ligg.flowclient.annotation.IpEndpointRateLimit;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.module.dto.BangumiLoginDto;
 import com.ligg.flowclient.module.dto.BindBangumiDto;
+import com.ligg.flowclient.module.dto.BindEmailDto;
 import com.ligg.flowclient.module.dto.LoginDto;
 import com.ligg.flowclient.module.dto.RefreshTokenDto;
 import com.ligg.flowclient.module.dto.RegisterDto;
 import com.ligg.flowclient.module.vo.BangumiBindVo;
 import com.ligg.flowclient.module.vo.UserBgmCollectionSyncStatusVo;
+import com.ligg.flowclient.module.vo.UserVo;
 import com.ligg.flowclient.service.EmailService;
 import com.ligg.flowclient.service.JwtTokenService;
 import com.ligg.flowclient.service.UserBgmCollectionSyncService;
@@ -112,6 +114,19 @@ public class AccountController {
         Long userId = jwtTokenService.validateAccessToken(accessToken);
         BangumiBindVo bindVo = userOauthService.bindBangumi(userId, bindBangumiDto.getCode());
         return Result.success(ResponseCode.SUCCESS, bindVo);
+    }
+
+    /**
+     * 绑定邮箱并设置登录密码。
+     */
+    @PostMapping("/email/bind")
+    @IpEndpointRateLimit(keyPrefix = "animeflow:account:bind-email:ip:", seconds = 60, maxRequests = 10)
+    public Result<UserVo> bindEmail(
+            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
+            @Valid @RequestBody BindEmailDto bindEmailDto) {
+        Long userId = jwtTokenService.validateAccessToken(accessToken);
+        UserVo userVo = userService.bindEmail(userId, bindEmailDto);
+        return Result.success(ResponseCode.SUCCESS, userVo);
     }
 
     /**
