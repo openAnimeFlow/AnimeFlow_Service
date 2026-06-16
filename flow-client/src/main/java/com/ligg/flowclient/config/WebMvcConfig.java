@@ -46,7 +46,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/v1/danmaku",
                         "/api/v1/users/**",
                         "/api/v1/account/oauth/**",
-                        "/api/v1/account/email/**"
+                        "/api/v1/account/email/bind"
                 )
                 .excludePathPatterns(
                         "/api/forum/comment/list",

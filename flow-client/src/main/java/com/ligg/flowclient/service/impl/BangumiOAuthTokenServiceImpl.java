@@ -25,9 +25,18 @@ public class BangumiOAuthTokenServiceImpl implements BangumiOAuthTokenService {
 
     @Override
     public UserOauthEntity requireBangumiOauth(Long userId) {
+        UserOauthEntity entity = findBangumiOauth(userId);
+        if (entity == null) {
+            throw new IllegalArgumentException("未绑定 Bangumi 账号");
+        }
+        return entity;
+    }
+
+    @Override
+    public UserOauthEntity findBangumiOauth(Long userId) {
         UserOauthEntity entity = findByUserAndPlatform(userId);
         if (entity == null || !StringUtils.hasText(entity.getAccessToken())) {
-            throw new IllegalArgumentException("未绑定 Bangumi 账号");
+            return null;
         }
         return entity;
     }

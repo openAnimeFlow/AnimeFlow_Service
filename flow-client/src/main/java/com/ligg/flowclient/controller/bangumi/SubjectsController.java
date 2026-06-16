@@ -14,7 +14,12 @@ import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.bangumi.*;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.service.BangumiCacheService;
+import com.ligg.flowclient.service.BangumiOAuthExecutor;
+import com.ligg.flowclient.service.BangumiOAuthTokenService;
 import com.ligg.flowclient.service.BangumiService;
+import com.ligg.flowclient.service.JwtTokenService;
+import com.ligg.common.entity.UserOauthEntity;
+import com.ligg.common.exception.LoginExpiredException;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +42,9 @@ public class SubjectsController {
     private final BangumiClient bangumiClient;
     private final BangumiCacheService bangumiCacheService;
     private final BangumiService bangumiService;
+    private final JwtTokenService jwtTokenService;
+    private final BangumiOAuthTokenService bangumiOAuthTokenService;
+    private final BangumiOAuthExecutor bangumiOAuthExecutor;
 
     /**
      * 条目章节列表。
@@ -295,42 +303,50 @@ public class SubjectsController {
 
     /**
      * 条目详情。
-     * 对应 Bangumi {@code GET /p1/subjects/{id}}。未登录时对近期放送条目缓存；登录后带 token 直查以返回 {@code interest}。
+     * 对应 Bangumi {@code GET /p1/subjects/{id}}。未登录时对近期放送条目缓存；
+     * 携带 Flow JWT 且已绑定 Bangumi 时，服务端换取 Bangumi OAuth token 直查以返回 {@code interest}。
      *
-     * @param subjectId   Bangumi 条目 ID
-     * @param accessToken 可选 Bearer
+     * @param subjectId      Bangumi 条目 ID
+     * @param flowAccessToken 可选 Flow JWT（Bearer）
      */
     @GetMapping("/{subjectId}")
     public Result<SubjectDetailVo> subjectDetail(
             @NotNull @PathVariable int subjectId,
             @RequestAttribute(name = AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, required = false)
-            String accessToken) {
-        if (!StringUtils.hasText(accessToken)) {
-            String cacheKey = BangumiConstants.BANGUMI_SUBJECT_DETAIL_CACHE_KEY_PREFIX + ':' + subjectId;
-            SubjectDetailVo vo = bangumiCacheService.getOrLoad(
-                    cacheKey,
-                    BangumiCacheService.lockKey(cacheKey),
-                    SubjectDetailVo.class,
-                    BangumiConstants.BANGUMI_SUBJECT_DETAIL_CACHE_TTL_SECONDS,
-                    "获取条目详情超时，请稍后重试",
-                    "获取条目详情被中断",
-                    () -> {
-                        SubjectDetailDto dto = bangumiClient.getSubject(subjectId, null);
-                        Utils.applyWsrvCdnInPlace(dto.getImages());
-                        SubjectDetailVo detailVo = new SubjectDetailVo();
-                        BeanUtils.copyProperties(dto, detailVo);
-                        return detailVo;
-                    },
-                    SubjectsController::shouldCacheSubjectDetail,
-                    () -> log.info("条目详情(命中缓存), subjectId={}", subjectId));
-            return Result.success(ResponseCode.SUCCESS, vo);
+            String flowAccessToken) {
+        if (StringUtils.hasText(flowAccessToken)) {
+            try {
+                Long userId = jwtTokenService.validateAccessToken(flowAccessToken);
+                UserOauthEntity oauth = bangumiOAuthTokenService.findBangumiOauth(userId);
+                if (oauth != null) {
+                    SubjectDetailDto dto = bangumiOAuthExecutor.execute(oauth,
+                            bangumiToken -> bangumiClient.getSubject(subjectId, bangumiToken));
+                    return Result.success(ResponseCode.SUCCESS, toSubjectDetailVo(dto));
+                }
+            } catch (LoginExpiredException ignored) {
+                // token 无效或未绑定 Bangumi，回退公开缓存逻辑
+            }
         }
 
-        SubjectDetailDto dto = bangumiClient.getSubject(subjectId, accessToken);
-        Utils.applyWsrvCdnInPlace(dto.getImages());
-        SubjectDetailVo vo = new SubjectDetailVo();
-        BeanUtils.copyProperties(dto, vo);
+        String cacheKey = BangumiConstants.BANGUMI_SUBJECT_DETAIL_CACHE_KEY_PREFIX + ':' + subjectId;
+        SubjectDetailVo vo = bangumiCacheService.getOrLoad(
+                cacheKey,
+                BangumiCacheService.lockKey(cacheKey),
+                SubjectDetailVo.class,
+                BangumiConstants.BANGUMI_SUBJECT_DETAIL_CACHE_TTL_SECONDS,
+                "获取条目详情超时，请稍后重试",
+                "获取条目详情被中断",
+                () -> toSubjectDetailVo(bangumiClient.getSubject(subjectId, null)),
+                SubjectsController::shouldCacheSubjectDetail,
+                () -> log.info("条目详情(命中缓存), subjectId={}", subjectId));
         return Result.success(ResponseCode.SUCCESS, vo);
+    }
+
+    private static SubjectDetailVo toSubjectDetailVo(SubjectDetailDto dto) {
+        Utils.applyWsrvCdnInPlace(dto.getImages());
+        SubjectDetailVo detailVo = new SubjectDetailVo();
+        BeanUtils.copyProperties(dto, detailVo);
+        return detailVo;
     }
 
     /**
