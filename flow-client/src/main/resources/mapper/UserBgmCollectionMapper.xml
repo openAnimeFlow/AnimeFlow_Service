@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ligg.flowclient.mapper.UserBgmCollectionMapper">
+
+    <sql id="userFilterWhere">
+        WHERE c.user_id = #{userId}
+          AND c.type = #{type}
+          AND c.subject_type = #{subjectType}
+    </sql>
+
+    <select id="countByUserFilter" resultType="long">
+        SELECT COUNT(*)
+        FROM user_bgm_collection c
+        <include refid="userFilterWhere"/>
+    </select>
+
+    <select id="selectPageByUserFilter" resultType="com.ligg.flowclient.module.dto.UserBgmCollectionRow">
+        SELECT c.id,
+               c.user_id,
+               c.subject_id,
+               c.subject_type,
+               c.images,
+               c.bgm_interest_id,
+               c.rate,
+               c.type,
+               c.comment,
+               c.tags,
+               c.ep_status,
+               c.vol_status,
+               c.is_private,
+               c.bgm_updated_at,
+               c.sync_time,
+               c.create_time,
+               s.name       AS subject_name,
+               s.name_cn    AS subject_name_cn,
+               s.nsfw,
+               s.score,
+               s.score_details,
+               s.`rank`
+        FROM user_bgm_collection c
+                 LEFT JOIN bangumi_subject s ON s.id = c.subject_id
+        <include refid="userFilterWhere"/>
+        ORDER BY c.bgm_updated_at DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+</mapper>

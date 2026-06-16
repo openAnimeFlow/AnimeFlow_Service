@@ -138,6 +138,7 @@ public class UserBgmCollectionSyncRunner {
         UserBgmCollectionEntity row = existing != null ? existing : new UserBgmCollectionEntity();
         row.setUserId(userId);
         row.setSubjectId(item.getId());
+        row.setSubjectType(item.getType() != null ? item.getType() : 2);
         row.setImages(toJson(item.getImages()));
         row.setBgmInterestId(interest.getId());
         row.setRate(interest.getRate() != null ? interest.getRate() : 0);

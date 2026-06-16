@@ -1,51 +1,36 @@
-package com.ligg.common.entity;
+package com.ligg.flowclient.module.dto;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
+/**
+ * 收藏列表 JOIN 查询行：user_bgm_collection + bangumi_subject 必要字段。
+ */
 @Data
-@NoArgsConstructor
-@TableName("user_bgm_collection")
-public class UserBgmCollectionEntity {
+public class UserBgmCollectionRow {
 
-    @TableId(type = IdType.AUTO)
     private Long id;
-
     private Long userId;
-
     private Integer subjectId;
-
-    /**
-     * 条目大类：1漫画 2动画 3音乐 4游戏 6三次元（同步时冗余，避免列表查询 JOIN 过滤）。
-     */
     private Integer subjectType;
-
     private String images;
-
     private Long bgmInterestId;
-
     private Integer rate;
-
     private Integer type;
-
     private String comment;
-
     private String tags;
-
     private Integer epStatus;
-
     private Integer volStatus;
-
     private Boolean isPrivate;
-
     private Long bgmUpdatedAt;
-
     private LocalDateTime syncTime;
-
     private LocalDateTime createTime;
+
+    private String subjectName;
+    private String subjectNameCn;
+    private Boolean nsfw;
+    private Double score;
+    private String scoreDetails;
+    private Integer rank;
 }

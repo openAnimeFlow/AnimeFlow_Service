@@ -228,6 +228,7 @@ CREATE TABLE `user_bgm_collection`  (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键 ID',
   `user_id` bigint NOT NULL COMMENT 'AnimeFlow 用户 ID，关联 user.id',
   `subject_id` int NOT NULL COMMENT 'Bangumi 条目 ID，关联 bangumi_subject.id',
+  `subject_type` tinyint UNSIGNED NOT NULL DEFAULT 2 COMMENT '条目大类：1漫画 2动画 3音乐 4游戏 6三次元',
   `images` json NULL COMMENT '条目封面图 {large,common,medium,small,grid}',
   `bgm_interest_id` bigint NOT NULL COMMENT 'Bangumi 收藏记录 ID（interest.id）',
   `rate` tinyint NOT NULL DEFAULT 0 COMMENT '用户评分 0-10，0 表示未评分',
@@ -244,7 +245,10 @@ CREATE TABLE `user_bgm_collection`  (
   UNIQUE INDEX `uk_bgm_interest_id`(`bgm_interest_id` ASC) USING BTREE COMMENT 'Bangumi 收藏 ID 唯一',
   UNIQUE INDEX `uk_user_subject`(`user_id` ASC, `subject_id` ASC) USING BTREE COMMENT '同一用户对同一条目仅一条收藏',
   INDEX `idx_user_type`(`user_id` ASC, `type` ASC) USING BTREE,
-  INDEX `idx_subject_id`(`subject_id` ASC) USING BTREE
+  INDEX `idx_subject_id`(`subject_id` ASC) USING BTREE,
+  INDEX `idx_user_type_updated`(`user_id` ASC, `type` ASC, `bgm_updated_at` DESC) USING BTREE,
+  INDEX `idx_user_type_subject_updated`(`user_id` ASC, `type` ASC, `subject_type` ASC, `bgm_updated_at` DESC) USING BTREE,
+  INDEX `idx_user_sync_time`(`user_id` ASC, `sync_time` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏关系表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------

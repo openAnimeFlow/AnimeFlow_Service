@@ -1,21 +1,16 @@
 package com.ligg.flowclient.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ligg.common.entity.BangumiSubjectEntity;
-import com.ligg.common.entity.UserBgmCollectionEntity;
 import com.ligg.common.model.CoverImages;
 import com.ligg.common.thirdparty.bangumi.model.BangumiRating;
 import com.ligg.common.thirdparty.bangumi.response.UserCollectionsDto;
 import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.bangumi.UserCollectionsVo;
-import com.ligg.flowclient.mapper.BangumiSubjectMapper;
 import com.ligg.flowclient.mapper.UserBgmCollectionMapper;
-import com.ligg.flowclient.mybatis.LimitOffsetPage;
+import com.ligg.flowclient.module.dto.UserBgmCollectionRow;
 import com.ligg.flowclient.service.JwtTokenService;
 import com.ligg.flowclient.service.UserBgmCollectionService;
 import lombok.RequiredArgsConstructor;
@@ -25,9 +20,6 @@ import org.springframework.util.StringUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -38,7 +30,6 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
 
     private final JwtTokenService jwtTokenService;
     private final UserBgmCollectionMapper userBgmCollectionMapper;
-    private final BangumiSubjectMapper bangumiSubjectMapper;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -52,55 +43,39 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
             return vo;
         }
 
-        LambdaQueryWrapper<UserBgmCollectionEntity> wrapper = new LambdaQueryWrapper<UserBgmCollectionEntity>()
-                .eq(UserBgmCollectionEntity::getUserId, userId)
-                .eq(UserBgmCollectionEntity::getType, type)
-                .inSql(UserBgmCollectionEntity::getSubjectId,
-                        "SELECT id FROM bangumi_subject WHERE type = " + subjectType)
-                .orderByDesc(UserBgmCollectionEntity::getBgmUpdatedAt);
-
-        IPage<UserBgmCollectionEntity> page = userBgmCollectionMapper.selectPage(
-                new LimitOffsetPage<>(limit, offset), wrapper);
-
-        List<UserBgmCollectionEntity> rows = page.getRecords();
-        if (rows.isEmpty()) {
+        long total = userBgmCollectionMapper.countByUserFilter(userId, type, subjectType);
+        vo.setTotal((int) total);
+        if (total == 0) {
             vo.setData(Collections.emptyList());
-            vo.setTotal((int) page.getTotal());
             return vo;
         }
 
-        List<Integer> subjectIds = rows.stream()
-                .map(UserBgmCollectionEntity::getSubjectId)
-                .distinct()
-                .toList();
-        Map<Integer, BangumiSubjectEntity> subjectMap = bangumiSubjectMapper.selectBatchIds(subjectIds).stream()
-                .collect(Collectors.toMap(BangumiSubjectEntity::getId, Function.identity()));
+        List<UserBgmCollectionRow> rows = userBgmCollectionMapper.selectPageByUserFilter(
+                userId, type, subjectType, limit, offset);
 
         List<UserCollectionsDto.Item> items = new ArrayList<>(rows.size());
-        for (UserBgmCollectionEntity row : rows) {
-            BangumiSubjectEntity subject = subjectMap.get(row.getSubjectId());
-            items.add(toItem(row, subject));
+        for (UserBgmCollectionRow row : rows) {
+            items.add(toItem(row));
         }
 
         vo.setData(items);
-        vo.setTotal((int) page.getTotal());
         return vo;
     }
 
-    private UserCollectionsDto.Item toItem(UserBgmCollectionEntity row, BangumiSubjectEntity subject) {
+    private UserCollectionsDto.Item toItem(UserBgmCollectionRow row) {
         UserCollectionsDto.Item item = new UserCollectionsDto.Item();
         item.setId(row.getSubjectId());
         item.setInterest(toInterest(row));
 
-        if (subject != null) {
-            item.setName(subject.getName());
-            item.setNameCN(subject.getNameCn());
-            item.setType(subject.getType());
-            item.setNsfw(Boolean.TRUE.equals(subject.getNsfw()));
-            item.setRating(toRating(subject));
+        if (StringUtils.hasText(row.getSubjectName())) {
+            item.setName(row.getSubjectName());
+            item.setNameCN(row.getSubjectNameCn());
+            item.setType(row.getSubjectType());
+            item.setNsfw(Boolean.TRUE.equals(row.getNsfw()));
+            item.setRating(toRating(row));
         } else {
             item.setName("");
-            item.setType(subjectTypeFallback(row));
+            item.setType(row.getSubjectType() != null ? row.getSubjectType() : 2);
             item.setNsfw(false);
             item.setRating(emptyRating());
         }
@@ -113,11 +88,7 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
         return item;
     }
 
-    private int subjectTypeFallback(UserBgmCollectionEntity row) {
-        return row.getSubjectId() != null ? 2 : 0;
-    }
-
-    private UserCollectionsDto.Interest toInterest(UserBgmCollectionEntity row) {
+    private UserCollectionsDto.Interest toInterest(UserBgmCollectionRow row) {
         UserCollectionsDto.Interest interest = new UserCollectionsDto.Interest();
         interest.setId(row.getBgmInterestId());
         interest.setRate(row.getRate() != null ? row.getRate() : 0);
@@ -131,11 +102,11 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
         return interest;
     }
 
-    private BangumiRating toRating(BangumiSubjectEntity subject) {
+    private BangumiRating toRating(UserBgmCollectionRow row) {
         BangumiRating rating = new BangumiRating();
-        rating.setRank(subject.getRank());
-        rating.setScore(subject.getScore());
-        List<Integer> counts = parseScoreDetails(subject.getScoreDetails());
+        rating.setRank(row.getRank());
+        rating.setScore(row.getScore());
+        List<Integer> counts = parseScoreDetails(row.getScoreDetails());
         rating.setCount(counts);
         rating.setTotal(counts.stream().mapToInt(Integer::intValue).sum());
         return rating;
