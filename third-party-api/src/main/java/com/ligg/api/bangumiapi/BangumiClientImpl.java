@@ -4,7 +4,7 @@
  */
 package com.ligg.api.bangumiapi;
 
-import com.ligg.api.bangumiapi.config.BangumiWebClientConfig;
+import com.ligg.api.config.BangumiWebClientConfig;
 import com.ligg.common.apipath.BangumiNextApiPath;
 import com.ligg.common.constants.ApiConstant;
 import com.ligg.common.exception.BangumiUpstreamException;
