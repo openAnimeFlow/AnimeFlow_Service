@@ -49,7 +49,7 @@ anime-flow:
     client_secret: ${CLIENT_SECRET}
     redirect_uri: ${REDIRECT_URI}
     user-agent: openAnimeFlow/AnimeFlow_Service (https://github.com/openAnimeFlow/AnimeFlow_Service) #bangumi使用的 User Agent(官方要求)
-    # 调用 Bangumi Next API（如 /p1/me）超时时间（秒），不低于 5
+    # Bangumi API超时时间（秒），不低于 5
     request-timeout-seconds: 30
 
   bangumi-archive-sync:
