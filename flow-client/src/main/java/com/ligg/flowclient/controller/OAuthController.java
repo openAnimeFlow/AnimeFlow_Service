@@ -95,8 +95,16 @@ public class OAuthController {
             redisTemplate.delete(Constants.SESSION_KEY + ':' + state);
             Platform platform = sessionDto.getPlatform();
             if (platform == Platform.ANDROID || platform == Platform.IOS) {
-                String redirectUrl = Constants.MOBILE_CALLBACK_URL + "?code=" + URLEncoder.encode(code, StandardCharsets.UTF_8) + "&state=" + state;
-                response.sendRedirect(redirectUrl);
+                StringBuilder redirectUrl = new StringBuilder(Constants.MOBILE_CALLBACK_URL)
+                        .append("?code=").append(URLEncoder.encode(code, StandardCharsets.UTF_8))
+                        .append("&state=").append(URLEncoder.encode(state, StandardCharsets.UTF_8));
+                if (Boolean.TRUE.equals(sessionDto.getBindMode())) {
+                    redirectUrl.append('&')
+                            .append(Constants.OAUTH_CALLBACK_PURPOSE_PARAM)
+                            .append('=')
+                            .append(Constants.OAUTH_CALLBACK_PURPOSE_BIND);
+                }
+                response.sendRedirect(redirectUrl.toString());
             } else if (Boolean.TRUE.equals(sessionDto.getBindMode())) {
                 redisTemplate.opsForValue().set(
                         Constants.BIND_CODE_KEY + ':' + state,
@@ -156,6 +164,5 @@ public class OAuthController {
         TokenVo token = bgmTvClient.refreshToken(refreshToken);
         return Result.success(ResponseCode.SUCCESS, token);
     }
-
 
 }

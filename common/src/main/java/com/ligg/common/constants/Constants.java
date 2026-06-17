@@ -36,6 +36,16 @@ public class Constants {
     //移动端回调
     public static final String MOBILE_CALLBACK_URL = "flow://auth/callback";
 
+    /**
+     * 移动端 OAuth 深链回调中标识授权意图的 query 参数名。
+     */
+    public static final String OAUTH_CALLBACK_PURPOSE_PARAM = "purpose";
+
+    /**
+     * 移动端 OAuth 深链回调中「绑定 Bangumi」的 purpose 取值，需与客户端 oauthBindPurposeQueryValue 一致。
+     */
+    public static final String OAUTH_CALLBACK_PURPOSE_BIND = "bind";
+
     public static final String AUTO_TOKEN_KEY = "auto_token";
 
     /**
