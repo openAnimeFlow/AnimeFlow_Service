@@ -59,6 +59,11 @@ public class Constants {
     public static final String PASSWORD_RESET_DAILY_KEY = "animeflow:account:password-reset:daily";
 
     /**
+     * 用户资料每日更新限制 Redis 键前缀，完整键为 animeflow:account:user-info-update:daily:{userId}
+     */
+    public static final String USER_INFO_UPDATE_DAILY_KEY = "animeflow:account:user-info-update:daily";
+
+    /**
      * AnimeFlow access_token Redis 键前缀，完整键为 animeflow:auth:token:{accessJti}
      */
     public static final String AUTH_TOKEN_KEY = "animeflow:auth:token";

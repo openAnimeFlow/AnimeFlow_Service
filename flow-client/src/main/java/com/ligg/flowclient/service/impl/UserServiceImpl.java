@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
-    private static final int PASSWORD_RESET_DAILY_SECONDS = 86_400;
+    private static final int DAILY_LIMIT_SECONDS = 86_400;
 
     private final UserMapper userMapper;
     private final JwtTokenService jwtTokenService;
@@ -98,6 +98,7 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("至少需要更新一个用户信息字段");
         }
         Long userId = jwtTokenService.validateAccessToken(accessToken);
+        checkUserInfoUpdateDailyLimit(userId);
         UserEntity user = userMapper.selectById(userId);
         if (user == null) {
             throw new LoginExpiredException();
@@ -109,6 +110,7 @@ public class UserServiceImpl implements UserService {
             user.setAvatar(updateUserDto.getAvatar().trim());
         }
         userMapper.updateById(user);
+        markUserInfoUpdateDaily(userId);
         return loadUserVo(userId);
     }
 
@@ -173,7 +175,19 @@ public class UserServiceImpl implements UserService {
 
     private void markPasswordResetDaily(String email) {
         String key = Constants.PASSWORD_RESET_DAILY_KEY + ':' + email;
-        redisTemplate.opsForValue().set(key, "1", PASSWORD_RESET_DAILY_SECONDS, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set(key, "1", DAILY_LIMIT_SECONDS, TimeUnit.SECONDS);
+    }
+
+    private void checkUserInfoUpdateDailyLimit(Long userId) {
+        String key = Constants.USER_INFO_UPDATE_DAILY_KEY + ':' + userId;
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
+            throw new IllegalArgumentException("今日已更新过用户资料，请明天再试");
+        }
+    }
+
+    private void markUserInfoUpdateDaily(Long userId) {
+        String key = Constants.USER_INFO_UPDATE_DAILY_KEY + ':' + userId;
+        redisTemplate.opsForValue().set(key, "1", DAILY_LIMIT_SECONDS, TimeUnit.SECONDS);
     }
 
     private UserVo loadUserVo(Long userId) {
