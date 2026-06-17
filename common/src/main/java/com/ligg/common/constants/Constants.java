@@ -54,6 +54,11 @@ public class Constants {
     public static final String EMAIL_SEND_COOLDOWN_KEY = "animeflow:email:send:cooldown";
 
     /**
+     * 忘记密码每日重置限制 Redis 键前缀，完整键为 animeflow:account:password-reset:daily:{email}
+     */
+    public static final String PASSWORD_RESET_DAILY_KEY = "animeflow:account:password-reset:daily";
+
+    /**
      * AnimeFlow access_token Redis 键前缀，完整键为 animeflow:auth:token:{accessJti}
      */
     public static final String AUTH_TOKEN_KEY = "animeflow:auth:token";

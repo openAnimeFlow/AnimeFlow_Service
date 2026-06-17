@@ -9,10 +9,12 @@ import com.ligg.common.constants.Constants;
 import com.ligg.common.entity.UserEntity;
 import com.ligg.common.exception.AuthenticationFailedException;
 import com.ligg.common.exception.LoginExpiredException;
+import com.ligg.common.exception.RateLimitExceededException;
 import com.ligg.common.response.FlowTokenVo;
 import com.ligg.common.utils.PasswordUtils;
 import com.ligg.flowclient.mapper.UserMapper;
 import com.ligg.flowclient.module.dto.BindEmailDto;
+import com.ligg.flowclient.module.dto.ForgotPasswordDto;
 import com.ligg.flowclient.module.dto.LoginDto;
 import com.ligg.flowclient.module.dto.RegisterDto;
 import com.ligg.flowclient.module.dto.UpdateUserDto;
@@ -24,19 +26,24 @@ import com.ligg.flowclient.service.JwtTokenService;
 import com.ligg.flowclient.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
+    private static final int PASSWORD_RESET_DAILY_SECONDS = 86_400;
+
     private final UserMapper userMapper;
     private final JwtTokenService jwtTokenService;
     private final EmailService emailService;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     /**
      * 注册账户
@@ -135,6 +142,38 @@ public class UserServiceImpl implements UserService {
         jwtTokenService.updateUserEmail(userId, bindEmailDto.getEmail());
 
         return loadUserVo(userId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void resetPassword(ForgotPasswordDto forgotPasswordDto) {
+        final String email = forgotPasswordDto.getEmail();
+        checkPasswordResetDailyLimit(email);
+
+        emailService.verifyEmailCode(email, forgotPasswordDto.getEmailCaptcha());
+
+        LambdaQueryWrapper<UserEntity> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(UserEntity::getEmail, email);
+        UserEntity user = userMapper.selectOne(wrapper);
+        if (user == null || !StringUtils.hasText(user.getEmail())) {
+            throw new IllegalArgumentException("该邮箱未注册");
+        }
+
+        user.setPassword(PasswordUtils.hash(forgotPasswordDto.getPassword()));
+        userMapper.updateById(user);
+        markPasswordResetDaily(email);
+    }
+
+    private void checkPasswordResetDailyLimit(String email) {
+        String key = Constants.PASSWORD_RESET_DAILY_KEY + ':' + email;
+        if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
+            throw new RateLimitExceededException("今日已重置过密码，请明天再试");
+        }
+    }
+
+    private void markPasswordResetDaily(String email) {
+        String key = Constants.PASSWORD_RESET_DAILY_KEY + ':' + email;
+        redisTemplate.opsForValue().set(key, "1", PASSWORD_RESET_DAILY_SECONDS, TimeUnit.SECONDS);
     }
 
     private UserVo loadUserVo(Long userId) {

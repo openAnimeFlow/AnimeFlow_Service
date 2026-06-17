@@ -12,6 +12,7 @@ import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.module.dto.BangumiLoginDto;
 import com.ligg.flowclient.module.dto.BindBangumiDto;
 import com.ligg.flowclient.module.dto.BindEmailDto;
+import com.ligg.flowclient.module.dto.ForgotPasswordDto;
 import com.ligg.flowclient.module.dto.LoginDto;
 import com.ligg.flowclient.module.dto.RefreshTokenDto;
 import com.ligg.flowclient.module.dto.RegisterDto;
@@ -67,6 +68,17 @@ public class AccountController {
     public Result<FlowTokenVo> login(@Valid @RequestBody LoginDto loginDto) {
         FlowTokenVo loginVo = userService.login(loginDto);
         return Result.success(ResponseCode.SUCCESS, loginVo);
+    }
+
+    /**
+     * 忘记密码
+     * 通过邮箱验证码重置登录密码，每个邮箱每天仅可重置一次。
+     */
+    @PostMapping("/email/forgot-password")
+    @IpEndpointRateLimit(keyPrefix = "animeflow:account:forgot-password:ip:", seconds = 60, maxRequests = 10)
+    public Result<Void> forgotPassword(@Valid @RequestBody ForgotPasswordDto forgotPasswordDto) {
+        userService.resetPassword(forgotPasswordDto);
+        return Result.success();
     }
 
     /**
