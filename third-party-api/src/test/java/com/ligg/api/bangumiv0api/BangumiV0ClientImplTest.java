@@ -1,14 +1,10 @@
 package com.ligg.api.bangumiv0api;
 
-import com.ligg.common.apipath.BangumiApiPath;
 import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.thirdparty.bangumi.enums.SubjectImageType;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.springframework.util.StringUtils;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.netty.DisposableServer;
+import org.springframework.web.reactive.function.client.WebClient;import reactor.netty.DisposableServer;
 import reactor.netty.http.server.HttpServer;
 import reactor.netty.http.server.HttpServerRequest;
 import reactor.netty.http.server.HttpServerResponse;
@@ -99,24 +95,6 @@ class BangumiV0ClientImplTest {
                 () -> client.getSubjectImageUrl(SUBJECT_ID, SubjectImageType.LARGE));
 
         assertTrue(ex.getMessage().contains("响应异常"));
-    }
-
-    /**
-     * 手动启用：请求 Bangumi 上游，在控制台输出真实封面 URL。
-     */
-    @Test
-    @Disabled("默认跳过；去掉 @Disabled 后单独运行此用例以验证上游")
-    void getSubjectImageUrl_printsRealUrlFromBangumi() {
-        WebClient webClient = WebClient.builder()
-                .baseUrl(BangumiApiPath.BANGUMI_API_BASE_URL)
-                .build();
-        BangumiV0ClientImpl client = new BangumiV0ClientImpl(webClient, 30);
-
-        String url = client.getSubjectImageUrl(SUBJECT_ID, SubjectImageType.LARGE);
-        System.out.println("[integration] subjectId=" + SUBJECT_ID + " imageUrl=" + url);
-
-        assertTrue(StringUtils.hasText(url));
-        assertTrue(url.startsWith("http"));
     }
 
     private static BangumiV0ClientImpl newClient(int port) {
