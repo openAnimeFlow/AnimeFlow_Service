@@ -8,19 +8,25 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.ligg.common.entity.BangumiEpisodeEntity;
 import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
+import com.ligg.common.vo.bangumi.SearchSuggestionsVo;
 import com.ligg.flowclient.mapper.BangumiEpisodeMapper;
+import com.ligg.flowclient.mapper.BangumiSubjectMapper;
+import com.ligg.flowclient.module.dto.SearchSuggestionRow;
 import com.ligg.flowclient.mybatis.LimitOffsetPage;
 import com.ligg.flowclient.service.BangumiService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.Collections;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class BangumiServiceImpl implements BangumiService {
 
     private final BangumiEpisodeMapper episodeMapper;
+    private final BangumiSubjectMapper subjectMapper;
 
     @Override
     public SubjectEpisodesDto getEpisodes(Integer subjectId, int limit, int offset) {
@@ -61,5 +67,34 @@ public class BangumiServiceImpl implements BangumiService {
         episode.setAirdate(entity.getAirdate());
         episode.setDesc(entity.getDescription());
         return episode;
+    }
+
+    @Override
+    public SearchSuggestionsVo getSearchSuggestions(String keyword, int type, int limit) {
+        SearchSuggestionsVo vo = new SearchSuggestionsVo();
+        if (!StringUtils.hasText(keyword) || limit <= 0) {
+            return vo;
+        }
+
+        String trimmedKeyword = keyword.trim();
+        if (trimmedKeyword.isEmpty()) {
+            return vo;
+        }
+
+        List<SearchSuggestionRow> rows = subjectMapper.selectSearchSuggestions(trimmedKeyword, type, limit);
+        if (rows == null || rows.isEmpty()) {
+            return vo;
+        }
+
+        vo.setData(rows.stream().map(this::toSuggestionItem).toList());
+        return vo;
+    }
+
+    private SearchSuggestionsVo.Item toSuggestionItem(SearchSuggestionRow row) {
+        SearchSuggestionsVo.Item item = new SearchSuggestionsVo.Item();
+        item.setId(row.getId());
+        item.setName(row.getName());
+        item.setNameCn(row.getNameCn());
+        return item;
     }
 }

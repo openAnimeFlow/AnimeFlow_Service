@@ -13,11 +13,14 @@ import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
 import com.ligg.common.thirdparty.bangumi.response.*;
 import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.bangumi.*;
+import com.ligg.flowclient.annotation.IpEndpointRateLimit;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.service.BangumiCacheService;
+import com.ligg.flowclient.service.BangumiService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +47,7 @@ public class BangumiController {
 
     private final BangumiClient bangumiClient;
     private final BangumiCacheService bangumiCacheService;
+    private final BangumiService bangumiService;
     private final RedisTemplate<String, Object> redisTemplate;
 
     /**
@@ -155,6 +159,23 @@ public class BangumiController {
         });
         log.info("搜索条目 keyword={}, limit={}, offset={}, total={}",
                 body.getKeyword(), limit, offset, vo.getTotal());
+        return Result.success(ResponseCode.SUCCESS, vo);
+    }
+
+    /**
+     * 搜索建议。
+     *
+     * @param keyword 搜索关键词
+     * @param type    条目类型，默认 2（动画）
+     * @param limit   返回条数，1–50
+     */
+    @GetMapping("/search/suggestions")
+    @IpEndpointRateLimit(keyPrefix = "animeflow:bangumi:search-suggestions:ip:", seconds = 60, maxRequests = 30)
+    public Result<SearchSuggestionsVo> searchSuggestions(
+            @RequestParam @NotBlank String keyword,
+            @RequestParam(defaultValue = "2") int type,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int limit) {
+        SearchSuggestionsVo vo = bangumiService.getSearchSuggestions(keyword.trim(), type, limit);
         return Result.success(ResponseCode.SUCCESS, vo);
     }
 

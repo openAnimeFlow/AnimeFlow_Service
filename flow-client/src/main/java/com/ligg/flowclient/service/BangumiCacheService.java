@@ -74,7 +74,7 @@ public class BangumiCacheService {
     }
 
     /**
-     * 读缓存或回源加载；命中缓存时执行 {@code onCacheHit}（如打日志）。
+     * 读缓存或回源加载；命中缓存时执行 {@code onCacheHit}。
      */
     public <T> T getOrLoad(
             String cacheKey,

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ligg.flowclient.mapper.BangumiSubjectMapper">
+
+    <select id="selectSearchSuggestions" resultType="com.ligg.flowclient.module.dto.SearchSuggestionRow">
+        SELECT id,
+               name,
+               name_cn AS nameCn
+        FROM bangumi_subject
+        where type = #{type}
+          AND (name_cn LIKE CONCAT('%', #{keyword}, '%')
+            OR name LIKE CONCAT('%', #{keyword}, '%'))
+        ORDER BY CASE
+                     WHEN name_cn LIKE CONCAT(#{keyword}, '%') THEN 0
+                     WHEN name LIKE CONCAT(#{keyword}, '%') THEN 1
+                     WHEN name_cn LIKE CONCAT('%', #{keyword}, '%') THEN 2
+                     ELSE 3
+                     END,
+                 `rank` IS NULL,
+                 `rank` ASC
+        LIMIT #{limit}
+    </select>
+</mapper>
