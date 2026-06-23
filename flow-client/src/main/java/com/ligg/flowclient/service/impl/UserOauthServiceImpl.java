@@ -9,6 +9,7 @@ import com.ligg.common.entity.UserOauthEntity;
 import com.ligg.common.response.AccessToken;
 import com.ligg.common.response.FlowTokenVo;
 import com.ligg.common.statuenum.Platform;
+import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.BangumiUserinfoVO;
 import com.ligg.flowclient.mapper.UserMapper;
 import com.ligg.flowclient.mapper.UserOauthMapper;
@@ -213,10 +214,10 @@ public class UserOauthServiceImpl implements UserOauthService {
     private static String resolveAvatar(BangumiUserinfoVO me) {
         if (me.avatar() != null) {
             if (StringUtils.hasText(me.avatar().medium())) {
-                return me.avatar().medium();
+                return Utils.imgUrlToWsrvCdn(me.avatar().medium());
             }
             if (StringUtils.hasText(me.avatar().large())) {
-                return me.avatar().large();
+                return Utils.imgUrlToWsrvCdn(me.avatar().large());
             }
         }
         return Constants.DEFAULT_USER_AVATAR_URL;
