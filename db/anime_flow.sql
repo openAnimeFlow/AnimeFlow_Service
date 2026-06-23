@@ -11,7 +11,7 @@
  Target Server Version : 80043 (8.0.43)
  File Encoding         : 65001
 
- Date: 15/06/2026 16:44:42
+ Date: 23/06/2026 19:32:01
 */
 
 SET NAMES utf8mb4;
@@ -214,7 +214,7 @@ CREATE TABLE `user`  (
   `email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '邮箱',
   `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT 'BCrypt 哈希密码',
   `avatar` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '头像地址',
-  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `create_time` bigint NOT NULL COMMENT '创建时间',
   `nickname` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '昵称',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_email`(`email` ASC) USING BTREE
@@ -227,7 +227,7 @@ DROP TABLE IF EXISTS `user_bgm_collection`;
 CREATE TABLE `user_bgm_collection`  (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键 ID',
   `user_id` bigint NOT NULL COMMENT 'AnimeFlow 用户 ID，关联 user.id',
-  `subject_id` int NOT NULL COMMENT 'Bangumi 条目 ID，关联 bangumi_subject.id',
+  `subject_id` int NOT NULL COMMENT 'Bangumi 条目 ID，关联 bgm_subject.id',
   `subject_type` tinyint UNSIGNED NOT NULL DEFAULT 2 COMMENT '条目大类：1漫画 2动画 3音乐 4游戏 6三次元',
   `images` json NULL COMMENT '条目封面图 {large,common,medium,small,grid}',
   `bgm_interest_id` bigint NOT NULL COMMENT 'Bangumi 收藏记录 ID（interest.id）',
@@ -249,7 +249,7 @@ CREATE TABLE `user_bgm_collection`  (
   INDEX `idx_user_type_updated`(`user_id` ASC, `type` ASC, `bgm_updated_at` DESC) USING BTREE,
   INDEX `idx_user_type_subject_updated`(`user_id` ASC, `type` ASC, `subject_type` ASC, `bgm_updated_at` DESC) USING BTREE,
   INDEX `idx_user_sync_time`(`user_id` ASC, `sync_time` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏关系表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 184 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏关系表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for user_oauth
@@ -269,6 +269,6 @@ CREATE TABLE `user_oauth`  (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_user_platform`(`user_id` ASC, `platform` ASC) USING BTREE,
   UNIQUE INDEX `uk_platform_uid`(`platform` ASC, `platform_uid` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户第三方 OAuth 绑定' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 5 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户第三方 OAuth 绑定' ROW_FORMAT = Dynamic;
 
 SET FOREIGN_KEY_CHECKS = 1;
