@@ -12,7 +12,9 @@ import com.ligg.flowclient.annotation.DanmakuSendRateLimit;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.module.dto.DanmakuDto;
 import com.ligg.common.response.Result;
+import com.ligg.flowclient.service.BangumiOAuthExecutor;
 import com.ligg.flowclient.service.DanmakuService;
+import com.ligg.flowclient.service.JwtTokenService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,8 @@ public class DanmakuController {
 
     private final DandanplayClient dandanplayClient;
     private final BangumiClient bangumiClient;
+    private final BangumiOAuthExecutor bangumiOAuthExecutor;
+    private final JwtTokenService jwtTokenService;
 
 
     /**
@@ -48,7 +52,9 @@ public class DanmakuController {
     public Result<String> addDanmaku(@Valid @RequestBody DanmakuDto danmakuDto,
                                      @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken
     ) {
-        BangumiUserinfoVO bgmUserInfo = bangumiClient.getMe(accessToken);
+        BangumiUserinfoVO bgmUserInfo = bangumiOAuthExecutor.execute(
+                jwtTokenService.validateAccessToken(accessToken),
+                bangumiClient::getMe);
         danmakuService.saveDanmaku(danmakuDto, bgmUserInfo.id());
         return Result.success();
     }

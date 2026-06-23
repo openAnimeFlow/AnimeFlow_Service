@@ -129,8 +129,7 @@ public class BangumiController {
     /**
      * 搜索条目。
      * 对应 Bangumi {@code POST /p1/search/subjects}；全站串行限流，两次请求间隔至少 1.5 秒。
-     * 携带 Authorization Bearer 时返回当前用户 {@code interest}，否则不含该字段。
-     * TODO: 需处理Flow Token
+     * 携带 Flow JWT 且已绑定 Bangumi 时，服务端换取 Bangumi OAuth token 直查以返回 {@code interest}。
      * @param limit       每页条数，1–100
      * @param offset      偏移量
      * @param body        搜索关键词与筛选条件
@@ -144,7 +143,7 @@ public class BangumiController {
             @RequestAttribute(name = AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, required = false)
             String accessToken) {
         SubjectsVo vo = executeSearchWithSerialLimit(() -> {
-            SubjectsDto dto = bangumiClient.searchSubjects(body, limit, offset, accessToken);
+            SubjectsDto dto = bangumiService.searchSubjects(body, limit, offset, accessToken);
             if (dto.getData() != null) {
                 for (var subject : dto.getData()) {
                     if (subject == null) {

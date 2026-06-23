@@ -154,7 +154,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(BangumiUpstreamException.class)
     public Result<Void> handleBangumiUpstream(BangumiUpstreamException e) {
-        log.warn("Bangumi 上游不可用: {}", e.getMessage());
+        log.warn(e.getMessage());
         return Result.error(ResponseCode.ERROR, e.getMessage());
     }
 

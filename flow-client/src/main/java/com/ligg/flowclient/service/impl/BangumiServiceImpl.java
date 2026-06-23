@@ -6,14 +6,22 @@ package com.ligg.flowclient.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.common.entity.BangumiEpisodeEntity;
+import com.ligg.common.entity.UserOauthEntity;
+import com.ligg.common.exception.LoginExpiredException;
+import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
 import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
+import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
 import com.ligg.common.vo.bangumi.SearchSuggestionsVo;
 import com.ligg.flowclient.mapper.BangumiEpisodeMapper;
 import com.ligg.flowclient.mapper.BangumiSubjectMapper;
 import com.ligg.flowclient.module.dto.SearchSuggestionRow;
 import com.ligg.flowclient.mybatis.LimitOffsetPage;
+import com.ligg.flowclient.service.BangumiOAuthExecutor;
+import com.ligg.flowclient.service.BangumiOAuthTokenService;
 import com.ligg.flowclient.service.BangumiService;
+import com.ligg.flowclient.service.JwtTokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -27,6 +35,10 @@ public class BangumiServiceImpl implements BangumiService {
 
     private final BangumiEpisodeMapper episodeMapper;
     private final BangumiSubjectMapper subjectMapper;
+    private final BangumiClient bangumiClient;
+    private final JwtTokenService jwtTokenService;
+    private final BangumiOAuthTokenService bangumiOAuthTokenService;
+    private final BangumiOAuthExecutor bangumiOAuthExecutor;
 
     @Override
     public SubjectEpisodesDto getEpisodes(Integer subjectId, int limit, int offset) {
@@ -96,5 +108,22 @@ public class BangumiServiceImpl implements BangumiService {
         item.setName(row.getName());
         item.setNameCn(row.getNameCn());
         return item;
+    }
+
+    @Override
+    public SubjectsDto searchSubjects(SearchSubjectsBody body, int limit, int offset, String flowAccessToken) {
+        if (StringUtils.hasText(flowAccessToken)) {
+            try {
+                Long userId = jwtTokenService.validateAccessToken(flowAccessToken);
+                UserOauthEntity oauth = bangumiOAuthTokenService.findBangumiOauth(userId);
+                if (oauth != null) {
+                    return bangumiOAuthExecutor.execute(oauth,
+                            bangumiToken -> bangumiClient.searchSubjects(body, limit, offset, bangumiToken));
+                }
+            } catch (LoginExpiredException ignored) {
+                // Flow JWT 无效或未绑定 Bangumi，回退匿名搜索
+            }
+        }
+        return bangumiClient.searchSubjects(body, limit, offset, null);
     }
 }

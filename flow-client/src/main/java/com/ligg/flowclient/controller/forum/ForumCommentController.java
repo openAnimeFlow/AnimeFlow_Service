@@ -15,7 +15,9 @@ import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.module.dto.ForumCommentDto;
 import com.ligg.common.entity.ForumCommentEntity;
 import com.ligg.common.response.Result;
+import com.ligg.flowclient.service.BangumiOAuthExecutor;
 import com.ligg.flowclient.service.ForumCommentService;
+import com.ligg.flowclient.service.JwtTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,6 +34,8 @@ public class ForumCommentController {
 
     private final ForumCommentService forumCommentService;
     private final BangumiClient bangumiClient;
+    private final BangumiOAuthExecutor bangumiOAuthExecutor;
+    private final JwtTokenService jwtTokenService;
 
     /**
      * 发布评论
@@ -42,7 +46,9 @@ public class ForumCommentController {
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
             ForumCommentDto forumCommentDto) {
         // 从Bangumi中获取用户信息
-        BangumiUserinfoVO me = bangumiClient.getMe(accessToken);
+        BangumiUserinfoVO me = bangumiOAuthExecutor.execute(
+                jwtTokenService.validateAccessToken(accessToken),
+                bangumiClient::getMe);
 
         ForumCommentEntity forumCommentEntity = new ForumCommentEntity();
         BeanUtils.copyProperties(forumCommentDto, forumCommentEntity);

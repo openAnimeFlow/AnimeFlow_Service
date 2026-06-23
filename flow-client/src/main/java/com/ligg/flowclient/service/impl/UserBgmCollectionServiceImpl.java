@@ -107,7 +107,7 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
         UserBgmCollectionEntity row = existing != null ? existing : new UserBgmCollectionEntity();
         row.setUserId(userId);
         row.setSubjectId(subjectId);
-        row.setSubjectType(resolveSubjectType(dto, existing, detail));
+        row.setSubjectType(2);
         row.setSyncTime(LocalDateTime.now());
 
         SubjectDetailDto.SubjectInterest interest = detail != null ? detail.getInterest() : null;
@@ -194,20 +194,6 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
         if (row.getBgmUpdatedAt() == null) {
             row.setBgmUpdatedAt(System.currentTimeMillis() / 1000);
         }
-    }
-
-    private static int resolveSubjectType(
-            UpdateUserCollectionDto dto, UserBgmCollectionEntity existing, SubjectDetailDto detail) {
-        if (dto.getSubjectType() != null) {
-            return dto.getSubjectType();
-        }
-        if (existing != null && existing.getSubjectType() != null) {
-            return existing.getSubjectType();
-        }
-        if (detail != null && detail.getType() != null) {
-            return detail.getType();
-        }
-        return 2;
     }
 
     private void applyDtoFields(UserBgmCollectionEntity row, UpdateUserCollectionDto dto) {
