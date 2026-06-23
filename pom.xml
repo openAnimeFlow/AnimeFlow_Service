@@ -18,7 +18,7 @@
     <description>AnimeFlow</description>
 
     <properties>
-        <revision>0.1.1</revision>
+        <revision>0.1.2</revision>
         <java.version>17</java.version>
         <hutool.version>5.8.38</hutool.version>
         <mybatis-plus.version>3.5.15</mybatis-plus.version>
