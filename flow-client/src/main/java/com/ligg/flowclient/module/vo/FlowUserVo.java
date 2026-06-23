@@ -8,17 +8,15 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class UserVo {
+public class FlowUserVo {
     private Long id;
     private String email;
     private String nickname;
     private String avatar;
-    private LocalDateTime createTime;
+    private Long createTime;
 
     /** 本地 Bangumi 收藏各状态数量 */
     private UserCollectionCountsVo collectionCounts;

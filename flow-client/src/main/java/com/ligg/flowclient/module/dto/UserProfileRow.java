@@ -18,7 +18,7 @@ public class UserProfileRow {
 
     private String avatar;
 
-    private LocalDateTime createTime;
+    private Long createTime;
 
     private int planToWatch;
 

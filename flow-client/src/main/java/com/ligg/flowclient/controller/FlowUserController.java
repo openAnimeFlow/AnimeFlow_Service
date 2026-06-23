@@ -10,7 +10,7 @@ import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.module.dto.UpdateUserCollectionDto;
 import com.ligg.flowclient.module.dto.UpdateUserDto;
-import com.ligg.flowclient.module.vo.UserVo;
+import com.ligg.flowclient.module.vo.FlowUserVo;
 import com.ligg.common.vo.bangumi.UserCollectionsVo;
 import com.ligg.flowclient.service.UserBgmCollectionService;
 import com.ligg.flowclient.service.UserService;
@@ -31,9 +31,9 @@ public class FlowUserController {
      * 获取当前登录用户信息（需携带 AnimeFlow access_token）。
      */
     @GetMapping
-    public Result<UserVo> getUserInfo(
+    public Result<FlowUserVo> getUserInfo(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken) {
-        UserVo userVo = userService.getUserInfo(accessToken);
+        FlowUserVo userVo = userService.getUserInfo(accessToken);
         return Result.success(ResponseCode.SUCCESS, userVo);
     }
 
@@ -41,10 +41,10 @@ public class FlowUserController {
      * 更新当前登录用户资料（昵称、头像），每位用户每天仅可更新一次。
      */
     @PutMapping
-    public Result<UserVo> updateUserInfo(
+    public Result<FlowUserVo> updateUserInfo(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
             @Valid @RequestBody UpdateUserDto body) {
-        UserVo userVo = userService.updateUserInfo(accessToken, body);
+        FlowUserVo userVo = userService.updateUserInfo(accessToken, body);
         return Result.success(ResponseCode.SUCCESS, userVo);
     }
 

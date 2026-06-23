@@ -174,7 +174,7 @@ public class UserOauthServiceImpl implements UserOauthService {
         user.setPassword(null);
         user.setNickname(resolveNickname(me));
         user.setAvatar(resolveAvatar(me));
-        user.setCreateTime(LocalDateTime.now());
+        user.setCreateTime(Instant.now().getEpochSecond());
         return user;
     }
 

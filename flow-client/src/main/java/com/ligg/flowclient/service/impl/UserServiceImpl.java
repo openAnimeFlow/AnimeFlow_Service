@@ -20,7 +20,7 @@ import com.ligg.flowclient.module.dto.RegisterDto;
 import com.ligg.flowclient.module.dto.UpdateUserDto;
 import com.ligg.flowclient.module.dto.UserProfileRow;
 import com.ligg.flowclient.module.vo.UserCollectionCountsVo;
-import com.ligg.flowclient.module.vo.UserVo;
+import com.ligg.flowclient.module.vo.FlowUserVo;
 import com.ligg.flowclient.service.EmailService;
 import com.ligg.flowclient.service.JwtTokenService;
 import com.ligg.flowclient.service.UserService;
@@ -31,7 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -63,7 +63,7 @@ public class UserServiceImpl implements UserService {
         newUser.setPassword(PasswordUtils.hash(registerDto.getPassword()));
         newUser.setNickname(registerDto.getEmail().split("@")[0]);
         newUser.setAvatar(Constants.DEFAULT_USER_AVATAR_URL);
-        newUser.setCreateTime(LocalDateTime.now());
+        newUser.setCreateTime(Instant.now().getEpochSecond());
 
         try {
             userMapper.insert(newUser);
@@ -86,14 +86,14 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public UserVo getUserInfo(String accessToken) {
+    public FlowUserVo getUserInfo(String accessToken) {
         Long userId = jwtTokenService.validateAccessToken(accessToken);
         return loadUserVo(userId);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public UserVo updateUserInfo(String accessToken, UpdateUserDto updateUserDto) {
+    public FlowUserVo updateUserInfo(String accessToken, UpdateUserDto updateUserDto) {
         if (!updateUserDto.hasUpdateField()) {
             throw new IllegalArgumentException("至少需要更新一个用户信息字段");
         }
@@ -116,7 +116,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public UserVo bindEmail(Long userId, BindEmailDto bindEmailDto) {
+    public FlowUserVo bindEmail(Long userId, BindEmailDto bindEmailDto) {
         emailService.verifyEmailCode(bindEmailDto.getEmail(), bindEmailDto.getEmailCaptcha());
 
         UserEntity user = userMapper.selectById(userId);
@@ -190,7 +190,7 @@ public class UserServiceImpl implements UserService {
         redisTemplate.opsForValue().set(key, "1", DAILY_LIMIT_SECONDS, TimeUnit.SECONDS);
     }
 
-    private UserVo loadUserVo(Long userId) {
+    private FlowUserVo loadUserVo(Long userId) {
         UserProfileRow row = userMapper.selectProfileById(userId);
         if (row == null) {
             throw new LoginExpiredException();
@@ -198,7 +198,7 @@ public class UserServiceImpl implements UserService {
         return toUserVo(row);
     }
 
-    private static UserVo toUserVo(UserProfileRow row) {
+    private static FlowUserVo toUserVo(UserProfileRow row) {
         UserCollectionCountsVo collectionCounts = new UserCollectionCountsVo(
                 row.getPlanToWatch(),
                 row.getWatched(),
@@ -206,7 +206,7 @@ public class UserServiceImpl implements UserService {
                 row.getOnHold(),
                 row.getAbandoned()
         );
-        return new UserVo(
+        return new FlowUserVo(
                 row.getId(),
                 row.getEmail(),
                 row.getNickname(),

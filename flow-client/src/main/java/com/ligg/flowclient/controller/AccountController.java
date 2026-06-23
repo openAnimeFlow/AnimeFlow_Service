@@ -18,7 +18,7 @@ import com.ligg.flowclient.module.dto.RefreshTokenDto;
 import com.ligg.flowclient.module.dto.RegisterDto;
 import com.ligg.flowclient.module.vo.BangumiBindVo;
 import com.ligg.flowclient.module.vo.UserBgmCollectionSyncStatusVo;
-import com.ligg.flowclient.module.vo.UserVo;
+import com.ligg.flowclient.module.vo.FlowUserVo;
 import com.ligg.flowclient.service.EmailService;
 import com.ligg.flowclient.service.JwtTokenService;
 import com.ligg.flowclient.service.UserBgmCollectionSyncService;
@@ -144,11 +144,11 @@ public class AccountController {
      */
     @PostMapping("/email/bind")
     @IpEndpointRateLimit(keyPrefix = "animeflow:account:bind-email:ip:", seconds = 60, maxRequests = 10)
-    public Result<UserVo> bindEmail(
+    public Result<FlowUserVo> bindEmail(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
             @Valid @RequestBody BindEmailDto bindEmailDto) {
         Long userId = jwtTokenService.validateAccessToken(accessToken);
-        UserVo userVo = userService.bindEmail(userId, bindEmailDto);
+        FlowUserVo userVo = userService.bindEmail(userId, bindEmailDto);
         return Result.success(ResponseCode.SUCCESS, userVo);
     }
 

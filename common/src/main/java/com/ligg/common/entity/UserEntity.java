@@ -10,8 +10,6 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Data
 @NoArgsConstructor
 @TableName("user")
@@ -41,7 +39,7 @@ public class UserEntity {
     private String avatar;
 
     /**
-     * 创建时间
+     * 创建时间戳
      */
-    private LocalDateTime createTime;
+    private Long createTime;
 }
