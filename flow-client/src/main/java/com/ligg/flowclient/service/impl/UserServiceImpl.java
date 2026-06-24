@@ -43,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 public class UserServiceImpl implements UserService {
 
     private static final int DAILY_LIMIT_SECONDS = 86_400;
+    private static final int USER_INFO_UPDATE_INTERVAL_SECONDS = 180;
     private static final long MAX_AVATAR_SIZE = 2 * 1024 * 1024;
     private static final Set<String> ALLOWED_AVATAR_TYPES = Set.of(
             "image/jpeg", "image/png", "image/webp", "image/gif"
@@ -259,14 +260,19 @@ public class UserServiceImpl implements UserService {
 
     private void checkUserInfoUpdateDailyLimit(Long userId) {
         String key = Constants.USER_INFO_UPDATE_DAILY_KEY + ':' + userId;
-        if (redisTemplate.hasKey(key)) {
-            throw new IllegalArgumentException("今日已更新过用户资料，请明天再试");
+        long ttl = redisTemplate.getExpire(key, TimeUnit.SECONDS);
+        if (ttl > 0) {
+            long minutes = ttl / 60;
+            long seconds = ttl % 60;
+            throw new IllegalArgumentException(
+                "用户信息更新过于频繁，请 %d 分 %d 秒后再试".formatted(minutes, seconds)
+            );
         }
     }
 
     private void markUserInfoUpdateDaily(Long userId) {
         String key = Constants.USER_INFO_UPDATE_DAILY_KEY + ':' + userId;
-        redisTemplate.opsForValue().set(key, "1", DAILY_LIMIT_SECONDS, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set(key, "1", USER_INFO_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
     }
 
     private FlowUserVo loadUserVo(Long userId) {

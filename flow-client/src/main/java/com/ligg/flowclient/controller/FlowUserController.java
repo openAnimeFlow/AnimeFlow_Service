@@ -39,7 +39,7 @@ public class FlowUserController {
     }
 
     /**
-     * 更新当前登录用户资料，每位用户每天仅可更新一次。
+     * 更新当前登录用户资料
      */
     @PutMapping
     public Result<FlowUserVo> updateUserInfo(
