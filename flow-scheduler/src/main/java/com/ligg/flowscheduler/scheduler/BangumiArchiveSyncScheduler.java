@@ -20,7 +20,7 @@ public class BangumiArchiveSyncScheduler {
     private final BangumiArchiveSyncProperties properties;
     private final BangumiArchiveSyncService syncService;
 
-    @Scheduled(cron = "${anime-flow.bangumi-archive-sync.cron:0 0 3 * * *}")
+    @Scheduled(cron = "${anime-flow.sync.archive.cron:0 0 3 * * *}")
     public void scheduleBangumiArchiveSync() {
         if (!properties.isEnabled()) {
             return;

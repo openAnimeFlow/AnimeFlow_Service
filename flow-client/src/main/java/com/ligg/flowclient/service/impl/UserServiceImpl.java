@@ -115,8 +115,8 @@ public class UserServiceImpl implements UserService {
         if (StringUtils.hasText(updateUserDto.getNickname())) {
             user.setNickname(updateUserDto.getNickname().trim());
         }
-        if (StringUtils.hasText(updateUserDto.getAvatar())) {
-            user.setAvatar(updateUserDto.getAvatar().trim());
+        if (updateUserDto.getBackgroundId() != null) {
+            user.setBackgroundId(updateUserDto.getBackgroundId());
         }
         userMapper.updateById(user);
         markUserInfoUpdateDaily(userId);

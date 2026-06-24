@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @author Ligg
  */
 @Data
-@ConfigurationProperties(prefix = "anime-flow.bangumi-archive-sync")
+@ConfigurationProperties(prefix = "anime-flow.sync.archive")
 public class BangumiArchiveSyncProperties {
 
     /**

@@ -123,4 +123,14 @@ public class Constants {
      * Bangumi 收藏同步分布式锁，完整键为 animeflow:sync:bgm-collection:lock:{userId}
      */
     public static final String BGM_COLLECTION_SYNC_LOCK_KEY = "animeflow:sync:bgm-collection:lock";
+
+    /**
+     * 背景图片同步分布式锁
+     */
+    public static final String BACKGROUND_IMAGE_SYNC_LOCK_KEY = "animeflow:background:image:sync:lock";
+
+    /**
+     * 已同步的背景图片 index.json lastUpdated
+     */
+    public static final String BACKGROUND_IMAGE_SYNC_UPDATED_AT_KEY = "animeflow:background:image:source_updated_at";
 }

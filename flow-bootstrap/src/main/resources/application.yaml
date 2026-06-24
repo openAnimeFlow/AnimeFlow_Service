@@ -52,17 +52,26 @@ anime-flow:
     # Bangumi API超时时间（秒），不低于 5
     request-timeout-seconds: 30
 
-  bangumi-archive-sync:
-    enabled: true
-    run-on-startup-if-missing: true
-    latest-url: https://raw.githubusercontent.com/openAnimeFlow/animeFlow-assets/main/archive/latest.json
-    cron: "0 0 3 * * *"
-    batch-size: 500
-    batch-delay-ms: 50
-    download-dir: ${java.io.tmpdir}/bangumi-archive
-    lock-ttl-seconds: 21600
-    connect-timeout-seconds: 30
-    read-timeout-seconds: 3600
+  sync:
+    archive:
+      enabled: true
+      run-on-startup-if-missing: true
+      latest-url: https://raw.githubusercontent.com/openAnimeFlow/animeFlow-assets/main/archive/latest.json
+      cron: "0 0 3 * * *"
+      batch-size: 500
+      batch-delay-ms: 50
+      download-dir: ${java.io.tmpdir}/bangumi-archive
+      lock-ttl-seconds: 21600
+      connect-timeout-seconds: 30
+      read-timeout-seconds: 3600
+
+    image:
+      enabled: true
+      run-on-startup-if-missing: true
+      index-url: https://raw.githubusercontent.com/openAnimeFlow/animeFlow-assets/main/background-image/index.json
+      cron: "0 30 4 * * *"
+      connect-timeout-seconds: 15
+      read-timeout-seconds: 30
 
   resend:
     api_key: ${RESEND_API_KEY}

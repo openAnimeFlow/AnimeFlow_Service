@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ligg.flowscheduler.mapper.BackgroundImageMapper">
+
+    <insert id="upsertBatch">
+        insert into background (`name`, `image`)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.name}, #{item.image})
+        </foreach>
+        on duplicate key update
+        `image` = values(`image`)
+    </insert>
+
+    <delete id="deleteByNameNotIn">
+        delete from background
+        where `name` not in
+        <foreach collection="names" item="name" open="(" separator="," close=")">
+            #{name}
+        </foreach>
+    </delete>
+
+</mapper>

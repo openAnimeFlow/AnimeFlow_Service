@@ -39,6 +39,11 @@ public class UserEntity {
     private String avatar;
 
     /**
+     * 背景 id
+     */
+    private Integer backgroundId;
+
+    /**
      * 创建时间戳
      */
     private Long createTime;
