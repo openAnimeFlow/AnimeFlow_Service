@@ -11,11 +11,23 @@
  Target Server Version : 80043 (8.0.43)
  File Encoding         : 65001
 
- Date: 23/06/2026 19:32:01
+ Date: 24/06/2026 18:07:16
 */
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
+
+-- ----------------------------
+-- Table structure for background
+-- ----------------------------
+DROP TABLE IF EXISTS `background`;
+CREATE TABLE `background`  (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `image` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `background_pk`(`name` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for bangumi_character
@@ -216,6 +228,7 @@ CREATE TABLE `user`  (
   `avatar` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '头像地址',
   `create_time` bigint NOT NULL COMMENT '创建时间',
   `nickname` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '昵称',
+  `background_id` int NULL DEFAULT NULL COMMENT '背景图片id',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_email`(`email` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = 'AnimeFlow 用户表' ROW_FORMAT = Dynamic;
