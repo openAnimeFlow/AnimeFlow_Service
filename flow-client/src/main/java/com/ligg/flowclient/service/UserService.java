@@ -7,6 +7,7 @@ import com.ligg.flowclient.module.dto.LoginDto;
 import com.ligg.flowclient.module.dto.RegisterDto;
 import com.ligg.flowclient.module.dto.UpdateUserDto;
 import com.ligg.flowclient.module.vo.FlowUserVo;
+import org.springframework.web.multipart.MultipartFile;
 
 public interface UserService {
 
@@ -29,6 +30,15 @@ public interface UserService {
      * 更新当前登录用户资料（昵称、头像）。
      */
     FlowUserVo updateUserInfo(String accessToken, UpdateUserDto updateUserDto);
+
+    /**
+     * 上传用户头像，将图片存储到对象存储并更新用户头像 URL。
+     *
+     * @param accessToken 当前登录用户的 access_token
+     * @param file        图片文件（支持 JPEG / PNG / WebP / GIF）
+     * @return 更新后的用户信息
+     */
+    FlowUserVo uploadAvatar(String accessToken, MultipartFile file);
 
     /**
      * 为当前账号绑定邮箱并设置登录密码。

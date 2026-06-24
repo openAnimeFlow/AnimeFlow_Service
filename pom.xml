@@ -27,6 +27,7 @@
         <resend-java.version>4.13.0</resend-java.version>
         <jbcrypt.version>0.4</jbcrypt.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <aws-sdk.version>2.46.15</aws-sdk.version>
     </properties>
 
     <dependencyManagement>
@@ -98,6 +99,15 @@
                 <groupId>io.jsonwebtoken</groupId>
                 <artifactId>jjwt-jackson</artifactId>
                 <version>${jjwt.version}</version>
+            </dependency>
+
+            <!-- AWS SDK v2 BOM -->
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${aws-sdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>

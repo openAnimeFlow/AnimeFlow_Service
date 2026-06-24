@@ -81,3 +81,12 @@ anime-flow:
     path-patterns: #拦截路径
       - /api/v1/**
     exclude-path-patterns: [] #放行路径
+
+  ## 对象存储
+  cloudflare:
+    r2:
+      endpoint: ${CLOUDFLARE_R2_ENDPOINT}
+      access-key: ${CLOUDFLARE_R2_ACCESS_KEY}
+      secret-key: ${CLOUDFLARE_R2_SECRET_KEY}
+      bucket: ${CLOUDFLARE_R2_BUCKET}
+      public-url: ${CLOUDFLARE_R2_PUBLIC_URL}

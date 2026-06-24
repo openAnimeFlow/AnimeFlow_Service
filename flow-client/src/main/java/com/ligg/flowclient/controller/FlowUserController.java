@@ -17,6 +17,7 @@ import com.ligg.flowclient.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequiredArgsConstructor
@@ -38,13 +39,25 @@ public class FlowUserController {
     }
 
     /**
-     * 更新当前登录用户资料（昵称、头像），每位用户每天仅可更新一次。
+     * 更新当前登录用户资料，每位用户每天仅可更新一次。
      */
     @PutMapping
     public Result<FlowUserVo> updateUserInfo(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
             @Valid @RequestBody UpdateUserDto body) {
         FlowUserVo userVo = userService.updateUserInfo(accessToken, body);
+        return Result.success(ResponseCode.SUCCESS, userVo);
+    }
+
+    /**
+     * 上传当前登录用户的头像
+     * （支持 JPEG / PNG / WebP / GIF，最大 2MB）。
+     */
+    @PostMapping("/avatar")
+    public Result<FlowUserVo> uploadAvatar(
+            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
+            @RequestParam("file") MultipartFile file) {
+        FlowUserVo userVo = userService.uploadAvatar(accessToken, file);
         return Result.success(ResponseCode.SUCCESS, userVo);
     }
 
