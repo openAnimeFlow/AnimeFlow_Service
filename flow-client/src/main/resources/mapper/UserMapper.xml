@@ -7,6 +7,7 @@
                u.email,
                u.nickname,
                u.avatar,
+               coalesce(b.image, '') as background,
                u.create_time as createTime,
                coalesce(sum(case when c.type = 1 then 1 else 0 end), 0) as planToWatch,
                coalesce(sum(case when c.type = 2 then 1 else 0 end), 0) as watched,
@@ -15,7 +16,8 @@
                coalesce(sum(case when c.type = 5 then 1 else 0 end), 0) as abandoned
         from user u
                  left join user_bgm_collection c on c.user_id = u.id
+                 left join background b on b.id = u.background_id
         where u.id = #{userId}
-        group by u.id, u.email, u.nickname, u.avatar, u.create_time
+        group by u.id, u.email, u.nickname, u.avatar, u.create_time, b.image
     </select>
 </mapper>

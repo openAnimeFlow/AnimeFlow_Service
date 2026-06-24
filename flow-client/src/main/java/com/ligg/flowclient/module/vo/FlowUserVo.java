@@ -16,6 +16,11 @@ public class FlowUserVo {
     private String email;
     private String nickname;
     private String avatar;
+
+    /**
+     * 背景图
+     */
+    private String background;
     private Long createTime;
 
     /** 本地 Bangumi 收藏各状态数量 */

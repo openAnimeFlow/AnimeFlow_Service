@@ -290,6 +290,7 @@ public class UserServiceImpl implements UserService {
                 row.getEmail(),
                 row.getNickname(),
                 row.getAvatar(),
+                row.getBackground(),
                 row.getCreateTime(),
                 collectionCounts
         );

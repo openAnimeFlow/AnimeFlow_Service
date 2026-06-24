@@ -2,8 +2,6 @@ package com.ligg.flowclient.module.dto;
 
 import lombok.Data;
 
-import java.time.LocalDateTime;
-
 /**
  * 用户资料。
  */
@@ -17,6 +15,11 @@ public class UserProfileRow {
     private String nickname;
 
     private String avatar;
+
+    /**
+     * 背景图 URL，未设置时为空字符串
+     */
+    private String background = "";
 
     private Long createTime;
 
