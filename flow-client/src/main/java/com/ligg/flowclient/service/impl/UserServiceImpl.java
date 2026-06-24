@@ -12,6 +12,7 @@ import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.exception.RateLimitExceededException;
 import com.ligg.common.response.FlowTokenVo;
 import com.ligg.common.storage.ObjectStorageService;
+import com.ligg.common.utils.ImageValidator;
 import com.ligg.common.utils.PasswordUtils;
 import com.ligg.flowclient.mapper.UserMapper;
 import com.ligg.flowclient.module.dto.BindEmailDto;
@@ -135,9 +136,29 @@ public class UserServiceImpl implements UserService {
         if (file.getSize() > MAX_AVATAR_SIZE) {
             throw new IllegalArgumentException("头像文件大小不能超过 5MB");
         }
+
+        // Content-Type 白名单
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_AVATAR_TYPES.contains(contentType)) {
             throw new IllegalArgumentException("仅支持 JPEG、PNG、WebP、GIF 格式的图片");
+        }
+
+        // 文件扩展名白名单
+        String ext = ImageValidator.validateExtension(file.getOriginalFilename());
+        if (ext == null) {
+            throw new IllegalArgumentException("文件扩展名不合法，仅支持 jpg/png/webp/gif");
+        }
+
+        // 魔术字节校验——读取文件头真实二进制签名，防止伪造 Content-Type
+        String detectedMime;
+        try {
+            detectedMime = ImageValidator.detectMimeType(file.getInputStream());
+        } catch (IOException e) {
+            log.error("读取文件头失败", e);
+            throw new IllegalStateException("头像上传失败，请稍后重试");
+        }
+        if (detectedMime == null) {
+            throw new IllegalArgumentException("文件内容不是合法的图片格式");
         }
 
         Long userId = jwtTokenService.validateAccessToken(accessToken);
@@ -146,12 +167,11 @@ public class UserServiceImpl implements UserService {
             throw new LoginExpiredException();
         }
 
-        String extension = resolveExtension(contentType);
-        String key = "avatars/" + userId + "/" + UUID.randomUUID() + "." + extension;
+        String key = "avatars/" + userId + "/" + UUID.randomUUID() + "." + ext;
 
         String avatarUrl;
         try {
-            avatarUrl = objectStorageService.upload(key, file.getInputStream(), file.getSize(), contentType);
+            avatarUrl = objectStorageService.upload(key, file.getInputStream(), file.getSize(), detectedMime);
         } catch (IOException e) {
             log.error("读取头像文件流失败: userId={}", userId, e);
             throw new IllegalStateException("头像上传失败，请稍后重试");
@@ -177,16 +197,6 @@ public class UserServiceImpl implements UserService {
         } catch (Exception e) {
             log.warn("删除旧头像失败，已忽略: url={}", oldAvatarUrl, e);
         }
-    }
-
-    private static String resolveExtension(String contentType) {
-        return switch (contentType) {
-            case "image/jpeg" -> "jpg";
-            case "image/png" -> "png";
-            case "image/webp" -> "webp";
-            case "image/gif" -> "gif";
-            default -> "bin";
-        };
     }
 
     @Override
