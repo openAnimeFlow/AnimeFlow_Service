@@ -71,7 +71,6 @@ public class UserServiceImpl implements UserService {
         newUser.setEmail(registerDto.getEmail());
         newUser.setPassword(PasswordUtils.hash(registerDto.getPassword()));
         newUser.setNickname(registerDto.getEmail().split("@")[0]);
-        newUser.setAvatar(Constants.DEFAULT_USER_AVATAR_URL);
         newUser.setCreateTime(Instant.now().getEpochSecond());
 
         try {

@@ -220,7 +220,7 @@ public class UserOauthServiceImpl implements UserOauthService {
                 return Utils.imgUrlToWsrvCdn(me.avatar().large());
             }
         }
-        return Constants.DEFAULT_USER_AVATAR_URL;
+        return null;
     }
 
     private static BangumiBindVo toBindVo(BangumiUserinfoVO me) {
