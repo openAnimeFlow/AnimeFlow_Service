@@ -248,7 +248,7 @@ public class UserServiceImpl implements UserService {
 
     private void checkPasswordResetDailyLimit(String email) {
         String key = Constants.PASSWORD_RESET_DAILY_KEY + ':' + email;
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
+        if (redisTemplate.hasKey(key)) {
             throw new RateLimitExceededException("今日已重置过密码，请明天再试");
         }
     }
@@ -260,7 +260,7 @@ public class UserServiceImpl implements UserService {
 
     private void checkUserInfoUpdateDailyLimit(Long userId) {
         String key = Constants.USER_INFO_UPDATE_DAILY_KEY + ':' + userId;
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
+        if (redisTemplate.hasKey(key)) {
             throw new IllegalArgumentException("今日已更新过用户资料，请明天再试");
         }
     }
