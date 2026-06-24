@@ -15,14 +15,9 @@ import com.ligg.common.storage.ObjectStorageService;
 import com.ligg.common.utils.ImageValidator;
 import com.ligg.common.utils.PasswordUtils;
 import com.ligg.flowclient.mapper.UserMapper;
-import com.ligg.flowclient.module.dto.BindEmailDto;
-import com.ligg.flowclient.module.dto.ForgotPasswordDto;
-import com.ligg.flowclient.module.dto.LoginDto;
-import com.ligg.flowclient.module.dto.RegisterDto;
-import com.ligg.flowclient.module.dto.UpdateUserDto;
-import com.ligg.flowclient.module.dto.UserProfileRow;
-import com.ligg.flowclient.module.vo.UserCollectionCountsVo;
+import com.ligg.flowclient.module.dto.*;
 import com.ligg.flowclient.module.vo.FlowUserVo;
+import com.ligg.flowclient.module.vo.UserCollectionCountsVo;
 import com.ligg.flowclient.service.EmailService;
 import com.ligg.flowclient.service.JwtTokenService;
 import com.ligg.flowclient.service.UserService;
@@ -35,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Set;
@@ -134,10 +130,10 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("头像文件不能为空");
         }
         if (file.getSize() > MAX_AVATAR_SIZE) {
-            throw new IllegalArgumentException("头像文件大小不能超过 5MB");
+            throw new IllegalArgumentException("头像文件大小不能超过 2MB");
         }
 
-        // Content-Type 白名单
+        // Content-Type 初筛（客户端可伪造，仅做快速拦截）
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_AVATAR_TYPES.contains(contentType)) {
             throw new IllegalArgumentException("仅支持 JPEG、PNG、WebP、GIF 格式的图片");
@@ -149,15 +145,15 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("文件扩展名不合法，仅支持 jpg/png/webp/gif");
         }
 
-        // 魔术字节校验——读取文件头真实二进制签名，防止伪造 Content-Type
-        String detectedMime;
+        // 魔术字节 + 解码验证 + 像素上限 + EXIF 剥离
+        ImageValidator.SanitizeResult sanitized;
         try {
-            detectedMime = ImageValidator.detectMimeType(file.getInputStream());
+            sanitized = ImageValidator.sanitize(file.getBytes());
         } catch (IOException e) {
-            log.error("读取文件头失败", e);
+            log.error("图片校验/清洗失败", e);
             throw new IllegalStateException("头像上传失败，请稍后重试");
         }
-        if (detectedMime == null) {
+        if (sanitized == null) {
             throw new IllegalArgumentException("文件内容不是合法的图片格式");
         }
 
@@ -168,14 +164,13 @@ public class UserServiceImpl implements UserService {
         }
 
         String key = "avatars/" + userId + "/" + UUID.randomUUID() + "." + ext;
+        byte[] cleanBytes = sanitized.bytes();
 
-        String avatarUrl;
-        try {
-            avatarUrl = objectStorageService.upload(key, file.getInputStream(), file.getSize(), detectedMime);
-        } catch (IOException e) {
-            log.error("读取头像文件流失败: userId={}", userId, e);
-            throw new IllegalStateException("头像上传失败，请稍后重试");
-        }
+        String avatarUrl = objectStorageService.upload(
+                key,
+                new ByteArrayInputStream(cleanBytes),
+                cleanBytes.length,
+                sanitized.mimeType());
 
         deleteOldAvatar(user.getAvatar());
 
