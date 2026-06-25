@@ -9,6 +9,7 @@ import com.ligg.common.constants.Constants;
 import com.ligg.common.entity.UserEntity;
 import com.ligg.common.exception.AuthenticationFailedException;
 import com.ligg.common.exception.LoginExpiredException;
+import com.ligg.common.exception.UpdateRateLimitException;
 import com.ligg.common.exception.RateLimitExceededException;
 import com.ligg.common.response.FlowTokenVo;
 import com.ligg.common.storage.ObjectStorageService;
@@ -267,7 +268,7 @@ public class UserServiceImpl implements UserService {
         if (ttl > 0) {
             long minutes = ttl / 60;
             long seconds = ttl % 60;
-            throw new IllegalArgumentException(
+            throw new UpdateRateLimitException(
                 "用户信息更新过于频繁，请 %d 分 %d 秒后再试".formatted(minutes, seconds)
             );
         }
@@ -279,7 +280,7 @@ public class UserServiceImpl implements UserService {
         if (ttl > 0) {
             long minutes = ttl / 60;
             long seconds = ttl % 60;
-            throw new IllegalArgumentException(
+            throw new UpdateRateLimitException(
                 "头像更新过于频繁，请 %d 分 %d 秒后再试".formatted(minutes, seconds)
             );
         }

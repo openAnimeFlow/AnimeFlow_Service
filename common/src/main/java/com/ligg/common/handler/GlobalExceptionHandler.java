@@ -6,6 +6,7 @@ import com.ligg.common.exception.EmailSendException;
 import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.exception.AuthenticationFailedException;
 import com.ligg.common.exception.AuthorizationException;
+import com.ligg.common.exception.UpdateRateLimitException;
 import com.ligg.common.exception.RateLimitExceededException;
 import com.ligg.common.exception.VerificationCodeException;
 import com.ligg.common.response.Result;
@@ -176,6 +177,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.TOO_MANY_REQUESTS)
                 .body(Result.error(ResponseCode.TOO_MANY_REQUESTS, ResponseCode.TOO_MANY_REQUESTS.getMessage()));
+    }
+
+    /**
+     * 更新操作频率限制（正常 200，携带业务错误码）
+     */
+    @ExceptionHandler(UpdateRateLimitException.class)
+    public Result<Void> handleUpdateRateLimit(UpdateRateLimitException e) {
+        log.warn("更新操作频率限制: {}", e.getMessage());
+        return Result.error(ResponseCode.TOO_MANY_REQUESTS, e.getMessage());
     }
 
     /**
