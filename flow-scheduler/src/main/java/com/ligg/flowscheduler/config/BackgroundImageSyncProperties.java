@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @author Ligg
  */
 @Data
-@ConfigurationProperties(prefix = "anime-flow.sync.image")
+@ConfigurationProperties(prefix = "anime-flow.sync.background-image")
 public class BackgroundImageSyncProperties {
 
     /**

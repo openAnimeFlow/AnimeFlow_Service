@@ -65,7 +65,7 @@ anime-flow:
       connect-timeout-seconds: 30
       read-timeout-seconds: 3600
 
-    image:
+    background-image:
       enabled: true
       run-on-startup-if-missing: true
       index-url: https://raw.githubusercontent.com/openAnimeFlow/animeFlow-assets/main/background-image/index.json
