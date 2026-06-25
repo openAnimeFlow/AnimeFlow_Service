@@ -6,6 +6,7 @@ package com.ligg.api.config;
 
 import com.ligg.common.apipath.BangumiApiPath;
 import com.ligg.common.apipath.BangumiNextApiPath;
+import com.ligg.common.constants.DandanPlayApi;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,6 +24,8 @@ public class WebClientConfig {
     public static final String BANGUMI_NEXT_WEB_CLIENT = "bangumiNextWebClient";
 
     public static final String BANGUMI_V0_WEB_CLIENT = "bangumiV0WebClient";
+
+    public static final String DANDANPLAY_WEB_CLIENT = "dandanplayWebClient";
 
     private static final int MAX_IN_MEMORY_BODY_BYTES = 10 * 1024 * 1024;
 
@@ -55,6 +58,19 @@ public class WebClientConfig {
                 .clientConnector(new ReactorClientHttpConnector(reactorHttpClient))
                 .baseUrl(BangumiApiPath.BANGUMI_API_BASE_URL)
                 .defaultHeader(HttpHeaders.USER_AGENT, bangumiUserAgent)
+                .build();
+    }
+
+    @Bean(name = DANDANPLAY_WEB_CLIENT)
+    public WebClient dandanplayWebClient(
+            @Value("${anime-flow.dandanplay.app_id}") String dandanPlayAppId,
+            @Value("${anime-flow.dandanplay.secret}") String dandanPlaySecret) {
+        return WebClient.builder()
+                .baseUrl(DandanPlayApi.DANDAN_PLAY_API_BASE_URL)
+                .exchangeStrategies(BANGUMI_EXCHANGE_STRATEGIES)
+                .clientConnector(new ReactorClientHttpConnector(HttpClient.create().followRedirect(true)))
+                .defaultHeader("X-AppId", dandanPlayAppId)
+                .defaultHeader("X-AppSecret", dandanPlaySecret)
                 .build();
     }
 }

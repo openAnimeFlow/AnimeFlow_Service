@@ -4,6 +4,7 @@
  */
 package com.ligg.api.dandanplayapi;
 
+import com.ligg.api.config.WebClientConfig;
 import com.ligg.common.constants.DandanPlayApi;
 import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.vo.dandanplay.DandanplayBangumiDetailVo;
@@ -12,15 +13,12 @@ import com.ligg.common.vo.dandanplay.DandanplayEpisodeVo;
 import com.ligg.common.vo.dandanplay.DandanplaySearchVo;
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-import reactor.netty.http.client.HttpClient;
 
 import java.time.Duration;
 
@@ -30,34 +28,18 @@ import java.time.Duration;
 public class DandanplayClientImpl implements DandanplayClient {
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
-    /**
-     * 弹幕 JSON 可能很大，需高于 WebClient 默认 256KB
-     **/
-    private static final int MAX_IN_MEMORY_BODY_BYTES = 10 * 1024 * 1024;
-    private static final String DANDANPLAY_API_BASE_URL = DandanPlayApi.DANDAN_PLAY_API_BASE_URL;
 
-    private static final ExchangeStrategies DANDAN_EXCHANGE_STRATEGIES = ExchangeStrategies.builder()
-            .codecs(c -> c.defaultCodecs().maxInMemorySize(MAX_IN_MEMORY_BODY_BYTES))
-            .build();
-
-    private final WebClient webClient;
+    private final WebClient dandanPlayClient;
 
     public DandanplayClientImpl(
-            @Value("${anime-flow.dandanplay.app_id}") String dandanPlayAppId,
-            @Value("${anime-flow.dandanplay.secret}") String dandanPlaySecret) {
-        this.webClient = WebClient.builder()
-                .baseUrl(DANDANPLAY_API_BASE_URL)
-                .exchangeStrategies(DANDAN_EXCHANGE_STRATEGIES)
-                .clientConnector(new ReactorClientHttpConnector(HttpClient.create().followRedirect(true)))
-                .defaultHeader("X-AppId", dandanPlayAppId)
-                .defaultHeader("X-AppSecret", dandanPlaySecret)
-                .build();
+            @Qualifier(WebClientConfig.DANDANPLAY_WEB_CLIENT) WebClient webClient) {
+        this.dandanPlayClient = webClient;
     }
 
     @Override
     public DandanplayCommentVo getDanmaku(int episodeId, Boolean withRelated, int chConvert) {
         try {
-            ResponseEntity<DandanplayCommentVo> response = webClient.get()
+            ResponseEntity<DandanplayCommentVo> response = dandanPlayClient.get()
                     .uri(uriBuilder -> {
                         var b = uriBuilder.path(DandanPlayApi.DANDAN_API_COMMENT + episodeId)
                                 .queryParam("chConvert", chConvert)
@@ -83,7 +65,7 @@ public class DandanplayClientImpl implements DandanplayClient {
     @Override
     public DandanplaySearchVo searchAnimes(String keyword, Integer type) {
         try {
-            ResponseEntity<DandanplaySearchVo> response = webClient.get()
+            ResponseEntity<DandanplaySearchVo> response = dandanPlayClient.get()
                     .uri(uriBuilder -> {
                         var b = uriBuilder.path(DandanPlayApi.DANDAN_API_SEARCH_ANIME)
                                 .queryParam("keyword", keyword);
@@ -108,7 +90,7 @@ public class DandanplayClientImpl implements DandanplayClient {
     @Override
     public DandanplayBangumiDetailVo getBangumiDetail(@NotNull int bangumiId) {
         try {
-            ResponseEntity<DandanplayBangumiDetailVo> response = webClient.get()
+            ResponseEntity<DandanplayBangumiDetailVo> response = dandanPlayClient.get()
                     .uri(uriBuilder -> uriBuilder.path(DandanPlayApi.DANDAN_API_ELEMENT + '/' + bangumiId).build())
                     .retrieve()
                     .toEntity(DandanplayBangumiDetailVo.class)
@@ -126,7 +108,7 @@ public class DandanplayClientImpl implements DandanplayClient {
     @Override
     public DandanplayEpisodeVo getBangumiDetailByBangumiId(@NotNull int bangumiId) {
         try {
-            ResponseEntity<DandanplayEpisodeVo> response = webClient.get()
+            ResponseEntity<DandanplayEpisodeVo> response = dandanPlayClient.get()
                     .uri(uriBuilder -> uriBuilder.path(DandanPlayApi.DANDAN_API_ELEMENT_BY_BANGUMI_ID + '/' + bangumiId).build())
                     .retrieve()
                     .toEntity(DandanplayEpisodeVo.class)
