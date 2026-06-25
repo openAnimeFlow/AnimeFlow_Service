@@ -4,7 +4,7 @@
  */
 package com.ligg.api.bangumiapi;
 
-import com.ligg.api.config.BangumiWebClientConfig;
+import com.ligg.api.config.WebClientConfig;
 import com.ligg.common.apipath.BangumiNextApiPath;
 import com.ligg.common.constants.ApiConstant;
 import com.ligg.common.exception.BangumiUpstreamException;
@@ -57,7 +57,7 @@ public class BangumiClientImpl implements BangumiClient {
     private final WebClient bangumiNextClient;
 
     public BangumiClientImpl(
-            @Qualifier(BangumiWebClientConfig.BANGUMI_NEXT_WEB_CLIENT) WebClient bangumiNextClient,
+            @Qualifier(WebClientConfig.BANGUMI_NEXT_WEB_CLIENT) WebClient bangumiNextClient,
             @Value("${anime-flow.bangumi.request-timeout-seconds:30}") int requestTimeoutSeconds) {
         this.bangumiNextClient = bangumiNextClient;
         this.requestTimeout = Duration.ofSeconds(Math.max(5, requestTimeoutSeconds));

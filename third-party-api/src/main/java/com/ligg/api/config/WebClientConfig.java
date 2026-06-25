@@ -18,7 +18,7 @@ import reactor.netty.http.client.HttpClient;
 import java.time.Duration;
 
 @Configuration
-public class BangumiWebClientConfig {
+public class WebClientConfig {
 
     public static final String BANGUMI_NEXT_WEB_CLIENT = "bangumiNextWebClient";
 

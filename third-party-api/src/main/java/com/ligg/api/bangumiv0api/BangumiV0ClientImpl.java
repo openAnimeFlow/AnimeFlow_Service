@@ -1,6 +1,6 @@
 package com.ligg.api.bangumiv0api;
 
-import com.ligg.api.config.BangumiWebClientConfig;
+import com.ligg.api.config.WebClientConfig;
 import com.ligg.common.apipath.BangumiApiPath;
 import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.thirdparty.bangumi.enums.SubjectImageType;
@@ -32,7 +32,7 @@ public class BangumiV0ClientImpl implements BangumiV0Client {
     private final WebClient bangumiV0Client;
 
     public BangumiV0ClientImpl(
-            @Qualifier(BangumiWebClientConfig.BANGUMI_V0_WEB_CLIENT) WebClient bangumiV0Client,
+            @Qualifier(WebClientConfig.BANGUMI_V0_WEB_CLIENT) WebClient bangumiV0Client,
             @Value("${anime-flow.bangumi.request-timeout-seconds:30}") int requestTimeoutSeconds) {
         this.requestTimeout = Duration.ofSeconds(Math.max(5, requestTimeoutSeconds));
         HttpClient noRedirectHttpClient = HttpClient.create()
