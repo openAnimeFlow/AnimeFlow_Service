@@ -127,7 +127,8 @@ public class AccountController {
     }
 
     /**
-     * 绑定 Bangumi 账号（需已登录 AnimeFlow，Body 传 OAuth 授权码 code）。
+     * 绑定 Bangumi 账号
+     * 需已登录 AnimeFlow，Body 传 OAuth 授权码 code。
      */
     @PostMapping("/oauth/bangumi/bind")
     @IpEndpointRateLimit(keyPrefix = "animeflow:account:bind-bangumi:ip:", seconds = 60, maxRequests = 10)
@@ -136,6 +137,19 @@ public class AccountController {
             @Valid @RequestBody BindBangumiDto bindBangumiDto) {
         Long userId = jwtTokenService.validateAccessToken(accessToken);
         BangumiBindVo bindVo = userOauthService.bindBangumi(userId, bindBangumiDto.getCode());
+        return Result.success(ResponseCode.SUCCESS, bindVo);
+    }
+
+    /**
+     * 解绑当前账号绑定的 Bangumi 账号
+     * 删除关联的 OAuth 记录。
+     */
+    @PostMapping("/oauth/bangumi/unbind")
+    @IpEndpointRateLimit(keyPrefix = "animeflow:account:unbind-bangumi:ip:", seconds = 60, maxRequests = 10)
+    public Result<BangumiBindVo> unbindBangumi(
+            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken) {
+        Long userId = jwtTokenService.validateAccessToken(accessToken);
+        BangumiBindVo bindVo = userOauthService.unbindBangumi(userId);
         return Result.success(ResponseCode.SUCCESS, bindVo);
     }
 

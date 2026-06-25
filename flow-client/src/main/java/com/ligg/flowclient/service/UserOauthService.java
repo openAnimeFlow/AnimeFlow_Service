@@ -20,4 +20,11 @@ public interface UserOauthService {
      * Bangumi 第三方授权登录：已绑定则直接登录，未绑定则创建本地账号（邮箱/密码为空）并登录。
      */
     FlowTokenVo loginBangumi(String code, Platform platform);
+
+    /**
+     * 解绑当前用户绑定的 Bangumi 账号，删除 user_oauth 中的关联记录。
+     *
+     * @return 解绑后的绑定状态（始终为 {@link BangumiBindVo#notBound()}）
+     */
+    BangumiBindVo unbindBangumi(Long userId);
 }

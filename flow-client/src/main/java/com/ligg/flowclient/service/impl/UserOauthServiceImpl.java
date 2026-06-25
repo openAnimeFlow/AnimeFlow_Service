@@ -78,6 +78,16 @@ public class UserOauthServiceImpl implements UserOauthService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public BangumiBindVo unbindBangumi(Long userId) {
+        UserOauthEntity entity = findByUserAndPlatform(userId);
+        if (entity != null) {
+            userOauthMapper.deleteById(entity.getId());
+        }
+        return BangumiBindVo.notBound();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public FlowTokenVo loginBangumi(String code, Platform platform) {
         if (!StringUtils.hasText(code)) {
             throw new IllegalArgumentException("授权码无效");
