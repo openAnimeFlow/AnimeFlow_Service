@@ -279,7 +279,7 @@ public class UserServiceImpl implements UserService {
         if (ttl > 0) {
             long minutes = ttl / 60;
             long seconds = ttl % 60;
-            throw new RateLimitExceededException(
+            throw new IllegalArgumentException(
                 "头像更新过于频繁，请 %d 分 %d 秒后再试".formatted(minutes, seconds)
             );
         }
