@@ -44,6 +44,7 @@ public class UserServiceImpl implements UserService {
 
     private static final int DAILY_LIMIT_SECONDS = 86_400;
     private static final int USER_INFO_UPDATE_INTERVAL_SECONDS = 180;
+    private static final int AVATAR_UPLOAD_INTERVAL_SECONDS = 300;
     private static final long MAX_AVATAR_SIZE = 2 * 1024 * 1024;
     private static final Set<String> ALLOWED_AVATAR_TYPES = Set.of(
             "image/jpeg", "image/png", "image/webp", "image/gif"
@@ -158,6 +159,7 @@ public class UserServiceImpl implements UserService {
         }
 
         Long userId = jwtTokenService.validateAccessToken(accessToken);
+        checkAvatarUploadLimit(userId);
         UserEntity user = userMapper.selectById(userId);
         if (user == null) {
             throw new LoginExpiredException();
@@ -176,6 +178,7 @@ public class UserServiceImpl implements UserService {
 
         user.setAvatar(avatarUrl);
         userMapper.updateById(user);
+        markAvatarUpload(userId);
         return loadUserVo(userId);
     }
 
@@ -268,6 +271,23 @@ public class UserServiceImpl implements UserService {
                 "用户信息更新过于频繁，请 %d 分 %d 秒后再试".formatted(minutes, seconds)
             );
         }
+    }
+
+    private void checkAvatarUploadLimit(Long userId) {
+        String key = Constants.AVATAR_UPLOAD_LIMIT_KEY + ':' + userId;
+        long ttl = redisTemplate.getExpire(key, TimeUnit.SECONDS);
+        if (ttl > 0) {
+            long minutes = ttl / 60;
+            long seconds = ttl % 60;
+            throw new RateLimitExceededException(
+                "头像更新过于频繁，请 %d 分 %d 秒后再试".formatted(minutes, seconds)
+            );
+        }
+    }
+
+    private void markAvatarUpload(Long userId) {
+        String key = Constants.AVATAR_UPLOAD_LIMIT_KEY + ':' + userId;
+        redisTemplate.opsForValue().set(key, "1", AVATAR_UPLOAD_INTERVAL_SECONDS, TimeUnit.SECONDS);
     }
 
     private void markUserInfoUpdateDaily(Long userId) {
