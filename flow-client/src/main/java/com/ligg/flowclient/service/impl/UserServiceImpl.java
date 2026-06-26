@@ -165,7 +165,7 @@ public class UserServiceImpl implements UserService {
             throw new LoginExpiredException();
         }
 
-        String key = "avatars/" + userId + "/" + UUID.randomUUID() + "." + ext;
+        String key = "avatars/" + UUID.randomUUID() + "." + ext;
         byte[] cleanBytes = sanitized.bytes();
 
         String avatarUrl = objectStorageService.upload(
