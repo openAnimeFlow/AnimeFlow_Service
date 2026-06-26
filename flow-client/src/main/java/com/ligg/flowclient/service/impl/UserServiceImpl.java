@@ -75,7 +75,7 @@ public class UserServiceImpl implements UserService {
         newUser.setPassword(PasswordUtils.hash(registerDto.getPassword()));
         newUser.setNickname(registerDto.getEmail().split("@")[0]);
         newUser.setCreateTime(Instant.now().getEpochSecond());
-
+        newUser.setAvatar(Constants.DEFAULT_USER_AVATAR_URL);
         try {
             userMapper.insert(newUser);
         } catch (DuplicateKeyException e) {
