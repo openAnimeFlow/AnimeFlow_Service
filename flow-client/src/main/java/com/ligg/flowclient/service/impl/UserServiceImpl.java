@@ -127,7 +127,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public FlowUserVo uploadAvatar(Long userId, MultipartFile file) {
+    public FlowUserVo uploadAvatar(String accessToken, MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("头像文件不能为空");
         }
@@ -159,6 +159,7 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("文件内容不是合法的图片格式");
         }
 
+        Long userId = jwtTokenService.validateAccessToken(accessToken);
         checkAvatarUploadLimit(userId);
         UserEntity user = userMapper.selectById(userId);
         if (user == null) {

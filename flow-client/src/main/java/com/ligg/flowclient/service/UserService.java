@@ -34,11 +34,11 @@ public interface UserService {
     /**
      * 上传用户头像，将图片存储到对象存储并更新用户头像 URL。
      *
-     * @param userId 登录用户的 id
-     * @param file   图片文件（支持 JPEG / PNG / WebP / GIF）
+     * @param accessToken 当前登录用户的 access_token
+     * @param file        图片文件（支持 JPEG / PNG / WebP / GIF）
      * @return 更新后的用户信息
      */
-    FlowUserVo uploadAvatar(Long userId, MultipartFile file);
+    FlowUserVo uploadAvatar(String accessToken, MultipartFile file);
 
     /**
      * 为当前账号绑定邮箱并设置登录密码。
