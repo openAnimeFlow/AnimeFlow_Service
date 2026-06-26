@@ -12,6 +12,7 @@ import com.ligg.flowclient.module.dto.UpdateUserCollectionDto;
 import com.ligg.flowclient.module.dto.UpdateUserDto;
 import com.ligg.flowclient.module.vo.FlowUserVo;
 import com.ligg.common.vo.bangumi.UserCollectionsVo;
+import com.ligg.flowclient.service.JwtTokenService;
 import com.ligg.flowclient.service.UserBgmCollectionService;
 import com.ligg.flowclient.service.UserService;
 import jakarta.validation.Valid;
@@ -25,7 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class FlowUserController {
 
     private final UserService userService;
-
+    private final JwtTokenService jwtTokenService;
     private final UserBgmCollectionService userBgmCollectionService;
 
     /**
@@ -57,7 +58,8 @@ public class FlowUserController {
     public Result<FlowUserVo> uploadAvatar(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
             @RequestParam("file") MultipartFile file) {
-        FlowUserVo userVo = userService.uploadAvatar(accessToken, file);
+        Long userId = jwtTokenService.validateAccessToken(accessToken);
+        FlowUserVo userVo = userService.uploadAvatar(userId, file);
         return Result.success(ResponseCode.SUCCESS, userVo);
     }
 
