@@ -3,7 +3,7 @@ package com.ligg.common.storage;
 import java.io.InputStream;
 
 /**
- * 对象存储抽象接口，屏蔽底层实现（S3 / R2 / MinIO 等）。
+ * 对象存储抽象接口。
  */
 public interface ObjectStorageService {
 
