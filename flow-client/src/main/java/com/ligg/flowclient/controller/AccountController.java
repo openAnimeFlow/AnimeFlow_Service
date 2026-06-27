@@ -82,7 +82,7 @@ public class AccountController {
     }
 
     /**
-     * 使用 refresh_token 刷新 access_token（同时轮换 refresh_token）
+     * 刷新 flow token
      */
     @PostMapping("/refresh")
     @IpEndpointRateLimit(keyPrefix = "animeflow:account:refresh:ip:", seconds = 60, maxRequests = 30)
