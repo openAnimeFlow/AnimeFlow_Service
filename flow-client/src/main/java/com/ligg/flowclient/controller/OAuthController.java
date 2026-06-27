@@ -154,7 +154,7 @@ public class OAuthController {
     }
 
     /**
-     * 刷新token
+     * 刷新bgm token
      */
     @PostMapping("/refresh")
     public Result<TokenVo> refreshToken(String refreshToken) {
