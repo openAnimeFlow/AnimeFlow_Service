@@ -158,7 +158,7 @@ public class BangumiServiceImpl implements BangumiService {
      * 获取关联条目。
      */
     @Override
-    public SubjectRelationsVo getRelatedSubjects(Integer subjectId, int limit, int offset) {
+    public SubjectRelationsVo getRelatedSubjects(Integer subjectId, int limit, int offset, int type) {
         SubjectRelationsVo vo = new SubjectRelationsVo();
         if (subjectId == null || limit <= 0) {
             vo.setData(Collections.emptyList());
@@ -167,7 +167,7 @@ public class BangumiServiceImpl implements BangumiService {
         }
 
         IPage<SubjectRelationRow> page = subjectMapper.selectRelatedSubjects(
-                new LimitOffsetPage<>(limit, offset), subjectId);
+                new LimitOffsetPage<>(limit, offset), subjectId, type);
 
         List<SubjectRelationRow> rows = page.getRecords();
         if (rows == null || rows.isEmpty()) {

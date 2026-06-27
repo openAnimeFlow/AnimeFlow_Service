@@ -17,6 +17,5 @@ public interface BangumiSubjectMapper extends BaseMapper<BangumiSubjectEntity> {
                                                     @Param("type") int type,
                                                     @Param("limit") int limit);
 
-    IPage<SubjectRelationRow> selectRelatedSubjects(IPage<?> page, @Param("subjectId") Integer subjectId);
-
+    IPage<SubjectRelationRow> selectRelatedSubjects(IPage<?> page, @Param("subjectId") Integer subjectId ,@Param("type") Integer type);
 }

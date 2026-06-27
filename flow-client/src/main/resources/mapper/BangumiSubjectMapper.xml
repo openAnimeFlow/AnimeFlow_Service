@@ -44,7 +44,7 @@
                s.images
         FROM bangumi_subject_relation r
                  JOIN bangumi_subject s ON r.related_subject_id = s.id
-        WHERE r.subject_id = #{subjectId}
+        WHERE r.subject_id = #{subjectId} and s.type = #{type}
         ORDER BY r.`order`, r.related_subject_id
     </select>
 

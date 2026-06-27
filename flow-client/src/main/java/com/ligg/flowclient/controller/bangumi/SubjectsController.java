@@ -217,9 +217,10 @@ public class SubjectsController {
     @GetMapping("/{subjectId}/relations")
     public Result<SubjectRelationsVo> subjectRelationsLocal(
             @NotNull @PathVariable int subjectId,
+            @RequestParam(defaultValue = "2") int type,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int offset) {
-        SubjectRelationsVo vo = bangumiService.getRelatedSubjects(subjectId, limit, offset);
+        SubjectRelationsVo vo = bangumiService.getRelatedSubjects(subjectId, limit, offset, type);
         if (vo.getData() != null) {
             for (SubjectRelationsVo.Item item : vo.getData()) {
                 if (item != null && item.getSubject() != null) {
