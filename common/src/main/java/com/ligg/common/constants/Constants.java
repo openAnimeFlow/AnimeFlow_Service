@@ -3,6 +3,7 @@ package com.ligg.common.constants;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @Author Ligg
@@ -24,6 +25,24 @@ public class Constants {
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0",
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.0.0"
             )
+    );
+
+    /**
+     * Bangumi 关联类型中文名
+     */
+    public static final Map<Integer, String> RELATION_TYPE_CN = Map.ofEntries(
+            Map.entry(1, "改编"),
+            Map.entry(2, "前传"),
+            Map.entry(3, "续集"),
+            Map.entry(4, "番外篇"),
+            Map.entry(5, "相同世界观"),
+            Map.entry(6, "不同演绎"),
+            Map.entry(7, "主线故事"),
+            Map.entry(8, "角色出演"),
+            Map.entry(9, "其他"),
+            Map.entry(10, "主线故事"),
+            Map.entry(11, "外传"),
+            Map.entry(12, "其他")
     );
 
     /**

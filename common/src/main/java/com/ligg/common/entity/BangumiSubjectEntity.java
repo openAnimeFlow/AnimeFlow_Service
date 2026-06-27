@@ -94,4 +94,9 @@ public class BangumiSubjectEntity {
      * 是否为系列作品
      */
     private Boolean series;
+
+    /**
+     * 封面图片 JSON（large / common / medium / small / grid）
+     */
+    private String images;
 }

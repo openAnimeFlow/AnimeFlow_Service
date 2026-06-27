@@ -4,6 +4,7 @@ import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
 import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
 import com.ligg.common.vo.bangumi.SearchSuggestionsVo;
+import com.ligg.common.vo.bangumi.SubjectRelationsVo;
 
 public interface BangumiService {
 
@@ -23,4 +24,9 @@ public interface BangumiService {
      * @param flowAccessToken 可选 Flow JWT
      */
     SubjectsDto searchSubjects(SearchSubjectsBody body, int limit, int offset, String flowAccessToken);
+
+    /**
+     * 获取关联条目
+     */
+    SubjectRelationsVo getRelatedSubjects(Integer subjectId, int limit, int offset);
 }

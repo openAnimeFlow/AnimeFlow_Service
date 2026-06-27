@@ -20,4 +20,32 @@
                  `rank` ASC
         LIMIT #{limit}
     </select>
+
+    <select id="selectRelatedSubjects" resultType="com.ligg.flowclient.module.dto.SubjectRelationRow">
+        SELECT r.subject_id    AS subjectId,
+               r.relation_type AS relationType,
+               r.`order`,
+               s.id,
+               s.type,
+               s.name,
+               s.name_cn       AS nameCn,
+               s.infobox,
+               s.platform,
+               s.summary,
+               s.nsfw,
+               s.tags,
+               s.meta_tags     AS metaTags,
+               s.score,
+               s.score_details AS scoreDetails,
+               s.`rank`,
+               s.date,
+               s.favorite,
+               s.series,
+               s.images
+        FROM bangumi_subject_relation r
+                 JOIN bangumi_subject s ON r.related_subject_id = s.id
+        WHERE r.subject_id = #{subjectId}
+        ORDER BY r.`order`, r.related_subject_id
+    </select>
+
 </mapper>
