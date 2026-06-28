@@ -34,6 +34,8 @@ public class ImageBackfillService {
      * @param subjectImagesJson bangumi_subject.images 的 JSON 值，可为空
      * @param subjectId         条目 ID
      * @return 封面图，获取失败返回空 CoverImages
+     *
+     * TODO 需啊添加可选access_token，否有nsfw类型条目获取图片会失败
      */
     public CoverImages resolve(String subjectImagesJson, int subjectId) {
         CoverImages images;
