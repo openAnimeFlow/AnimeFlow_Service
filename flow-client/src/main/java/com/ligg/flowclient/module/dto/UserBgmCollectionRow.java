@@ -27,10 +27,11 @@ public class UserBgmCollectionRow {
     private LocalDateTime syncTime;
     private LocalDateTime createTime;
 
-    private String subjectName;
-    private String subjectNameCn;
+    private String name;
+    private String nameCn;
     private Boolean nsfw;
     private Double score;
     private String scoreDetails;
     private Integer rank;
+    private String infobox;
 }

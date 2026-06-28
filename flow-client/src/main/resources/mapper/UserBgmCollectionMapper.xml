@@ -19,7 +19,6 @@
                c.user_id,
                c.subject_id,
                c.subject_type,
-               c.images,
                c.bgm_interest_id,
                c.rate,
                c.type,
@@ -31,12 +30,14 @@
                c.bgm_updated_at,
                c.sync_time,
                c.create_time,
-               s.name       AS subject_name,
-               s.name_cn    AS subject_name_cn,
+               s.name,
+               s.name_cn,
                s.nsfw,
                s.score,
                s.score_details,
-               s.`rank`
+               s.`rank`,
+               s.infobox,
+               s.images
         FROM user_bgm_collection c
                  LEFT JOIN bangumi_subject s ON s.id = c.subject_id
         <include refid="userFilterWhere"/>

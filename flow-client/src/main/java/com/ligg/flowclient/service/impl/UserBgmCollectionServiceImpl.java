@@ -12,15 +12,18 @@ import com.ligg.common.thirdparty.bangumi.model.BangumiRating;
 import com.ligg.common.thirdparty.bangumi.request.UpdateCollectionBody;
 import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
 import com.ligg.common.thirdparty.bangumi.response.UserCollectionsDto;
+import com.ligg.common.utils.InfoboxParser;
 import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.bangumi.UserCollectionsVo;
 import com.ligg.flowclient.mapper.UserBgmCollectionMapper;
 import com.ligg.flowclient.module.dto.UpdateUserCollectionDto;
 import com.ligg.flowclient.module.dto.UserBgmCollectionRow;
 import com.ligg.flowclient.service.BangumiOAuthExecutor;
+import com.ligg.flowclient.service.ImageBackfillService;
 import com.ligg.flowclient.service.JwtTokenService;
 import com.ligg.flowclient.service.UserBgmCollectionService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -29,6 +32,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
@@ -41,6 +45,7 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
     private final ObjectMapper objectMapper;
     private final BangumiOAuthExecutor bangumiOAuthExecutor;
     private final BangumiClient bangumiClient;
+    private final ImageBackfillService imageBackfillService;
 
     @Override
     public UserCollectionsVo listMyCollections(String accessToken, int subjectType, int type, int limit, int offset) {
@@ -230,9 +235,9 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
         item.setId(row.getSubjectId());
         item.setInterest(toInterest(row));
 
-        if (StringUtils.hasText(row.getSubjectName())) {
-            item.setName(row.getSubjectName());
-            item.setNameCN(row.getSubjectNameCn());
+        if (StringUtils.hasText(row.getName())) {
+            item.setName(row.getName());
+            item.setNameCN(row.getNameCn());
             item.setType(row.getSubjectType());
             item.setNsfw(Boolean.TRUE.equals(row.getNsfw()));
             item.setRating(toRating(row));
@@ -243,10 +248,10 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
             item.setRating(emptyRating());
         }
 
-        CoverImages images = parseImages(row.getImages());
+        CoverImages images = imageBackfillService.resolve(row.getImages(), row.getSubjectId());
         Utils.applyWsrvCdnInPlace(images);
         item.setImages(images);
-        item.setInfo("");
+        item.setInfo(InfoboxParser.toInfo(row.getInfobox()));
         item.setLocked(false);
         return item;
     }
@@ -301,17 +306,6 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
             return counts;
         }
         return counts;
-    }
-
-    private CoverImages parseImages(String json) {
-        if (!StringUtils.hasText(json)) {
-            return new CoverImages();
-        }
-        try {
-            return objectMapper.readValue(json, CoverImages.class);
-        } catch (JsonProcessingException e) {
-            return new CoverImages();
-        }
     }
 
     private List<String> parseTags(String json) {
