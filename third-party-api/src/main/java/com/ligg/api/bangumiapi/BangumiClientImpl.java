@@ -12,31 +12,16 @@ import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
 import com.ligg.common.thirdparty.bangumi.request.UpdateCollectionBody;
-import com.ligg.common.thirdparty.bangumi.response.CharacterCommentDto;
-import com.ligg.common.thirdparty.bangumi.response.CharacterCommentsDto;
-import com.ligg.common.thirdparty.bangumi.response.CharacterCastsDto;
-import com.ligg.common.thirdparty.bangumi.response.CharacterDetailDto;
-import com.ligg.common.thirdparty.bangumi.response.CalendarDto;
-import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentDto;
-import com.ligg.common.thirdparty.bangumi.response.EpisodeCommentsDto;
-import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
-import com.ligg.common.thirdparty.bangumi.response.SubjectCharactersDto;
-import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
-import com.ligg.common.thirdparty.bangumi.response.SubjectCommentsDto;
-import com.ligg.common.thirdparty.bangumi.response.SubjectRelationsDto;
-import com.ligg.common.thirdparty.bangumi.response.SubjectStaffPersonsDto;
-import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
-import com.ligg.common.thirdparty.bangumi.response.TrendingSubjectsDto;
-import com.ligg.common.thirdparty.bangumi.response.UserCollectionsDto;
-import com.ligg.common.thirdparty.bangumi.response.UserProfileDto;
+import com.ligg.common.thirdparty.bangumi.response.*;
 import com.ligg.common.vo.BangumiUserinfoVO;
+import io.netty.handler.timeout.ReadTimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
-import org.springframework.util.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -46,8 +31,6 @@ import java.net.SocketTimeoutException;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
-
-import io.netty.handler.timeout.ReadTimeoutException;
 
 @Slf4j
 @Service
@@ -166,7 +149,7 @@ public class BangumiClientImpl implements BangumiClient {
     }
 
     @Override
-    public SubjectCharactersDto getSubjectCharacters(int subjectId, int limit, int offset, Integer type) {
+    public SubjectCharactersDto getSubjectCharacters(String bgmToken, int subjectId, int limit, int offset, Integer type) {
         log.info("获取条目角色 subjectId={} limit={} offset={} type={}", subjectId, limit, offset, type);
         return blockBangumi(bangumiNextClient.get()
                 .uri(uriBuilder -> {
@@ -178,6 +161,11 @@ public class BangumiClientImpl implements BangumiClient {
                         builder.queryParam("type", type);
                     }
                     return builder.build(subjectId);
+                })
+                .headers(headers -> {
+                    if (StringUtils.hasText(bgmToken)) {
+                        headers.setBearerAuth(bgmToken);
+                    }
                 })
                 .retrieve()
                 .bodyToMono(SubjectCharactersDto.class));
@@ -202,7 +190,8 @@ public class BangumiClientImpl implements BangumiClient {
                         .queryParam("offset", offset)
                         .build(characterId))
                 .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<List<CharacterCommentDto>>() {})
+                .bodyToMono(new ParameterizedTypeReference<List<CharacterCommentDto>>() {
+                })
                 .map(comments -> {
                     CharacterCommentsDto dto = new CharacterCommentsDto();
                     dto.setData(comments);
@@ -230,7 +219,7 @@ public class BangumiClientImpl implements BangumiClient {
     }
 
     @Override
-    public SubjectStaffPersonsDto getSubjectStaffPersons(int subjectId, int limit, int offset) {
+    public SubjectStaffPersonsDto getSubjectStaffPersons(String bgmToken, int subjectId, int limit, int offset) {
         log.info("获取条目制作人员 subjectId={} limit={} offset={}", subjectId, limit, offset);
         return blockBangumi(bangumiNextClient.get()
                 .uri(uriBuilder -> uriBuilder
@@ -238,12 +227,17 @@ public class BangumiClientImpl implements BangumiClient {
                         .queryParam("limit", limit)
                         .queryParam("offset", offset)
                         .build(subjectId))
+                .headers(httpHeaders -> {
+                    if (StringUtils.hasText(bgmToken)) {
+                        httpHeaders.setBearerAuth(bgmToken);
+                    }
+                })
                 .retrieve()
                 .bodyToMono(SubjectStaffPersonsDto.class));
     }
 
     @Override
-    public SubjectCommentsDto getSubjectComments(int subjectId, int limit, int offset) {
+    public SubjectCommentsDto getSubjectComments(String bgmToken, int subjectId, int limit, int offset) {
         log.info("获取条目评论 subjectId={} limit={} offset={}", subjectId, limit, offset);
         return blockBangumi(bangumiNextClient.get()
                 .uri(uriBuilder -> uriBuilder
@@ -251,6 +245,11 @@ public class BangumiClientImpl implements BangumiClient {
                         .queryParam("limit", limit)
                         .queryParam("offset", offset)
                         .build(subjectId))
+                .headers(httpHeaders -> {
+                    if (StringUtils.hasText(bgmToken)) {
+                        httpHeaders.setBearerAuth(bgmToken);
+                    }
+                })
                 .retrieve()
                 .bodyToMono(SubjectCommentsDto.class));
     }
@@ -278,7 +277,8 @@ public class BangumiClientImpl implements BangumiClient {
         return blockBangumi(bangumiNextClient.get()
                 .uri(BangumiNextApiPath.P1_EPISODE_COMMENTS, episodeId)
                 .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<List<EpisodeCommentDto>>() {})
+                .bodyToMono(new ParameterizedTypeReference<List<EpisodeCommentDto>>() {
+                })
                 .map(comments -> {
                     EpisodeCommentsDto dto = new EpisodeCommentsDto();
                     dto.setData(comments);

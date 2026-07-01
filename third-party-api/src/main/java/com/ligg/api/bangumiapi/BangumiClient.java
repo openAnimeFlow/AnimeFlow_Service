@@ -75,7 +75,7 @@ public interface BangumiClient {
      *
      * @param type 角色类型筛选，可为空
      */
-    SubjectCharactersDto getSubjectCharacters(int subjectId, int limit, int offset, Integer type);
+    SubjectCharactersDto getSubjectCharacters(String bgmToken, int subjectId, int limit, int offset, Integer type);
 
     /**
      * 获取角色详情
@@ -97,12 +97,12 @@ public interface BangumiClient {
     /**
      * 获取条目制作人员列表
      */
-    SubjectStaffPersonsDto getSubjectStaffPersons(int subjectId, int limit, int offset);
+    SubjectStaffPersonsDto getSubjectStaffPersons(String bgmToken, int subjectId, int limit, int offset);
 
     /**
      * 获取条目评论列表
      */
-    SubjectCommentsDto getSubjectComments(int subjectId, int limit, int offset);
+    SubjectCommentsDto getSubjectComments(String bgmToken, int subjectId, int limit, int offset);
 
     /**
      * 获取条目关联列表

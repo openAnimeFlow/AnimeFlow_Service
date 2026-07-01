@@ -75,9 +75,17 @@ public class SubjectsController {
             @NotNull @PathVariable int subjectId,
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(defaultValue = "0") int offset,
+            @RequestAttribute(name = AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, required = false) String flowAccessToken,
             @RequestParam(required = false) Integer type) {
+        final UserOauthEntity oauth = resolveBangumiOauth(flowAccessToken);
         Supplier<SubjectCharactersVo> loader = () -> {
-            SubjectCharactersDto dto = bangumiClient.getSubjectCharacters(subjectId, limit, offset, type);
+            SubjectCharactersDto dto;
+            if (oauth != null) {
+                dto = bangumiOAuthExecutor.execute(oauth,
+                        token -> bangumiClient.getSubjectCharacters(token, subjectId, limit, offset, type));
+            } else {
+                dto = bangumiClient.getSubjectCharacters(null, subjectId, limit, offset, type);
+            }
             if (dto.getData() != null) {
                 for (SubjectCharactersDto.Item item : dto.getData()) {
                     if (item == null) {
@@ -128,10 +136,18 @@ public class SubjectsController {
     @GetMapping("/{subjectId}/staffs/persons")
     public Result<SubjectStaffPersonsVo> subjectStaffPersons(
             @NotNull @PathVariable int subjectId,
+            @RequestAttribute(name = AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, required = false) String flowAccessToken,
             @RequestParam(defaultValue = "10") int limit,
             @RequestParam(defaultValue = "0") int offset) {
+        final UserOauthEntity oauth = resolveBangumiOauth(flowAccessToken);
         Supplier<SubjectStaffPersonsVo> loader = () -> {
-            SubjectStaffPersonsDto dto = bangumiClient.getSubjectStaffPersons(subjectId, limit, offset);
+            SubjectStaffPersonsDto dto;
+            if (oauth != null) {
+                dto = bangumiOAuthExecutor.execute(oauth,
+                        token -> bangumiClient.getSubjectStaffPersons(token, subjectId, limit, offset));
+            } else {
+                dto = bangumiClient.getSubjectStaffPersons(null, subjectId, limit, offset);
+            }
             if (dto.getData() != null) {
                 for (SubjectStaffPersonsDto.Item item : dto.getData()) {
                     if (item != null && item.getStaff() != null) {
@@ -172,9 +188,18 @@ public class SubjectsController {
     public Result<SubjectCommentsVo> subjectComments(
             @NotNull @PathVariable int subjectId,
             @RequestParam(defaultValue = "20") int limit,
-            @RequestParam(defaultValue = "0") int offset) {
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestAttribute(name = AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, required = false) String flowAccessToken
+    ) {
+        final UserOauthEntity oauth = resolveBangumiOauth(flowAccessToken);
         Supplier<SubjectCommentsVo> loader = () -> {
-            SubjectCommentsDto dto = bangumiClient.getSubjectComments(subjectId, limit, offset);
+            SubjectCommentsDto dto;
+            if (oauth != null) {
+                dto = bangumiOAuthExecutor.execute(oauth,
+                        token -> bangumiClient.getSubjectComments(token, subjectId, limit, offset));
+            } else {
+                dto = bangumiClient.getSubjectComments(null, subjectId, limit, offset);
+            }
             if (dto.getData() != null) {
                 for (SubjectCommentsDto.Comment comment : dto.getData()) {
                     if (comment != null && comment.getUser() != null) {
@@ -217,14 +242,14 @@ public class SubjectsController {
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int offset,
             @RequestAttribute(name = AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, required = false) String flowAccessToken) {
-        String bangumiAccessToken = null;
-        Long userId = jwtTokenService.validateAccessToken(flowAccessToken);
-        //bangumiAccessToken 可能为null (未绑定bangumi)
-        UserOauthEntity bangumiOauth = bangumiOAuthTokenService.findBangumiOauth(userId);
-        if (StringUtils.hasText(bangumiOauth.getAccessToken())) {
-            bangumiAccessToken = bangumiOauth.getAccessToken();
+        UserOauthEntity oauth = resolveBangumiOauth(flowAccessToken);
+        SubjectRelationsVo vo;
+        if (oauth != null) {
+            vo = bangumiOAuthExecutor.execute(oauth,
+                    token -> bangumiService.getRelatedSubjects(subjectId, limit, offset, type, token));
+        } else {
+            vo = bangumiService.getRelatedSubjects(subjectId, limit, offset, type, null);
         }
-        SubjectRelationsVo vo = bangumiService.getRelatedSubjects(subjectId, limit, offset, type, bangumiAccessToken);
         if (vo.getData() != null) {
             for (SubjectRelationsVo.Item item : vo.getData()) {
                 if (item != null && item.getSubject() != null) {
@@ -323,6 +348,23 @@ public class SubjectsController {
                 SubjectsController::shouldCacheSubjectDetail,
                 () -> log.info("条目详情(命中缓存), subjectId={}", subjectId));
         return Result.success(ResponseCode.SUCCESS, vo);
+    }
+
+    /**
+     * 从 Flow JWT 中解析 Bangumi OAuth 实体。
+     * token 无效或未绑定 Bangumi 时返回 {@code null}，回退公开访问。
+     */
+    private UserOauthEntity resolveBangumiOauth(String flowAccessToken) {
+        if (flowAccessToken == null) {
+            return null;
+        }
+        try {
+            Long userId = jwtTokenService.validateAccessToken(flowAccessToken);
+            return bangumiOAuthTokenService.findBangumiOauth(userId);
+        } catch (LoginExpiredException ignored) {
+            // token 无效或未绑定 Bangumi，回退公开访问
+        }
+        return null;
     }
 
     private static SubjectDetailVo toSubjectDetailVo(SubjectDetailDto dto) {
