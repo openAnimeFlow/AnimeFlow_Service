@@ -28,5 +28,5 @@ public interface BangumiService {
     /**
      * 获取关联条目
      */
-    SubjectRelationsVo getRelatedSubjects(Integer subjectId, int limit, int offset,int type);
+    SubjectRelationsVo getRelatedSubjects(Integer subjectId, int limit, int offset,int type, String bangumiAccessToken);
 }

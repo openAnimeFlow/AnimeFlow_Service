@@ -33,11 +33,10 @@ public class ImageBackfillService {
      *
      * @param subjectImagesJson bangumi_subject.images 的 JSON 值，可为空
      * @param subjectId         条目 ID
+     * @param accessToken       Bangumi OAuth access token，可为 null（传 null 时不会在请求中携带）
      * @return 封面图，获取失败返回空 CoverImages
-     *
-     * TODO 需啊添加可选access_token，否有nsfw类型条目获取图片会失败
      */
-    public CoverImages resolve(String subjectImagesJson, int subjectId) {
+    public CoverImages resolve(String subjectImagesJson, int subjectId, String accessToken) {
         CoverImages images;
         if (StringUtils.hasText(subjectImagesJson) && !"null".equals(subjectImagesJson)) {
             try {
@@ -47,7 +46,7 @@ public class ImageBackfillService {
                 images = new CoverImages();
             }
         } else {
-            images = fetchAndSave(subjectId);
+            images = fetchAndSave(subjectId, accessToken);
         }
         if (images.getLarge() == null) images.setLarge("");
         if (images.getCommon() == null) images.setCommon("");
@@ -57,7 +56,7 @@ public class ImageBackfillService {
         return images;
     }
 
-    private CoverImages fetchAndSave(int subjectId) {
+    private CoverImages fetchAndSave(int subjectId, String accessToken) {
         // 锁对象不删除：避免 remove 后其他线程创建新锁绕过互斥，造成重复请求。
         // subjectId 数量有限（≈3 万），全量常驻仅约 2 MB，可接受。
         Object lock = locks.computeIfAbsent(subjectId, k -> new Object());
@@ -79,7 +78,7 @@ public class ImageBackfillService {
 
             for (SubjectImageType type : SubjectImageType.values()) {
                 try {
-                    String url = bangumiV0Client.getSubjectImageUrl(subjectId, type);
+                    String url = bangumiV0Client.getSubjectImageUrl(subjectId, type, accessToken);
                     if (StringUtils.hasText(url)) {
                         setField(images, type, url);
                         anySucceeded = true;

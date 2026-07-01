@@ -48,9 +48,7 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
     private final ImageBackfillService imageBackfillService;
 
     @Override
-    public UserCollectionsVo listMyCollections(String accessToken, int subjectType, int type, int limit, int offset) {
-        Long userId = jwtTokenService.validateAccessToken(accessToken);
-
+    public UserCollectionsVo listMyCollections(String accessToken, long userId, int subjectType, int type, int limit, int offset) {
         UserCollectionsVo vo = new UserCollectionsVo();
         if (limit <= 0) {
             vo.setData(Collections.emptyList());
@@ -70,7 +68,7 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
 
         List<UserCollectionsDto.Item> items = new ArrayList<>(rows.size());
         for (UserBgmCollectionRow row : rows) {
-            items.add(toItem(row));
+            items.add(toItem(row, accessToken));
         }
 
         vo.setData(items);
@@ -230,7 +228,7 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
         }
     }
 
-    private UserCollectionsDto.Item toItem(UserBgmCollectionRow row) {
+    private UserCollectionsDto.Item toItem(UserBgmCollectionRow row, String accessToken) {
         UserCollectionsDto.Item item = new UserCollectionsDto.Item();
         item.setId(row.getSubjectId());
         item.setInterest(toInterest(row));
@@ -248,7 +246,7 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
             item.setRating(emptyRating());
         }
 
-        CoverImages images = imageBackfillService.resolve(row.getImages(), row.getSubjectId());
+        CoverImages images = imageBackfillService.resolve(row.getImages(), row.getSubjectId(), accessToken);
         Utils.applyWsrvCdnInPlace(images);
         item.setImages(images);
         item.setInfo(InfoboxParser.toInfo(row.getInfobox()));

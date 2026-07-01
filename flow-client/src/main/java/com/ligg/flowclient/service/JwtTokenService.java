@@ -158,8 +158,8 @@ public class JwtTokenService {
                 continue;
             }
             session.setEmail(email);
-            Long ttlSeconds = redisTemplate.getExpire(sessionRedisKey(sessionId), TimeUnit.SECONDS);
-            if (ttlSeconds != null && ttlSeconds > 0) {
+            long ttlSeconds = redisTemplate.getExpire(sessionRedisKey(sessionId), TimeUnit.SECONDS);
+            if (ttlSeconds > 0) {
                 redisTemplate.opsForValue().set(
                         sessionRedisKey(sessionId),
                         session,

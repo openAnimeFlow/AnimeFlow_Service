@@ -44,12 +44,17 @@ public class BangumiV0ClientImpl implements BangumiV0Client {
     }
 
     @Override
-    public String getSubjectImageUrl(int subjectId, SubjectImageType type) {
+    public String getSubjectImageUrl(int subjectId, SubjectImageType type, String accessToken) {
         return block(bangumiV0Client.get()
                 .uri(uriBuilder -> uriBuilder
                         .path(BangumiApiPath.V0_SUBJECT_IMAGE)
                         .queryParam("type", type.getValue())
                         .build(subjectId))
+                .headers(httpHeaders -> {
+                    if (StringUtils.hasText(accessToken)) {
+                        httpHeaders.setBearerAuth(accessToken);
+                    }
+                })
                 .exchangeToMono(response -> {
                     HttpStatusCode status = response.statusCode();
                     if (status.is3xxRedirection()) {

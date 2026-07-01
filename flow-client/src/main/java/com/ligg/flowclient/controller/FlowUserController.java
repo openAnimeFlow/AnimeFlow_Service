@@ -5,6 +5,8 @@
 
 package com.ligg.flowclient.controller;
 
+import com.ligg.common.entity.UserOauthEntity;
+import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
@@ -12,10 +14,13 @@ import com.ligg.flowclient.module.dto.UpdateUserCollectionDto;
 import com.ligg.flowclient.module.dto.UpdateUserDto;
 import com.ligg.flowclient.module.vo.FlowUserVo;
 import com.ligg.common.vo.bangumi.UserCollectionsVo;
+import com.ligg.flowclient.service.BangumiOAuthTokenService;
+import com.ligg.flowclient.service.JwtTokenService;
 import com.ligg.flowclient.service.UserBgmCollectionService;
 import com.ligg.flowclient.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -27,6 +32,10 @@ public class FlowUserController {
     private final UserService userService;
 
     private final UserBgmCollectionService userBgmCollectionService;
+
+    private final BangumiOAuthTokenService bangumiOAuthTokenService;
+
+    private final JwtTokenService jwtTokenService;
 
     /**
      * 获取当前登录用户信息（需携带 AnimeFlow access_token）。
@@ -71,13 +80,16 @@ public class FlowUserController {
      */
     @GetMapping("/collections")
     public Result<UserCollectionsVo> getMeCollections(
-            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
+            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String flowAccessToken,
             @RequestParam(defaultValue = "2") int subjectType,
             @RequestParam(defaultValue = "2") int type,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int offset) {
+        Long userId = jwtTokenService.validateAccessToken(flowAccessToken);
+        UserOauthEntity bangumiOauth = bangumiOAuthTokenService.findBangumiOauth(userId);
+        //accessToken 可能为null (未绑定bangumi)
         UserCollectionsVo vo = userBgmCollectionService.listMyCollections(
-                accessToken, subjectType, type, limit, offset);
+                bangumiOauth.getAccessToken(), userId, subjectType, type, limit, offset);
         return Result.success(ResponseCode.SUCCESS, vo);
     }
 

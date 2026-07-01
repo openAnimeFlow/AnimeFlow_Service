@@ -6,6 +6,8 @@ package com.ligg.flowclient.controller.bangumi;
 
 import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.common.constants.bangumi.BangumiConstants;
+import com.ligg.common.entity.UserOauthEntity;
+import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
@@ -13,13 +15,7 @@ import com.ligg.common.thirdparty.bangumi.response.*;
 import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.bangumi.*;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
-import com.ligg.flowclient.service.BangumiCacheService;
-import com.ligg.flowclient.service.BangumiOAuthExecutor;
-import com.ligg.flowclient.service.BangumiOAuthTokenService;
-import com.ligg.flowclient.service.BangumiService;
-import com.ligg.flowclient.service.JwtTokenService;
-import com.ligg.common.entity.UserOauthEntity;
-import com.ligg.common.exception.LoginExpiredException;
+import com.ligg.flowclient.service.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -219,8 +215,16 @@ public class SubjectsController {
             @NotNull @PathVariable int subjectId,
             @RequestParam(defaultValue = "2") int type,
             @RequestParam(defaultValue = "20") int limit,
-            @RequestParam(defaultValue = "0") int offset) {
-        SubjectRelationsVo vo = bangumiService.getRelatedSubjects(subjectId, limit, offset, type);
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestAttribute(name = AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, required = false) String flowAccessToken) {
+        String bangumiAccessToken = null;
+        Long userId = jwtTokenService.validateAccessToken(flowAccessToken);
+        //bangumiAccessToken 可能为null (未绑定bangumi)
+        UserOauthEntity bangumiOauth = bangumiOAuthTokenService.findBangumiOauth(userId);
+        if (StringUtils.hasText(bangumiOauth.getAccessToken())) {
+            bangumiAccessToken = bangumiOauth.getAccessToken();
+        }
+        SubjectRelationsVo vo = bangumiService.getRelatedSubjects(subjectId, limit, offset, type, bangumiAccessToken);
         if (vo.getData() != null) {
             for (SubjectRelationsVo.Item item : vo.getData()) {
                 if (item != null && item.getSubject() != null) {
@@ -285,7 +289,7 @@ public class SubjectsController {
      * 对应 Bangumi {@code GET /p1/subjects/{id}}。未登录时对近期放送条目缓存；
      * 携带 Flow JWT 且已绑定 Bangumi 时，服务端换取 Bangumi OAuth token 直查以返回 {@code interest}。
      *
-     * @param subjectId      Bangumi 条目 ID
+     * @param subjectId       Bangumi 条目 ID
      * @param flowAccessToken 可选 Flow JWT（Bearer）
      */
     @GetMapping("/{subjectId}")

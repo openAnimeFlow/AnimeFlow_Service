@@ -10,5 +10,5 @@ public interface BangumiV0Client {
     /**
      * 获取条目封面图片 URL（{@code GET /v0/subjects/{subject_id}/image} 302 {@code Location}）。
      */
-    String getSubjectImageUrl(int subjectId, SubjectImageType type);
+    String getSubjectImageUrl(int subjectId, SubjectImageType type, String accessToken);
 }

@@ -148,7 +148,7 @@ public class BangumiServiceImpl implements BangumiService {
      * 获取关联条目。
      */
     @Override
-    public SubjectRelationsVo getRelatedSubjects(Integer subjectId, int limit, int offset, int type) {
+    public SubjectRelationsVo getRelatedSubjects(Integer subjectId, int limit, int offset, int type, String bangumiAccessToken) {
         SubjectRelationsVo vo = new SubjectRelationsVo();
         if (subjectId == null || limit <= 0) {
             vo.setData(Collections.emptyList());
@@ -166,7 +166,7 @@ public class BangumiServiceImpl implements BangumiService {
             return vo;
         }
 
-        List<SubjectRelationsVo.Item> items = rows.stream().map(this::toRelationItem).toList();
+        List<SubjectRelationsVo.Item> items = rows.stream().map(row -> toRelationItem(row, bangumiAccessToken)).toList();
         vo.setData(items);
         vo.setTotal((int) page.getTotal());
         return vo;
@@ -175,7 +175,7 @@ public class BangumiServiceImpl implements BangumiService {
     /**
      * 将 DB 行转为 VO 条目，在转换过程中按需获取并回写图片。
      */
-    private SubjectRelationsVo.Item toRelationItem(SubjectRelationRow row) {
+    private SubjectRelationsVo.Item toRelationItem(SubjectRelationRow row, String bangumiAccessToken) {
         SubjectRelationsVo.Item item = new SubjectRelationsVo.Item();
 
         // 构建关联信息
@@ -198,7 +198,7 @@ public class BangumiServiceImpl implements BangumiService {
         subject.setInfo(InfoboxParser.toInfo(row.getInfobox()));
         subject.setRating(buildRating(row));
         subject.setLocked(false);
-        subject.setImages(imageBackfillService.resolve(row.getImages(), row.getId()));
+        subject.setImages(imageBackfillService.resolve(row.getImages(), row.getId(), bangumiAccessToken));
 
         item.setSubject(subject);
         return item;
