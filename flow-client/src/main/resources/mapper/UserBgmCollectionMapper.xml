@@ -44,4 +44,19 @@
         ORDER BY c.bgm_updated_at DESC
         LIMIT #{limit} OFFSET #{offset}
     </select>
+
+    <select id="selectUserSubjectInterest" resultType="com.ligg.flowclient.module.dto.UserSubjectInterestRow">
+      select bgm_interest_id as id,
+           rate,
+           type,
+           comment,
+           tags,
+           ep_status,
+           vol_status,
+           `private` as "privately",
+           bgm_updated_at
+      from user_bgm_collection
+      where user_id = #{userId}
+        and subject_id = #{subjectId}
+    </select>
 </mapper>

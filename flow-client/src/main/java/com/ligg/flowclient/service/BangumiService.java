@@ -4,9 +4,15 @@ import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
 import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
 import com.ligg.common.vo.bangumi.SearchSuggestionsVo;
+import com.ligg.common.vo.bangumi.SubjectDetailVo;
 import com.ligg.common.vo.bangumi.SubjectRelationsVo;
 
 public interface BangumiService {
+
+    /**
+     * 条目详情
+     */
+    SubjectDetailVo getSubjectInfo(Integer subjectId, long userId);
 
     /**
      * 获取番剧剧集列表
@@ -28,5 +34,5 @@ public interface BangumiService {
     /**
      * 获取关联条目
      */
-    SubjectRelationsVo getRelatedSubjects(Integer subjectId, int limit, int offset,int type, String bangumiAccessToken);
+    SubjectRelationsVo getRelatedSubjects(Integer subjectId, int limit, int offset, int type, String bangumiAccessToken);
 }

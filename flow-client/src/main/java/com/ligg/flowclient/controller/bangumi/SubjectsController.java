@@ -322,32 +322,15 @@ public class SubjectsController {
             @NotNull @PathVariable int subjectId,
             @RequestAttribute(name = AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, required = false)
             String flowAccessToken) {
+        long userId = 0;
         if (StringUtils.hasText(flowAccessToken)) {
             try {
-                Long userId = jwtTokenService.validateAccessToken(flowAccessToken);
-                UserOauthEntity oauth = bangumiOAuthTokenService.findBangumiOauth(userId);
-                if (oauth != null) {
-                    SubjectDetailDto dto = bangumiOAuthExecutor.execute(oauth,
-                            bangumiToken -> bangumiClient.getSubject(subjectId, bangumiToken));
-                    return Result.success(ResponseCode.SUCCESS, toSubjectDetailVo(dto));
-                }
+                userId = jwtTokenService.validateAccessToken(flowAccessToken);
             } catch (LoginExpiredException ignored) {
-                // token 无效或未绑定 Bangumi，回退公开缓存逻辑
+               // 未登录，回退公开访问
             }
         }
-
-        String cacheKey = BangumiConstants.BANGUMI_SUBJECT_DETAIL_CACHE_KEY_PREFIX + ':' + subjectId;
-        SubjectDetailVo vo = bangumiCacheService.getOrLoad(
-                cacheKey,
-                BangumiCacheService.lockKey(cacheKey),
-                SubjectDetailVo.class,
-                BangumiConstants.BANGUMI_SUBJECT_DETAIL_CACHE_TTL_SECONDS,
-                "获取条目详情超时，请稍后重试",
-                "获取条目详情被中断",
-                () -> toSubjectDetailVo(bangumiClient.getSubject(subjectId, null)),
-                SubjectsController::shouldCacheSubjectDetail,
-                () -> log.info("条目详情(命中缓存), subjectId={}", subjectId));
-        return Result.success(ResponseCode.SUCCESS, vo);
+        return Result.success(ResponseCode.SUCCESS, bangumiService.getSubjectInfo(subjectId, userId));
     }
 
     /**

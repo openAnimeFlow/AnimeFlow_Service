@@ -8,40 +8,42 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.common.constants.Constants;
 import com.ligg.common.entity.BangumiEpisodeEntity;
+import com.ligg.common.entity.BangumiSubjectEntity;
 import com.ligg.common.entity.UserOauthEntity;
 import com.ligg.common.exception.LoginExpiredException;
+import com.ligg.common.model.CoverImages;
 import com.ligg.common.thirdparty.bangumi.model.BangumiRating;
 import com.ligg.common.thirdparty.bangumi.model.BangumiSubject;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
+import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectRelationsDto.RelationInfo;
 import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
 import com.ligg.common.utils.InfoboxParser;
+import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.bangumi.SearchSuggestionsVo;
+import com.ligg.common.vo.bangumi.SubjectDetailVo;
 import com.ligg.common.vo.bangumi.SubjectRelationsVo;
 import com.ligg.flowclient.mapper.BangumiEpisodeMapper;
 import com.ligg.flowclient.mapper.BangumiSubjectMapper;
+import com.ligg.flowclient.mapper.UserBgmCollectionMapper;
 import com.ligg.flowclient.module.dto.SearchSuggestionRow;
 import com.ligg.flowclient.module.dto.SubjectRelationRow;
+import com.ligg.flowclient.module.dto.UserSubjectInterestRow;
 import com.ligg.flowclient.mybatis.LimitOffsetPage;
-import com.ligg.flowclient.service.BangumiOAuthExecutor;
-import com.ligg.flowclient.service.BangumiOAuthTokenService;
-import com.ligg.flowclient.service.BangumiService;
-import com.ligg.flowclient.service.ImageBackfillService;
-import com.ligg.flowclient.service.JwtTokenService;
+import com.ligg.flowclient.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.IntStream;
+import java.time.LocalDate;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -56,6 +58,170 @@ public class BangumiServiceImpl implements BangumiService {
     private final BangumiOAuthExecutor bangumiOAuthExecutor;
     private final ObjectMapper objectMapper;
     private final ImageBackfillService imageBackfillService;
+    private final UserBgmCollectionMapper userBgmCollectionMapper;
+
+    /**
+     * 条目详情
+     */
+    @Override
+    public SubjectDetailVo getSubjectInfo(Integer subjectId, long userId) {
+        BangumiSubjectEntity subject = subjectMapper.selectById(subjectId);
+        if (subject == null) {
+            return null;
+        }
+
+        SubjectDetailVo vo = new SubjectDetailVo();
+        vo.setId(subject.getId());
+        vo.setName(subject.getName());
+        vo.setNameCN(subject.getNameCn());
+        vo.setType(subject.getType());
+        vo.setNsfw(subject.getNsfw());
+        vo.setSummary(subject.getSummary());
+        vo.setSeries(subject.getSeries());
+        vo.setInfo(InfoboxParser.toInfo(subject.getInfobox()));
+
+        // 临时处理
+        vo.setRedirect(0);
+        vo.setSeriesEntry(0);
+        vo.setVolumes(0);
+        vo.setLocked(false);
+
+        // 结构化 infobox 条目
+        if (StringUtils.hasText(subject.getInfobox())) {
+            Map<String, List<String>> entries = InfoboxParser.toEntries(subject.getInfobox());
+            List<SubjectDetailDto.InfoboxEntry> infoboxList = new ArrayList<>();
+            for (Map.Entry<String, List<String>> entry : entries.entrySet()) {
+                SubjectDetailDto.InfoboxEntry ie = new SubjectDetailDto.InfoboxEntry();
+                ie.setKey(entry.getKey());
+                ie.setValues(entry.getValue().stream()
+                        .map(v -> {
+                            SubjectDetailDto.InfoboxValue iv = new SubjectDetailDto.InfoboxValue();
+                            iv.setV(v);
+                            return iv;
+                        })
+                        .toList());
+                infoboxList.add(ie);
+            }
+            vo.setInfobox(infoboxList);
+        }
+
+        long eps = episodeMapper.selectCount(
+                new LambdaQueryWrapper<BangumiEpisodeEntity>()
+                        .eq(BangumiEpisodeEntity::getSubjectId, subjectId)
+                        .eq(BangumiEpisodeEntity::getType, 0));
+        vo.setEps((int) eps);
+
+        // 评分
+        BangumiRating rating = new BangumiRating();
+        rating.setScore(subject.getScore());
+        rating.setRank(subject.getRank());
+        rating.setCount(parseScoreDetails(subject.getScoreDetails()));
+        rating.setTotal(rating.getCount().stream().mapToInt(Integer::intValue).sum());
+        vo.setRating(rating);
+
+        // 放送时间
+        if (subject.getDate() != null) {
+            try {
+                LocalDate date = LocalDate.parse(subject.getDate());
+                SubjectDetailDto.Airtime airtime = new SubjectDetailDto.Airtime();
+                airtime.setDate(subject.getDate());
+                airtime.setMonth(date.getMonthValue());
+                airtime.setWeekday(date.getDayOfWeek().getValue());
+                airtime.setYear(date.getYear());
+                vo.setAirtime(airtime);
+            } catch (java.time.format.DateTimeParseException ignored) {
+                // 日期格式异常，跳过
+            }
+        }
+
+        // 平台
+        if (subject.getPlatform() != null) {
+            SubjectDetailDto.Platform platform = new SubjectDetailDto.Platform();
+            platform.setId(subject.getPlatform());
+            platform.setType("TV");
+            platform.setTypeCN("TV");
+            platform.setAlias("tv");
+            platform.setOrder(0);
+            platform.setEnableHeader(true);
+            platform.setWikiTpl("TVAnime");
+            vo.setPlatform(platform);
+        }
+
+        // 标签
+        if (StringUtils.hasText(subject.getTags())) {
+            try {
+                List<SubjectDetailDto.SubjectTag> tags = objectMapper.readValue(
+                        subject.getTags(), new TypeReference<>() {
+                        });
+                vo.setTags(tags);
+            } catch (JsonProcessingException e) {
+                log.warn("解析 tags JSON 失败: {}", subject.getTags(), e);
+            }
+        }
+
+        // 公共标签
+        if (StringUtils.hasText(subject.getMetaTags())) {
+            try {
+                List<String> metaTags = objectMapper.readValue(
+                        subject.getMetaTags(), new TypeReference<>() {
+                        });
+                vo.setMetaTags(metaTags);
+            } catch (JsonProcessingException e) {
+                log.warn("解析 meta_tags JSON 失败: {}", subject.getMetaTags(), e);
+            }
+        }
+
+        // 收藏统计
+        if (StringUtils.hasText(subject.getFavorite())) {
+            try {
+                Map<String, Integer> raw = objectMapper.readValue(
+                        subject.getFavorite(), new TypeReference<>() {
+                        });
+                Map<String, Integer> collection = new LinkedHashMap<>();
+                String[] keys = {"1", "2", "3", "4", "5"};
+                String[] names = {"wish", "done", "doing", "on_hold", "dropped"};
+                for (int i = 0; i < keys.length; i++) {
+                    Integer count = raw.get(names[i]);
+                    if (count != null) {
+                        collection.put(keys[i], count);
+                    }
+                }
+                vo.setCollection(collection);
+            } catch (JsonProcessingException e) {
+                log.warn("解析 favorite JSON 失败: {}", subject.getFavorite(), e);
+            }
+        }
+
+        // 封面图片
+        CoverImages images = imageBackfillService.resolve(subject.getImages(), subjectId, null);
+        if (images != null && StringUtils.hasText(images.getLarge())) {
+            Utils.applyWsrvCdnInPlace(images);
+            vo.setImages(images);
+        }
+
+        if (userId > 0) {
+            UserSubjectInterestRow userInterest = userBgmCollectionMapper.selectUserSubjectInterest(userId, subjectId);
+            if (userInterest != null) {
+                SubjectDetailDto.SubjectInterest interest = getInterest(userInterest);
+                vo.setInterest(interest);
+            }
+        }
+        return vo;
+    }
+
+    private static SubjectDetailDto.SubjectInterest getInterest(UserSubjectInterestRow userInterest) {
+        SubjectDetailDto.SubjectInterest interest = new SubjectDetailDto.SubjectInterest();
+        interest.setId(userInterest.getId());
+        interest.setType(userInterest.getType());
+        if (userInterest.getRate() != null) interest.setRate(userInterest.getRate());
+        if (userInterest.getComment() != null) interest.setComment(userInterest.getComment());
+        if (userInterest.getTags() != null) interest.setTags(userInterest.getTags());
+        if (userInterest.getEpStatus() != null) interest.setEpStatus(userInterest.getEpStatus());
+        if (userInterest.getVolStatus() != null) interest.setVolStatus(userInterest.getVolStatus());
+        if (userInterest.getPrivately() != null) interest.setPrivately(userInterest.getPrivately());
+        interest.setUpdatedAt(userInterest.getBgmUpdatedAt());
+        return interest;
+    }
 
     @Override
     public SubjectEpisodesDto getEpisodes(Integer subjectId, int limit, int offset) {
@@ -196,7 +362,14 @@ public class BangumiServiceImpl implements BangumiService {
         subject.setType(row.getType());
         subject.setNsfw(row.getNsfw());
         subject.setInfo(InfoboxParser.toInfo(row.getInfobox()));
-        subject.setRating(buildRating(row));
+
+        BangumiRating rating = new BangumiRating();
+        rating.setRank(row.getRank());
+        rating.setScore(row.getScore());
+        rating.setCount(parseScoreDetails(row.getScoreDetails()));
+        rating.setTotal(rating.getCount().stream().mapToInt(Integer::intValue).sum());
+        subject.setRating(rating);
+
         subject.setLocked(false);
         subject.setImages(imageBackfillService.resolve(row.getImages(), row.getId(), bangumiAccessToken));
 
@@ -204,29 +377,22 @@ public class BangumiServiceImpl implements BangumiService {
         return item;
     }
 
-    /**
-     * 从 DB 行构建评分信息。count 来自 score_details JSON 的 1-10 分值对应的计数。
-     */
-    private BangumiRating buildRating(SubjectRelationRow row) {
-        BangumiRating rating = new BangumiRating();
-        rating.setRank(row.getRank());
-        rating.setScore(row.getScore());
-
-        List<Integer> counts = Collections.emptyList();
-        String scoreDetailsJson = row.getScoreDetails();
-        if (StringUtils.hasText(scoreDetailsJson)) {
-            try {
-                Map<String, Integer> map = objectMapper.readValue(scoreDetailsJson,
-                        new TypeReference<>() {});
-                counts = IntStream.rangeClosed(1, 10)
-                        .mapToObj(i -> map.getOrDefault(String.valueOf(i), 0))
-                        .toList();
-            } catch (JsonProcessingException e) {
-                log.warn("解析 score_details JSON 失败: {}", scoreDetailsJson, e);
-            }
+    private List<Integer> parseScoreDetails(String json) {
+        List<Integer> counts = new ArrayList<>(Collections.nCopies(10, 0));
+        if (!StringUtils.hasText(json)) {
+            return counts;
         }
-        rating.setCount(counts);
-        rating.setTotal(counts.stream().mapToInt(Integer::intValue).sum());
-        return rating;
+        try {
+            JsonNode node = objectMapper.readTree(json);
+            for (int i = 1; i <= 10; i++) {
+                JsonNode value = node.get(String.valueOf(i));
+                if (value != null && value.isNumber()) {
+                    counts.set(i - 1, value.intValue());
+                }
+            }
+        } catch (JsonProcessingException ignored) {
+            return counts;
+        }
+        return counts;
     }
 }

@@ -88,14 +88,14 @@ public class SubjectDetailDto {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class SubjectInterest {
         private Long id;
-        private Integer rate;
+        private Integer rate = 0;
         private Integer type;
-        private String comment;
-        private List<String> tags;
-        private Integer epStatus;
-        private Integer volStatus;
+        private String comment = "";
+        private List<String> tags = List.of();
+        private Integer epStatus = 0;
+        private Integer volStatus = 0;
         @JsonProperty("private")
-        private Boolean privately;
+        private Boolean privately = false;
         private Long updatedAt;
     }
 }

@@ -54,7 +54,7 @@ anime-flow:
 
   sync:
     archive:
-      enabled: true
+      enabled: false
       run-on-startup-if-missing: true
       latest-url: https://raw.githubusercontent.com/openAnimeFlow/animeFlow-assets/main/archive/latest.json
       cron: "0 0 3 * * *"

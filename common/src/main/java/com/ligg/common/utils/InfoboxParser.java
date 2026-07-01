@@ -2,6 +2,7 @@ package com.ligg.common.utils;
 
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -12,20 +13,6 @@ import java.util.stream.Collectors;
 
 /**
  * Bangumi wiki 原始字符串（infobox）解析工具。
- *
- * <pre>
- * 输入示例:
- * {{Infobox animanga/TVAnime
- * |中文名= 呪術廻戦
- * |话数= 24
- * |放送开始= 2020年10月2日
- * |导演= 朴性厚
- * |原作= 芥見下々
- * |人物设定= 平松禎史
- * }}
- *
- * 输出 info 示例: "24话 / 2020年10月2日 / 朴性厚 / 芥見下々 / 平松禎史"
- * </pre>
  */
 public final class InfoboxParser {
 
@@ -87,5 +74,63 @@ public final class InfoboxParser {
                 })
                 .filter(StringUtils::hasText)
                 .collect(Collectors.joining(" / "));
+    }
+
+    /**
+     * 将 infobox wiki 字符串解析为 key → 多值列表，同时处理单行和多行（{…}）值。
+     * <pre>
+     * 单行：|话数= 25          → "话数" → ["25"]
+     * 多行：|别名={            → "别名" → ["叛逆的鲁路修R2", "Code Geass: ..."]
+     *         [叛逆的鲁路修R2]
+     *         [Code Geass: ...]
+     *       }
+     * </pre>
+     */
+    public static Map<String, List<String>> toEntries(String infobox) {
+        if (!StringUtils.hasText(infobox)) {
+            return Collections.emptyMap();
+        }
+        Map<String, List<String>> entries = new LinkedHashMap<>();
+        String[] lines = infobox.split("\\R");
+        String currentKey = null;
+        boolean inBlock = false;
+
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.equals("}}")) {
+                break;
+            }
+            if (trimmed.startsWith("{{")) {
+                continue;
+            }
+            if (inBlock) {
+                if (trimmed.equals("}")) {
+                    inBlock = false;
+                    currentKey = null;
+                    continue;
+                }
+                // 多行值：去掉首尾的 [ ]
+                if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                    String v = trimmed.substring(1, trimmed.length() - 1).trim();
+                    if (!v.isEmpty()) {
+                        entries.get(currentKey).add(v);
+                    }
+                }
+                continue;
+            }
+            Matcher m = INFOBOX_LINE.matcher(trimmed);
+            if (m.matches()) {
+                currentKey = m.group(1).trim();
+                String value = m.group(2).trim();
+                if (value.equals("{")) {
+                    inBlock = true;
+                    entries.put(currentKey, new ArrayList<>());
+                } else {
+                    entries.put(currentKey, new ArrayList<>(List.of(value)));
+                    currentKey = null;
+                }
+            }
+        }
+        return Collections.unmodifiableMap(entries);
     }
 }
