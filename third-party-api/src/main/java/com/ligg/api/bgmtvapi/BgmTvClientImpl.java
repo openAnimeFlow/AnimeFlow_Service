@@ -1,5 +1,7 @@
 package com.ligg.api.bgmtvapi;
 
+import com.ligg.api.config.BangumiProperties;
+import com.ligg.api.config.WebClientConfig;
 import com.ligg.common.apipath.BgmTvApiPath;
 import com.ligg.common.constants.Constants;
 import com.ligg.common.exception.BangumiUpstreamException;
@@ -7,20 +9,17 @@ import com.ligg.common.response.AccessToken;
 import com.ligg.common.response.TokenVo;
 import com.ligg.common.utils.Utils;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyInserters;
-import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
-import reactor.netty.http.client.HttpClient;
 
 import java.net.SocketTimeoutException;
 import java.time.Duration;
@@ -38,26 +37,14 @@ public class BgmTvClientImpl implements BgmTvClient {
     private final String redirectUri;
     private final WebClient bgmTvClient;
 
-    private static final int MAX_IN_MEMORY_BODY_BYTES = 5 * 1024 * 1024;
-
     public BgmTvClientImpl(
-            @Value("${anime-flow.bangumi.client_id}") String clientId,
-            @Value("${anime-flow.bangumi.client_secret}") String clientSecret,
-            @Value("${anime-flow.bangumi.redirect_uri}") String redirectUri,
-            @Value("${anime-flow.bangumi.request-timeout-seconds:30}") int requestTimeoutSeconds) {
-        this.clientId = clientId;
-        this.clientSecret = clientSecret;
-        this.redirectUri = redirectUri;
-        this.requestTimeout = Duration.ofSeconds(Math.max(5, requestTimeoutSeconds));
-        HttpClient reactorHttpClient = HttpClient.create().responseTimeout(this.requestTimeout);
-        var exchangeStrategies = ExchangeStrategies.builder()
-                .codecs(c -> c.defaultCodecs().maxInMemorySize(MAX_IN_MEMORY_BODY_BYTES))
-                .build();
-        this.bgmTvClient = WebClient.builder()
-                .exchangeStrategies(exchangeStrategies)
-                .clientConnector(new ReactorClientHttpConnector(reactorHttpClient))
-                .baseUrl(BgmTvApiPath.BGM_TV_BASE_URL)
-                .build();
+            BangumiProperties bangumiProperties,
+            @Qualifier(WebClientConfig.BGM_TV_WEB_CLIENT) WebClient bgmTvClient) {
+        this.clientId = bangumiProperties.getClientId();
+        this.clientSecret = bangumiProperties.getClientSecret();
+        this.redirectUri = bangumiProperties.getRedirectUri();
+        this.requestTimeout = Duration.ofSeconds(Math.max(5, bangumiProperties.getRequestTimeoutSeconds()));
+        this.bgmTvClient = bgmTvClient;
     }
 
     @Override
