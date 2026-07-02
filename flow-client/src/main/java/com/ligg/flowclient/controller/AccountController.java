@@ -184,6 +184,7 @@ public class AccountController {
     /**
      * 查询 Bangumi 收藏同步任务状态。
      */
+    @Deprecated
     @GetMapping("/oauth/bangumi/collections/sync")
     public Result<UserBgmCollectionSyncStatusVo> getBangumiCollectionSyncStatus(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken) {
