@@ -139,7 +139,6 @@ public class UserBgmCollectionSyncRunner {
         row.setUserId(userId);
         row.setSubjectId(item.getId());
         row.setSubjectType(item.getType() != null ? item.getType() : 2);
-        row.setImages(toJson(item.getImages()));
         row.setBgmInterestId(interest.getId());
         row.setRate(interest.getRate() != null ? interest.getRate() : 0);
         row.setType(interest.getType());

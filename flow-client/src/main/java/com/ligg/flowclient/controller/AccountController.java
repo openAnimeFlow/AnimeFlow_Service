@@ -170,6 +170,7 @@ public class AccountController {
      * 提交 Bangumi 收藏同步任务（异步执行，立即返回任务状态）。
      * 从 user_oauth 读取 Bangumi token 拉取收藏并写入 user_bgm_collection。
      */
+    @Deprecated
     @PostMapping("/oauth/bangumi/collections/sync")
     @IpEndpointRateLimit(keyPrefix = "animeflow:account:sync-bgm-collection:ip:", seconds = 60, maxRequests = 5)
     public Result<UserBgmCollectionSyncStatusVo> syncBangumiCollections(
