@@ -110,7 +110,7 @@ public class FlowUserController {
      */
     @PostMapping("/collections/sync")
     @IpEndpointRateLimit(keyPrefix = "animeflow:account:sync-bgm-collection:ip:", seconds = 60, maxRequests = 5)
-    public Result<UserBgmCollectionSyncStatusVo> syncBangumiCollections(
+    public Result<UserBgmCollectionSyncStatusVo> syncCollections(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
             @RequestParam(defaultValue = "2") int subjectType) {
         Long userId = jwtTokenService.validateAccessToken(accessToken);
@@ -122,7 +122,7 @@ public class FlowUserController {
      * 查询 Bangumi 收藏同步任务状态。
      */
     @GetMapping("/collections/sync")
-    public Result<UserBgmCollectionSyncStatusVo> getBangumiCollectionSyncStatus(
+    public Result<UserBgmCollectionSyncStatusVo> getCollectionSyncStatus(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken) {
         Long userId = jwtTokenService.validateAccessToken(accessToken);
         UserBgmCollectionSyncStatusVo status = userBgmCollectionSyncService.getSyncStatus(userId);
