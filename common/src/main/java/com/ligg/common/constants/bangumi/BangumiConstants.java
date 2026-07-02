@@ -18,7 +18,7 @@ public class BangumiConstants {
     /**
      * Bangumi 每日放送缓存时长（秒）
      */
-    public static final long BANGUMI_CALENDAR_CACHE_TTL_SECONDS = 3600;
+    public static final long BANGUMI_CALENDAR_CACHE_TTL_SECONDS = 17280;
 
     /**
      * Bangumi 每日放送重建缓存锁时长（秒）
