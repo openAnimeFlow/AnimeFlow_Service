@@ -11,7 +11,7 @@
  Target Server Version : 80043 (8.0.43)
  File Encoding         : 65001
 
- Date: 28/06/2026 02:23:22
+ Date: 06/07/2026 05:10:14
 */
 
 SET NAMES utf8mb4;
@@ -27,7 +27,7 @@ CREATE TABLE `background`  (
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `background_pk`(`name` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 43 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '背景图片' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 44 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '背景图片' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for bangumi_character
@@ -61,7 +61,8 @@ CREATE TABLE `bangumi_episode`  (
   `type` tinyint UNSIGNED NOT NULL DEFAULT 0 COMMENT '类型：0正篇 1特别篇 2OP 3ED 4Trailer 5MAD 6其他',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_subject_id`(`subject_id` ASC) USING BTREE,
-  INDEX `idx_subject_sort`(`subject_id` ASC, `sort` ASC) USING BTREE
+  INDEX `idx_subject_sort`(`subject_id` ASC, `sort` ASC) USING BTREE,
+  INDEX `idx_subject_type`(`subject_id` ASC, `type` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Bangumi 章节' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
@@ -255,6 +256,7 @@ CREATE TABLE `user_bgm_collection`  (
   `bgm_updated_at` bigint NOT NULL COMMENT 'Bangumi 收藏更新时间 Unix 秒（interest.updatedAt）',
   `sync_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后同步时间',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '首次入库时间',
+  `private` tinyint(1) NULL DEFAULT 0,
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_bgm_interest_id`(`bgm_interest_id` ASC) USING BTREE COMMENT 'Bangumi 收藏 ID 唯一',
   UNIQUE INDEX `uk_user_subject`(`user_id` ASC, `subject_id` ASC) USING BTREE COMMENT '同一用户对同一条目仅一条收藏',
@@ -263,7 +265,7 @@ CREATE TABLE `user_bgm_collection`  (
   INDEX `idx_user_type_updated`(`user_id` ASC, `type` ASC, `bgm_updated_at` DESC) USING BTREE,
   INDEX `idx_user_type_subject_updated`(`user_id` ASC, `type` ASC, `subject_type` ASC, `bgm_updated_at` DESC) USING BTREE,
   INDEX `idx_user_sync_time`(`user_id` ASC, `sync_time` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 184 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏关系表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 375 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏关系表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for user_oauth
@@ -283,6 +285,6 @@ CREATE TABLE `user_oauth`  (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_user_platform`(`user_id` ASC, `platform` ASC) USING BTREE,
   UNIQUE INDEX `uk_platform_uid`(`platform` ASC, `platform_uid` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 5 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户第三方 OAuth 绑定' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 22 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户第三方 OAuth 绑定' ROW_FORMAT = Dynamic;
 
 SET FOREIGN_KEY_CHECKS = 1;
