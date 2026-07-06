@@ -67,7 +67,7 @@ public class BangumiServiceImpl implements BangumiService {
     public SubjectDetailVo getSubjectInfo(Integer subjectId, long userId) {
         BangumiSubjectEntity subject = subjectMapper.selectById(subjectId);
         if (subject == null) {
-            return null;
+            return new SubjectDetailVo();
         }
 
         SubjectDetailVo vo = new SubjectDetailVo();
