@@ -17,7 +17,7 @@ public interface BangumiService {
     /**
      * 获取番剧剧集列表
      */
-    SubjectEpisodesDto getEpisodes(Integer subjectId, int limit, int offset);
+    SubjectEpisodesDto getEpisodes(Integer subjectId, int limit, int offset, long userId);
 
     /**
      * 获取搜索建议

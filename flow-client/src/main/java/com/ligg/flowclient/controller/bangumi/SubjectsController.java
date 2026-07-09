@@ -54,8 +54,18 @@ public class SubjectsController {
     public Result<SubjectEpisodesVo> subjectEpisodes(
             @NotNull @PathVariable int subjectId,
             @RequestParam(defaultValue = "100") int limit,
-            @RequestParam(defaultValue = "0") int offset) {
-        SubjectEpisodesDto dto = bangumiService.getEpisodes(subjectId, limit, offset);
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestAttribute(name = AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, required = false)
+            String flowAccessToken) {
+        long userId = 0;
+        if (StringUtils.hasText(flowAccessToken)) {
+            try {
+                userId = jwtTokenService.validateAccessToken(flowAccessToken);
+            } catch (LoginExpiredException ignored) {
+                // token 无效时回退匿名访问
+            }
+        }
+        SubjectEpisodesDto dto = bangumiService.getEpisodes(subjectId, limit, offset, userId);
         SubjectEpisodesVo vo = new SubjectEpisodesVo();
         BeanUtils.copyProperties(dto, vo);
         return Result.success(ResponseCode.SUCCESS, vo);

@@ -59,6 +59,7 @@ public class BangumiServiceImpl implements BangumiService {
     private final ObjectMapper objectMapper;
     private final ImageBackfillService imageBackfillService;
     private final UserBgmCollectionMapper userBgmCollectionMapper;
+    private final UserEpisodeWatchService userEpisodeWatchService;
 
     /**
      * 条目详情
@@ -224,7 +225,7 @@ public class BangumiServiceImpl implements BangumiService {
     }
 
     @Override
-    public SubjectEpisodesDto getEpisodes(Integer subjectId, int limit, int offset) {
+    public SubjectEpisodesDto getEpisodes(Integer subjectId, int limit, int offset, long userId) {
         SubjectEpisodesDto dto = new SubjectEpisodesDto();
         if (subjectId == null) {
             dto.setData(Collections.emptyList());
@@ -245,11 +246,20 @@ public class BangumiServiceImpl implements BangumiService {
         IPage<BangumiEpisodeEntity> page = episodeMapper.selectPage(new LimitOffsetPage<>(limit, offset), wrapper);
 
         dto.setTotal((int) page.getTotal());
-        dto.setData(page.getRecords().stream().map(this::toEpisode).toList());
+        Set<Long> watchedEpisodeIds = userId > 0
+                ? userEpisodeWatchService.listWatchedEpisodeIds(userId, subjectId)
+                : Collections.emptySet();
+        boolean includeWatched = userId > 0;
+        dto.setData(page.getRecords().stream()
+                .map(entity -> toEpisode(entity, watchedEpisodeIds, includeWatched))
+                .toList());
         return dto;
     }
 
-    private SubjectEpisodesDto.Episode toEpisode(BangumiEpisodeEntity entity) {
+    private SubjectEpisodesDto.Episode toEpisode(
+            BangumiEpisodeEntity entity,
+            Set<Long> watchedEpisodeIds,
+            boolean includeWatched) {
         SubjectEpisodesDto.Episode episode = new SubjectEpisodesDto.Episode();
         episode.setId(entity.getId().longValue());
         episode.setSubjectId(entity.getSubjectId());
@@ -261,6 +271,9 @@ public class BangumiServiceImpl implements BangumiService {
         episode.setDuration(entity.getDuration());
         episode.setAirdate(entity.getAirdate());
         episode.setDesc(entity.getDescription());
+        if (includeWatched) {
+            episode.setWatched(watchedEpisodeIds.contains(entity.getId().longValue()));
+        }
         return episode;
     }
 

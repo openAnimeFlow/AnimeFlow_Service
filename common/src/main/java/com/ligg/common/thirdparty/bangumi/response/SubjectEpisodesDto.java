@@ -1,6 +1,7 @@
 package com.ligg.common.thirdparty.bangumi.response;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
@@ -31,5 +32,7 @@ public class SubjectEpisodesDto {
         private String airdate;
         private Integer comment;
         private String desc;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private Boolean watched;
     }
 }
