@@ -15,7 +15,6 @@ import com.ligg.flowclient.service.UserEpisodeWatchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -25,7 +24,6 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class UserEpisodeWatchServiceImpl implements UserEpisodeWatchService {
 
-    private static final int WATCH_STATUS_UNWATCHED = 0;
     private static final int WATCH_STATUS_WATCHED = 1;
     private static final int EPISODE_TYPE_MAIN = 0;
 
@@ -42,17 +40,10 @@ public class UserEpisodeWatchServiceImpl implements UserEpisodeWatchService {
             throw new IllegalArgumentException("剧集不存在");
         }
 
-        UserEpisodeWatchEntity existing = userEpisodeWatchMapper.selectOne(
-                new LambdaQueryWrapper<UserEpisodeWatchEntity>()
-                        .eq(UserEpisodeWatchEntity::getUserId, userId)
-                        .eq(UserEpisodeWatchEntity::getEpisodeId, episodeId)
-                        .last("LIMIT 1"));
-
         if (Boolean.TRUE.equals(dto.getWatched())) {
-            upsertWatched(userId, episode, existing);
-        } else if (existing != null) {
-            existing.setWatchStatus(WATCH_STATUS_UNWATCHED);
-            userEpisodeWatchMapper.updateById(existing);
+            userEpisodeWatchMapper.upsertWatched(userId, episode.getSubjectId(), episode.getId());
+        } else {
+            userEpisodeWatchMapper.markUnwatched(userId, episodeId);
         }
 
         refreshCollectionEpisodeProgress(userId, episode.getSubjectId());
@@ -82,25 +73,6 @@ public class UserEpisodeWatchServiceImpl implements UserEpisodeWatchService {
             watchedEpisodeIds.add(row.getEpisodeId().longValue());
         }
         return watchedEpisodeIds;
-    }
-
-    private void upsertWatched(Long userId, BangumiEpisodeEntity episode, UserEpisodeWatchEntity existing) {
-        if (existing != null) {
-            existing.setWatchStatus(WATCH_STATUS_WATCHED);
-            if (existing.getWatchedAt() == null) {
-                existing.setWatchedAt(LocalDateTime.now());
-            }
-            userEpisodeWatchMapper.updateById(existing);
-            return;
-        }
-
-        UserEpisodeWatchEntity row = new UserEpisodeWatchEntity();
-        row.setUserId(userId);
-        row.setSubjectId(episode.getSubjectId());
-        row.setEpisodeId(episode.getId());
-        row.setWatchStatus(WATCH_STATUS_WATCHED);
-        row.setWatchedAt(LocalDateTime.now());
-        userEpisodeWatchMapper.insert(row);
     }
 
     /**

@@ -268,6 +268,26 @@ CREATE TABLE `user_bgm_collection`  (
 ) ENGINE = InnoDB AUTO_INCREMENT = 375 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏关系表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
+-- Table structure for user_episode_watch
+-- ----------------------------
+DROP TABLE IF EXISTS `user_episode_watch`;
+CREATE TABLE `user_episode_watch`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `user_id` bigint NOT NULL COMMENT '用户 ID',
+  `subject_id` int UNSIGNED NOT NULL COMMENT '作品 ID，冗余自 bangumi_episode.subject_id，便于按作品查',
+  `episode_id` int UNSIGNED NOT NULL COMMENT '章节 ID',
+  `watch_status` tinyint NOT NULL DEFAULT 1 COMMENT '0未看 1已看，可为将来扩展预留',
+  `watched_at` datetime NULL DEFAULT CURRENT_TIMESTAMP COMMENT '首次标记已看时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_user_episode`(`user_id` ASC, `episode_id` ASC) USING BTREE,
+  INDEX `idx_user_subject`(`user_id` ASC, `subject_id` ASC) USING BTREE,
+  INDEX `idx_subject_episode`(`subject_id` ASC, `episode_id` ASC) USING BTREE,
+  INDEX `idx_user_subject_status`(`user_id` ASC, `subject_id` ASC, `watch_status` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户剧集观看记录' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
 -- Table structure for user_oauth
 -- ----------------------------
 DROP TABLE IF EXISTS `user_oauth`;
