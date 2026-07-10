@@ -10,6 +10,7 @@ import com.ligg.common.response.TokenVo;
 import com.ligg.flowclient.mapper.UserOauthMapper;
 import com.ligg.flowclient.service.BangumiOAuthTokenService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BangumiOAuthTokenServiceImpl implements BangumiOAuthTokenService {
 
     private final UserOauthMapper userOauthMapper;
@@ -44,6 +46,7 @@ public class BangumiOAuthTokenServiceImpl implements BangumiOAuthTokenService {
     @Override
     public void refreshBangumiAccessToken(UserOauthEntity oauth) {
         if (!StringUtils.hasText(oauth.getRefreshToken())) {
+            deleteBangumiOauth(oauth, "missing refresh token");
             throw new LoginExpiredException();
         }
         try {
@@ -56,8 +59,36 @@ public class BangumiOAuthTokenServiceImpl implements BangumiOAuthTokenService {
             oauth.setUpdateTime(LocalDateTime.now());
             userOauthMapper.updateById(oauth);
         } catch (BangumiUpstreamException e) {
+            if (isInvalidRefreshToken(e)) {
+                deleteBangumiOauth(oauth, "invalid refresh token");
+            }
             throw new LoginExpiredException(e);
         }
+    }
+
+    private void deleteBangumiOauth(UserOauthEntity oauth, String reason) {
+        LambdaQueryWrapper<UserOauthEntity> wrapper = new LambdaQueryWrapper<>();
+        if (oauth.getId() != null) {
+            wrapper.eq(UserOauthEntity::getId, oauth.getId());
+        } else {
+            wrapper.eq(UserOauthEntity::getUserId, oauth.getUserId())
+                    .eq(UserOauthEntity::getPlatform, Constants.BANGUMI_OAUTH_PLATFORM);
+        }
+        wrapper.eq(UserOauthEntity::getPlatform, Constants.BANGUMI_OAUTH_PLATFORM);
+        if (oauth.getRefreshToken() == null) {
+            wrapper.isNull(UserOauthEntity::getRefreshToken);
+        } else {
+            wrapper.eq(UserOauthEntity::getRefreshToken, oauth.getRefreshToken());
+        }
+        int deleted = userOauthMapper.delete(wrapper);
+        log.warn("Deleted Bangumi OAuth token after refresh failure: userId={} oauthId={} reason={} deleted={}",
+                oauth.getUserId(), oauth.getId(), reason, deleted);
+    }
+
+    private static boolean isInvalidRefreshToken(BangumiUpstreamException e) {
+        String message = e.getMessage();
+        return message != null
+                && (message.contains("invalid_grant") || message.contains("Invalid refresh token"));
     }
 
     private UserOauthEntity findByUserAndPlatform(Long userId) {
