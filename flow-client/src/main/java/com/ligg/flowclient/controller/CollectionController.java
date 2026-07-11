@@ -36,6 +36,7 @@ public class CollectionController {
      *
      * @param subjectType 条目大类，默认 2（动画）
      * @param type        收藏状态，默认 2（看过）
+     * @param keyword     条目名称关键字，可匹配原名或中文名
      * @param limit       每页条数，默认 20
      * @param offset      偏移量，默认 0
      */
@@ -44,13 +45,14 @@ public class CollectionController {
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String flowAccessToken,
             @RequestParam(defaultValue = "2") int subjectType,
             @RequestParam(defaultValue = "2") int type,
+            @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int offset) {
         Long userId = jwtTokenService.validateAccessToken(flowAccessToken);
         UserOauthEntity bangumiOauth = bangumiOAuthTokenService.findBangumiOauth(userId);
         String bangumiAccessToken = bangumiOauth != null ? bangumiOauth.getAccessToken() : null;
         UserCollectionsVo vo = userBgmCollectionService.listMyCollections(
-                bangumiAccessToken, userId, subjectType, type, limit, offset);
+                bangumiAccessToken, userId, subjectType, type, keyword, limit, offset);
         return Result.success(ResponseCode.SUCCESS, vo);
     }
 

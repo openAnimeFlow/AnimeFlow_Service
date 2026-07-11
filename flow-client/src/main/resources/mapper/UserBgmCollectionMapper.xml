@@ -6,11 +6,20 @@
         WHERE c.user_id = #{userId}
           AND c.type = #{type}
           AND c.subject_type = #{subjectType}
+        <if test="keyword != null and keyword != ''">
+          AND (
+              s.name LIKE CONCAT('%', #{keyword}, '%')
+              OR s.name_cn LIKE CONCAT('%', #{keyword}, '%')
+          )
+        </if>
     </sql>
 
     <select id="countByUserFilter" resultType="long">
         SELECT COUNT(*)
         FROM user_bgm_collection c
+        <if test="keyword != null and keyword != ''">
+                 LEFT JOIN bangumi_subject s ON s.id = c.subject_id
+        </if>
         <include refid="userFilterWhere"/>
     </select>
 

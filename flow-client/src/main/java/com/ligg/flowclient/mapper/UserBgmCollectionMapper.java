@@ -14,11 +14,13 @@ public interface UserBgmCollectionMapper extends BaseMapper<UserBgmCollectionEnt
 
     long countByUserFilter(@Param("userId") Long userId,
                            @Param("type") int type,
-                           @Param("subjectType") int subjectType);
+                           @Param("subjectType") int subjectType,
+                           @Param("keyword") String keyword);
 
     List<UserBgmCollectionRow> selectPageByUserFilter(@Param("userId") Long userId,
                                                       @Param("type") int type,
                                                       @Param("subjectType") int subjectType,
+                                                      @Param("keyword") String keyword,
                                                       @Param("limit") int limit,
                                                       @Param("offset") int offset);
 

@@ -48,7 +48,14 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
     private final ImageBackfillService imageBackfillService;
 
     @Override
-    public UserCollectionsVo listMyCollections(String accessToken, long userId, int subjectType, int type, int limit, int offset) {
+    public UserCollectionsVo listMyCollections(
+            String accessToken,
+            long userId,
+            int subjectType,
+            int type,
+            String keyword,
+            int limit,
+            int offset) {
         UserCollectionsVo vo = new UserCollectionsVo();
         if (limit <= 0) {
             vo.setData(Collections.emptyList());
@@ -56,7 +63,8 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
             return vo;
         }
 
-        long total = userBgmCollectionMapper.countByUserFilter(userId, type, subjectType);
+        String normalizedKeyword = StringUtils.hasText(keyword) ? keyword.trim() : null;
+        long total = userBgmCollectionMapper.countByUserFilter(userId, type, subjectType, normalizedKeyword);
         vo.setTotal((int) total);
         if (total == 0) {
             vo.setData(Collections.emptyList());
@@ -64,7 +72,7 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
         }
 
         List<UserBgmCollectionRow> rows = userBgmCollectionMapper.selectPageByUserFilter(
-                userId, type, subjectType, limit, offset);
+                userId, type, subjectType, normalizedKeyword, limit, offset);
 
         List<UserCollectionsDto.Item> items = new ArrayList<>(rows.size());
         for (UserBgmCollectionRow row : rows) {
