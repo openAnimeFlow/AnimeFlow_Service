@@ -90,9 +90,9 @@ public class FlowUserController {
             @RequestParam(defaultValue = "0") int offset) {
         Long userId = jwtTokenService.validateAccessToken(flowAccessToken);
         UserOauthEntity bangumiOauth = bangumiOAuthTokenService.findBangumiOauth(userId);
-        //accessToken 可能为null (未绑定bangumi)
+        String bangumiAccessToken = bangumiOauth != null ? bangumiOauth.getAccessToken() : null;
         UserCollectionsVo vo = userBgmCollectionService.listMyCollections(
-                bangumiOauth.getAccessToken(), userId, subjectType, type, limit, offset);
+                bangumiAccessToken, userId, subjectType, type, limit, offset);
         return Result.success(ResponseCode.SUCCESS, vo);
     }
 
