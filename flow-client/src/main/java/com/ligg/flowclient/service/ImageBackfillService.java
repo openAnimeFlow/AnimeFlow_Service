@@ -14,7 +14,9 @@ import org.springframework.util.StringUtils;
 
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.StructuredTaskScope;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * 条目图片处理服务
@@ -104,34 +106,30 @@ public class ImageBackfillService {
     }
 
     private boolean fetchImages(int subjectId, String accessToken, CoverImages images) throws InterruptedException {
-        try (var scope = new StructuredTaskScope<String>()) {
+        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
             var tasks = Arrays.stream(SubjectImageType.values())
                     .map(type -> new ImageFetchTask(
                             type,
-                            scope.fork(() -> bangumiV0Client.getSubjectImageUrl(subjectId, type, accessToken))))
+                            executor.submit(() -> bangumiV0Client.getSubjectImageUrl(subjectId, type, accessToken))))
                     .toList();
-
-            scope.join();
 
             boolean anySucceeded = false;
             for (ImageFetchTask task : tasks) {
-                switch (task.subtask().state()) {
-                    case SUCCESS -> {
-                        String url = task.subtask().get();
-                        if (StringUtils.hasText(url)) {
-                            setField(images, task.type(), url);
-                            anySucceeded = true;
-                        }
+                try {
+                    String url = task.future().get();
+                    if (StringUtils.hasText(url)) {
+                        setField(images, task.type(), url);
+                        anySucceeded = true;
                     }
-                    case FAILED -> log.warn(
+                } catch (ExecutionException e) {
+                    log.warn(
                             "获取条目图片失败, subjectId={}, type={}",
                             subjectId,
                             task.type().getValue(),
-                            task.subtask().exception());
-                    case UNAVAILABLE -> log.warn(
-                            "获取条目图片未完成, subjectId={}, type={}",
-                            subjectId,
-                            task.type().getValue());
+                            e.getCause());
+                } catch (InterruptedException e) {
+                    tasks.forEach(imageFetchTask -> imageFetchTask.future().cancel(true));
+                    throw e;
                 }
             }
             return anySucceeded;
@@ -151,7 +149,7 @@ public class ImageBackfillService {
 
     private record ImageFetchTask(
             SubjectImageType type,
-            StructuredTaskScope.Subtask<String> subtask) {
+            Future<String> future) {
     }
 
     private interface ImageSetter {
