@@ -359,29 +359,4 @@ public class SubjectsController {
         }
         return null;
     }
-
-    private static SubjectDetailVo toSubjectDetailVo(SubjectDetailDto dto) {
-        Utils.applyWsrvCdnInPlace(dto.getImages());
-        SubjectDetailVo detailVo = new SubjectDetailVo();
-        BeanUtils.copyProperties(dto, detailVo);
-        return detailVo;
-    }
-
-    /**
-     * 仅当条目放送日在「今天起往前 4 个月」内时才写入详情缓存，避免陈旧条目长期占位。
-     */
-    private static boolean shouldCacheSubjectDetail(SubjectDetailVo vo) {
-        SubjectDetailDto.Airtime airtime = vo.getAirtime();
-        if (airtime == null || !StringUtils.hasText(airtime.getDate())) {
-            return false;
-        }
-        try {
-            LocalDate airtimeDate = LocalDate.parse(airtime.getDate());
-            LocalDate today = LocalDate.now();
-            return !airtimeDate.isBefore(today.minusMonths(4)) && !airtimeDate.isAfter(today);
-        } catch (DateTimeParseException e) {
-            return false;
-        }
-    }
-
 }
