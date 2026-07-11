@@ -10,6 +10,11 @@ public class BangumiNextApiPath {
     public static final String BANGUMI_NEXT_API_BASE_URL = "https://next.bgm.tv";
 
     /**
+     * 获取当前用户信息
+     */
+    public static final String ME = "/p1/me";
+
+    /**
      * 获取每日放送
      */
     public static final String P1_CALENDAR = "/p1/calendar";

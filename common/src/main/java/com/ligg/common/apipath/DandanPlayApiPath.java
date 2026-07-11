@@ -2,9 +2,9 @@
  * @author Ligg
  * @date 2026/5/10 15:52
  */
-package com.ligg.common.constants;
+package com.ligg.common.apipath;
 
-public class DandanPlayApi {
+public class DandanPlayApiPath {
     /**
      * dandanPlay API
      */

@@ -6,7 +6,6 @@ package com.ligg.api.bangumiapi;
 
 import com.ligg.api.config.WebClientConfig;
 import com.ligg.common.apipath.BangumiNextApiPath;
-import com.ligg.common.constants.ApiConstant;
 import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
@@ -52,7 +51,7 @@ public class BangumiClientImpl implements BangumiClient {
     @Override
     public BangumiUserinfoVO getMe(String accessToken) {
         return blockBangumi(bangumiNextClient.get()
-                .uri(ApiConstant.ME)
+                .uri(BangumiNextApiPath.ME)
                 .headers(headers -> headers.setBearerAuth(accessToken))
                 .retrieve()
                 .bodyToMono(BangumiUserinfoVO.class));

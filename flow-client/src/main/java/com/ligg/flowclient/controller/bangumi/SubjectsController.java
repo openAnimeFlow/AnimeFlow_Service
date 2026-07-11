@@ -5,7 +5,7 @@
 package com.ligg.flowclient.controller.bangumi;
 
 import com.ligg.api.bangumiapi.BangumiClient;
-import com.ligg.common.constants.bangumi.BangumiConstants;
+import com.ligg.common.constants.BangumiConstants;
 import com.ligg.common.entity.UserOauthEntity;
 import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.response.Result;

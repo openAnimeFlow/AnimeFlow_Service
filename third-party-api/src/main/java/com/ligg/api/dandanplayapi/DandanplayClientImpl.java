@@ -5,7 +5,7 @@
 package com.ligg.api.dandanplayapi;
 
 import com.ligg.api.config.WebClientConfig;
-import com.ligg.common.constants.DandanPlayApi;
+import com.ligg.common.apipath.DandanPlayApiPath;
 import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.vo.dandanplay.DandanplayBangumiDetailVo;
 import com.ligg.common.vo.dandanplay.DandanplayCommentVo;
@@ -41,7 +41,7 @@ public class DandanplayClientImpl implements DandanplayClient {
         try {
             ResponseEntity<DandanplayCommentVo> response = dandanPlayClient.get()
                     .uri(uriBuilder -> {
-                        var b = uriBuilder.path(DandanPlayApi.DANDAN_API_COMMENT + episodeId)
+                        var b = uriBuilder.path(DandanPlayApiPath.DANDAN_API_COMMENT + episodeId)
                                 .queryParam("chConvert", chConvert)
                                 .queryParam("from", 0);
                         if (withRelated != null) {
@@ -67,7 +67,7 @@ public class DandanplayClientImpl implements DandanplayClient {
         try {
             ResponseEntity<DandanplaySearchVo> response = dandanPlayClient.get()
                     .uri(uriBuilder -> {
-                        var b = uriBuilder.path(DandanPlayApi.DANDAN_API_SEARCH_ANIME)
+                        var b = uriBuilder.path(DandanPlayApiPath.DANDAN_API_SEARCH_ANIME)
                                 .queryParam("keyword", keyword);
                         if (type != null) {
                             b = b.queryParam("type", type);
@@ -91,7 +91,7 @@ public class DandanplayClientImpl implements DandanplayClient {
     public DandanplayBangumiDetailVo getBangumiDetail(@NotNull int bangumiId) {
         try {
             ResponseEntity<DandanplayBangumiDetailVo> response = dandanPlayClient.get()
-                    .uri(uriBuilder -> uriBuilder.path(DandanPlayApi.DANDAN_API_ELEMENT + '/' + bangumiId).build())
+                    .uri(uriBuilder -> uriBuilder.path(DandanPlayApiPath.DANDAN_API_ELEMENT + '/' + bangumiId).build())
                     .retrieve()
                     .toEntity(DandanplayBangumiDetailVo.class)
                     .block(REQUEST_TIMEOUT);
@@ -109,7 +109,7 @@ public class DandanplayClientImpl implements DandanplayClient {
     public DandanplayEpisodeVo getBangumiDetailByBangumiId(@NotNull int bangumiId) {
         try {
             ResponseEntity<DandanplayEpisodeVo> response = dandanPlayClient.get()
-                    .uri(uriBuilder -> uriBuilder.path(DandanPlayApi.DANDAN_API_ELEMENT_BY_BANGUMI_ID + '/' + bangumiId).build())
+                    .uri(uriBuilder -> uriBuilder.path(DandanPlayApiPath.DANDAN_API_ELEMENT_BY_BANGUMI_ID + '/' + bangumiId).build())
                     .retrieve()
                     .toEntity(DandanplayEpisodeVo.class)
                     .block(REQUEST_TIMEOUT);

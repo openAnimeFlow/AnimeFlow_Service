@@ -27,6 +27,8 @@ public class Constants {
             )
     );
 
+    public static final  String WSRV_CDN = "https://wsrv.nl";
+
     /**
      * Bangumi 关联类型中文名
      */

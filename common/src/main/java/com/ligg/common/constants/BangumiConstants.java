@@ -2,7 +2,7 @@
  * @author Ligg
  * @date 2026/5/28 17:53
  */
-package com.ligg.common.constants.bangumi;
+package com.ligg.common.constants;
 
 public class BangumiConstants {
     /**

@@ -4,7 +4,6 @@
  */
 package com.ligg.common.utils;
 
-import com.ligg.common.constants.ApiConstant;
 import com.ligg.common.constants.Constants;
 import com.ligg.common.model.CoverImages;
 import com.ligg.common.model.ImageFour;
@@ -45,10 +44,10 @@ public final class Utils {
         if (imageUrl == null || imageUrl.isEmpty()) {
             return imageUrl;
         }
-        if (imageUrl.startsWith(ApiConstant.WSRV_CDN)) {
+        if (imageUrl.startsWith(Constants.WSRV_CDN)) {
             return imageUrl;
         }
-        return ApiConstant.WSRV_CDN + "/?url=" + imageUrl;
+        return Constants.WSRV_CDN + "/?url=" + imageUrl;
     }
 
     /**

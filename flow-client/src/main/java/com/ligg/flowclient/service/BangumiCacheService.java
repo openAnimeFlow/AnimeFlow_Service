@@ -1,6 +1,6 @@
 package com.ligg.flowclient.service;
 
-import com.ligg.common.constants.bangumi.BangumiConstants;
+import com.ligg.common.constants.BangumiConstants;
 import com.ligg.common.exception.BangumiUpstreamException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

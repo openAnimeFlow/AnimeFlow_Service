@@ -85,7 +85,7 @@ public class CollectionController {
     /**
      * 查询 Bangumi 收藏同步任务状态。
      */
-    @GetMapping("/collections/sync")
+    @GetMapping("/sync")
     public Result<UserBgmCollectionSyncStatusVo> getCollectionSyncStatus(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken) {
         Long userId = jwtTokenService.validateAccessToken(accessToken);

@@ -7,7 +7,7 @@ package com.ligg.api.config;
 import com.ligg.common.apipath.BangumiApiPath;
 import com.ligg.common.apipath.BangumiNextApiPath;
 import com.ligg.common.apipath.BgmTvApiPath;
-import com.ligg.common.constants.DandanPlayApi;
+import com.ligg.common.apipath.DandanPlayApiPath;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -83,7 +83,7 @@ public class WebClientConfig {
             @Value("${anime-flow.dandanplay.app_id}") String dandanPlayAppId,
             @Value("${anime-flow.dandanplay.secret}") String dandanPlaySecret) {
         return WebClient.builder()
-                .baseUrl(DandanPlayApi.DANDAN_PLAY_API_BASE_URL)
+                .baseUrl(DandanPlayApiPath.DANDAN_PLAY_API_BASE_URL)
                 .exchangeStrategies(BANGUMI_EXCHANGE_STRATEGIES)
                 .clientConnector(new ReactorClientHttpConnector(HttpClient.create().followRedirect(true)))
                 .defaultHeader("X-AppId", dandanPlayAppId)

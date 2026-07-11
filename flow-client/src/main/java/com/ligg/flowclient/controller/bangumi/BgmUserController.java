@@ -7,7 +7,7 @@ package com.ligg.flowclient.controller.bangumi;
 import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.api.bgmtvapi.BgmTvClient;
 import com.ligg.api.bgmtvapi.BgmUserPageHtmlParser;
-import com.ligg.common.constants.bangumi.BangumiConstants;
+import com.ligg.common.constants.BangumiConstants;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.common.thirdparty.bangumi.response.UserCollectionsDto;
