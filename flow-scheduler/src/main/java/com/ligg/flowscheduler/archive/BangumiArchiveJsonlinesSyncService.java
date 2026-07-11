@@ -29,28 +29,28 @@ public class BangumiArchiveJsonlinesSyncService {
     public void syncFile(Path file, ArchiveDataType dataType) throws Exception {
         int batchSize = upsertService.batchSize();
         long delayMs = upsertService.batchDelayMs();
-        long total = 0;
+        long total;
 
         try (BufferedReader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-            switch (dataType) {
-                case SUBJECT -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parseSubject,
+            total = switch (dataType) {
+                case SUBJECT -> readAndUpsert(reader, batchSize, delayMs, lineParser::parseSubject,
                         upsertService::upsertSubjectBatch);
-                case CHARACTER -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parseCharacter,
+                case CHARACTER -> readAndUpsert(reader, batchSize, delayMs, lineParser::parseCharacter,
                         upsertService::upsertCharacterBatch);
-                case PERSON -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parsePerson,
+                case PERSON -> readAndUpsert(reader, batchSize, delayMs, lineParser::parsePerson,
                         upsertService::upsertPersonBatch);
-                case EPISODE -> total = readAndUpsertEpisodes(reader, batchSize, delayMs);
-                case PERSON_CHARACTER -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parsePersonCharacter,
+                case EPISODE -> readAndUpsertEpisodes(reader, batchSize, delayMs);
+                case PERSON_CHARACTER -> readAndUpsert(reader, batchSize, delayMs, lineParser::parsePersonCharacter,
                         upsertService::upsertPersonCharacterBatch);
-                case PERSON_RELATION -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parsePersonRelation,
+                case PERSON_RELATION -> readAndUpsert(reader, batchSize, delayMs, lineParser::parsePersonRelation,
                         upsertService::upsertPersonRelationBatch);
-                case SUBJECT_CHARACTER -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parseSubjectCharacter,
+                case SUBJECT_CHARACTER -> readAndUpsert(reader, batchSize, delayMs, lineParser::parseSubjectCharacter,
                         upsertService::upsertSubjectCharacterBatch);
-                case SUBJECT_PERSON -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parseSubjectPerson,
+                case SUBJECT_PERSON -> readAndUpsert(reader, batchSize, delayMs, lineParser::parseSubjectPerson,
                         upsertService::upsertSubjectPersonBatch);
-                case SUBJECT_RELATION -> total = readAndUpsert(reader, batchSize, delayMs, lineParser::parseSubjectRelation,
+                case SUBJECT_RELATION -> readAndUpsert(reader, batchSize, delayMs, lineParser::parseSubjectRelation,
                         upsertService::upsertSubjectRelationBatch);
-            }
+            };
         }
 
         log.info("Synced {} rows from {} ({})", total, file.getFileName(), dataType.getFileSuffix());

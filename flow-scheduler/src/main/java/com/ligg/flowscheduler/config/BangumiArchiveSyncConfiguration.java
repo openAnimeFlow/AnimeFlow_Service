@@ -3,9 +3,9 @@ package com.ligg.flowscheduler.config;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
 
@@ -22,12 +22,9 @@ public class BangumiArchiveSyncConfiguration {
 
   @Bean(name = "bangumiArchiveSyncExecutor")
   public Executor bangumiArchiveSyncExecutor() {
-    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-    executor.setCorePoolSize(1);
-    executor.setMaxPoolSize(1);
-    executor.setQueueCapacity(1);
-    executor.setThreadNamePrefix("bangumi-archive-sync-");
-    executor.initialize();
+    SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor("bangumi-archive-sync-");
+    executor.setVirtualThreads(true);
+    executor.setConcurrencyLimit(1);
     return executor;
   }
 }

@@ -12,7 +12,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.StructuredTaskScope;
 
 /**
  * 条目图片处理服务
@@ -76,16 +78,11 @@ public class ImageBackfillService {
             CoverImages images = new CoverImages();
             boolean anySucceeded = false;
 
-            for (SubjectImageType type : SubjectImageType.values()) {
-                try {
-                    String url = bangumiV0Client.getSubjectImageUrl(subjectId, type, accessToken);
-                    if (StringUtils.hasText(url)) {
-                        setField(images, type, url);
-                        anySucceeded = true;
-                    }
-                } catch (Exception e) {
-                    log.warn("获取条目图片失败, subjectId={}, type={}", subjectId, type.getValue(), e);
-                }
+            try {
+                anySucceeded = fetchImages(subjectId, accessToken, images);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("获取条目图片被中断, subjectId={}", subjectId, e);
             }
 
             if (anySucceeded) {
@@ -106,14 +103,58 @@ public class ImageBackfillService {
         }
     }
 
-    private static void setField(CoverImages images, SubjectImageType type, String url) {
-        switch (type) {
-            case LARGE -> images.setLarge(url);
-            case COMMON -> images.setCommon(url);
-            case MEDIUM -> images.setMedium(url);
-            case SMALL -> images.setSmall(url);
-            case GRID -> images.setGrid(url);
-            default -> { /* 枚举新增值时编译器会警告，此处防御性空操作 */ }
+    private boolean fetchImages(int subjectId, String accessToken, CoverImages images) throws InterruptedException {
+        try (var scope = new StructuredTaskScope<String>()) {
+            var tasks = Arrays.stream(SubjectImageType.values())
+                    .map(type -> new ImageFetchTask(
+                            type,
+                            scope.fork(() -> bangumiV0Client.getSubjectImageUrl(subjectId, type, accessToken))))
+                    .toList();
+
+            scope.join();
+
+            boolean anySucceeded = false;
+            for (ImageFetchTask task : tasks) {
+                switch (task.subtask().state()) {
+                    case SUCCESS -> {
+                        String url = task.subtask().get();
+                        if (StringUtils.hasText(url)) {
+                            setField(images, task.type(), url);
+                            anySucceeded = true;
+                        }
+                    }
+                    case FAILED -> log.warn(
+                            "获取条目图片失败, subjectId={}, type={}",
+                            subjectId,
+                            task.type().getValue(),
+                            task.subtask().exception());
+                    case UNAVAILABLE -> log.warn(
+                            "获取条目图片未完成, subjectId={}, type={}",
+                            subjectId,
+                            task.type().getValue());
+                }
+            }
+            return anySucceeded;
         }
+    }
+
+    private static void setField(CoverImages images, SubjectImageType type, String url) {
+        ImageSetter setter = switch (type) {
+            case LARGE -> CoverImages::setLarge;
+            case COMMON -> CoverImages::setCommon;
+            case MEDIUM -> CoverImages::setMedium;
+            case SMALL -> CoverImages::setSmall;
+            case GRID -> CoverImages::setGrid;
+        };
+        setter.set(images, url);
+    }
+
+    private record ImageFetchTask(
+            SubjectImageType type,
+            StructuredTaskScope.Subtask<String> subtask) {
+    }
+
+    private interface ImageSetter {
+        void set(CoverImages images, String url);
     }
 }
