@@ -2,7 +2,6 @@
  * @author Ligg
  * @date 2026/6/8 10:25
  */
-
 package com.ligg.flowclient.controller;
 
 import com.ligg.common.entity.UserOauthEntity;
@@ -117,6 +116,17 @@ public class FlowUserController {
             @PathVariable int episodeId,
             @Valid @RequestBody UpdateEpisodeWatchDto body) {
         userEpisodeWatchService.updateEpisodeWatch(accessToken, episodeId, body);
+        return Result.success();
+    }
+
+    /**
+     * 标记当前用户某部番剧的全部剧集为已看。
+     */
+    @PutMapping("/subjects/{subjectId}/episodes/watch")
+    public Result<Void> markSubjectEpisodesWatched(
+            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
+            @PathVariable int subjectId) {
+        userEpisodeWatchService.markSubjectEpisodesWatched(accessToken, subjectId);
         return Result.success();
     }
 

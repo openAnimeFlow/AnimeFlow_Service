@@ -14,6 +14,7 @@ import com.ligg.flowclient.service.JwtTokenService;
 import com.ligg.flowclient.service.UserEpisodeWatchService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -26,6 +27,7 @@ public class UserEpisodeWatchServiceImpl implements UserEpisodeWatchService {
 
     private static final int WATCH_STATUS_WATCHED = 1;
     private static final int EPISODE_TYPE_MAIN = 0;
+    private static final int WATCH_BATCH_SIZE = 100;
 
     private final JwtTokenService jwtTokenService;
     private final BangumiEpisodeMapper bangumiEpisodeMapper;
@@ -47,6 +49,32 @@ public class UserEpisodeWatchServiceImpl implements UserEpisodeWatchService {
         }
 
         refreshCollectionEpisodeProgress(userId, episode.getSubjectId());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void markSubjectEpisodesWatched(String accessToken, int subjectId) {
+        Long userId = jwtTokenService.validateAccessToken(accessToken);
+        List<BangumiEpisodeEntity> episodes = bangumiEpisodeMapper.selectList(
+                new LambdaQueryWrapper<BangumiEpisodeEntity>()
+                        .select(BangumiEpisodeEntity::getId)
+                        .eq(BangumiEpisodeEntity::getSubjectId, subjectId)
+                        .orderByAsc(BangumiEpisodeEntity::getType)
+                        .orderByAsc(BangumiEpisodeEntity::getSort)
+                        .orderByAsc(BangumiEpisodeEntity::getId));
+        if (episodes.isEmpty()) {
+            throw new IllegalArgumentException("番剧不存在或暂无剧集");
+        }
+
+        List<Integer> episodeIds = episodes.stream()
+                .map(BangumiEpisodeEntity::getId)
+                .toList();
+        for (int start = 0; start < episodeIds.size(); start += WATCH_BATCH_SIZE) {
+            int end = Math.min(start + WATCH_BATCH_SIZE, episodeIds.size());
+            userEpisodeWatchMapper.upsertWatchedBatch(userId, subjectId, episodeIds.subList(start, end));
+        }
+
+        refreshCollectionEpisodeProgress(userId, subjectId);
     }
 
     @Override

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ligg.flowclient.mapper.UserEpisodeWatchMapper">
+
+    <insert id="upsertWatchedBatch">
+        insert into user_episode_watch (user_id, subject_id, episode_id, watch_status, watched_at)
+        values
+        <foreach collection="episodeIds" item="episodeId" separator=",">
+            (#{userId}, #{subjectId}, #{episodeId}, 1, current_timestamp)
+        </foreach>
+        on duplicate key update
+        subject_id = values(subject_id),
+        watch_status = values(watch_status),
+        watched_at = coalesce(watched_at, values(watched_at))
+    </insert>
+
+</mapper>
