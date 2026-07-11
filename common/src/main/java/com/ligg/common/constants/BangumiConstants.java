@@ -48,7 +48,7 @@ public class BangumiConstants {
     /**
      * Bangumi 趋势条目缓存时长（秒）
      */
-    public static final long BANGUMI_TRENDING_CACHE_TTL_SECONDS = 900;
+    public static final long BANGUMI_TRENDING_CACHE_TTL_SECONDS = 86400;
 
     /**
      * Bangumi 条目列表缓存键前缀
