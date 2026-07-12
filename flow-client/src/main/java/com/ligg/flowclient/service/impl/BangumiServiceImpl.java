@@ -355,6 +355,11 @@ public class BangumiServiceImpl implements BangumiService {
 
     /**
      * 获取相似条目推荐。
+     * <p>
+     * 推荐逻辑分为两段：先读取目标番剧，解析出 type、nsfw、tags、meta_tags 和发行年份；
+     * 再把这些轻量参数传给 SQL。SQL 只在同类型、同 NSFW 范围内选择候选番剧，
+     * 按标签命中数、公共标签命中数、年份接近度、评分和排名综合排序后分页返回。
+     * 这样避免在数据库里反复展开目标番剧的 JSON 标签，减少推荐接口的查询耗时。
      */
     @Override
     public SubjectsVo getRecommendedSubjects(Integer subjectId, int limit, int offset) {
