@@ -382,6 +382,12 @@ public class BangumiServiceImpl implements BangumiService {
         List<String> tagNames = parseSubjectTagNames(target.getTags());
         List<String> metaTagNames = parseMetaTagNames(target.getMetaTags());
         Integer releaseYear = parseReleaseYear(target.getDate());
+        Integer total = subjectMapper.countRecommendedSubjects(
+                subjectId,
+                target.getType(),
+                target.getNsfw(),
+                tagNames,
+                metaTagNames);
         List<SubjectRecommendationRow> rows = subjectMapper.selectRecommendedSubjects(
                 subjectId,
                 target.getType(),
@@ -394,12 +400,12 @@ public class BangumiServiceImpl implements BangumiService {
 
         if (rows == null || rows.isEmpty()) {
             vo.setData(Collections.emptyList());
-            vo.setTotal(0);
+            vo.setTotal(total);
             return vo;
         }
 
         vo.setData(rows.stream().map(this::toRecommendedSubject).toList());
-        vo.setTotal(rows.size());
+        vo.setTotal(total);
         return vo;
     }
 
