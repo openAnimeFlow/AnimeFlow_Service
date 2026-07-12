@@ -269,6 +269,22 @@ public class SubjectsController {
     }
 
     /**
+     * 条目推荐列表。
+     * 基于本地 Bangumi 归档数据，按同类型、标签相似度、年份接近度、评分和排名推荐相似条目。
+     *
+     * @param subjectId 条目 ID
+     * @param limit     每页条数，默认 20
+     * @param offset    偏移量，默认 0
+     */
+    @GetMapping("/{subjectId}/recommendations")
+    public Result<SubjectsVo> subjectRecommendations(
+            @NotNull @PathVariable int subjectId,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "0") int offset) {
+        return Result.success(ResponseCode.SUCCESS, bangumiService.getRecommendedSubjects(subjectId, limit, offset));
+    }
+
+    /**
      * 条目浏览列表。
      * 对应 Bangumi {@code GET /p1/subjects}；前 10 页走缓存。
      *

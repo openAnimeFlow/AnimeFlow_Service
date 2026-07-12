@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.ligg.common.entity.BangumiSubjectEntity;
 import com.ligg.flowclient.module.dto.SearchSuggestionRow;
+import com.ligg.flowclient.module.dto.SubjectRecommendationRow;
 import com.ligg.flowclient.module.dto.SubjectRelationRow;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -18,4 +19,13 @@ public interface BangumiSubjectMapper extends BaseMapper<BangumiSubjectEntity> {
                                                     @Param("limit") int limit);
 
     IPage<SubjectRelationRow> selectRelatedSubjects(IPage<?> page, @Param("subjectId") Integer subjectId ,@Param("type") Integer type);
+
+    List<SubjectRecommendationRow> selectRecommendedSubjects(@Param("subjectId") Integer subjectId,
+                                                             @Param("type") Integer type,
+                                                             @Param("nsfw") Boolean nsfw,
+                                                             @Param("releaseYear") Integer releaseYear,
+                                                             @Param("tagNames") List<String> tagNames,
+                                                             @Param("metaTagNames") List<String> metaTagNames,
+                                                             @Param("limit") int limit,
+                                                             @Param("offset") int offset);
 }

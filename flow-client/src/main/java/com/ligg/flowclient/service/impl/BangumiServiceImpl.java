@@ -29,10 +29,12 @@ import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.bangumi.SearchSuggestionsVo;
 import com.ligg.common.vo.bangumi.SubjectDetailVo;
 import com.ligg.common.vo.bangumi.SubjectRelationsVo;
+import com.ligg.common.vo.bangumi.SubjectsVo;
 import com.ligg.flowclient.mapper.BangumiEpisodeMapper;
 import com.ligg.flowclient.mapper.BangumiSubjectMapper;
 import com.ligg.flowclient.mapper.UserBgmCollectionMapper;
 import com.ligg.flowclient.module.dto.SearchSuggestionRow;
+import com.ligg.flowclient.module.dto.SubjectRecommendationRow;
 import com.ligg.flowclient.module.dto.SubjectRelationRow;
 import com.ligg.flowclient.module.dto.UserSubjectInterestRow;
 import com.ligg.flowclient.mybatis.LimitOffsetPage;
@@ -349,6 +351,128 @@ public class BangumiServiceImpl implements BangumiService {
         vo.setData(items);
         vo.setTotal((int) page.getTotal());
         return vo;
+    }
+
+    /**
+     * 获取相似条目推荐。
+     */
+    @Override
+    public SubjectsVo getRecommendedSubjects(Integer subjectId, int limit, int offset) {
+        SubjectsVo vo = new SubjectsVo();
+        if (subjectId == null || limit <= 0) {
+            vo.setData(Collections.emptyList());
+            vo.setTotal(0);
+            return vo;
+        }
+
+        int normalizedLimit = Math.min(limit, 50);
+        int normalizedOffset = Math.max(offset, 0);
+        BangumiSubjectEntity target = subjectMapper.selectById(subjectId);
+        if (target == null) {
+            vo.setData(Collections.emptyList());
+            vo.setTotal(0);
+            return vo;
+        }
+
+        List<String> tagNames = parseSubjectTagNames(target.getTags());
+        List<String> metaTagNames = parseMetaTagNames(target.getMetaTags());
+        Integer releaseYear = parseReleaseYear(target.getDate());
+        List<SubjectRecommendationRow> rows = subjectMapper.selectRecommendedSubjects(
+                subjectId,
+                target.getType(),
+                target.getNsfw(),
+                releaseYear,
+                tagNames,
+                metaTagNames,
+                normalizedLimit,
+                normalizedOffset);
+
+        if (rows == null || rows.isEmpty()) {
+            vo.setData(Collections.emptyList());
+            vo.setTotal(0);
+            return vo;
+        }
+
+        vo.setData(rows.stream().map(this::toRecommendedSubject).toList());
+        vo.setTotal(rows.size());
+        return vo;
+    }
+
+    private List<String> parseSubjectTagNames(String json) {
+        if (!StringUtils.hasText(json)) {
+            return Collections.emptyList();
+        }
+        try {
+            List<SubjectDetailDto.SubjectTag> tags = objectMapper.readValue(json, new TypeReference<>() {
+            });
+            if (tags == null || tags.isEmpty()) {
+                return Collections.emptyList();
+            }
+            return tags.stream()
+                    .map(SubjectDetailDto.SubjectTag::getName)
+                    .filter(StringUtils::hasText)
+                    .distinct()
+                    .toList();
+        } catch (JsonProcessingException e) {
+            log.warn("解析推荐目标 tags JSON 失败: {}", json, e);
+            return Collections.emptyList();
+        }
+    }
+
+    private List<String> parseMetaTagNames(String json) {
+        if (!StringUtils.hasText(json)) {
+            return Collections.emptyList();
+        }
+        try {
+            List<String> tags = objectMapper.readValue(json, new TypeReference<>() {
+            });
+            if (tags == null || tags.isEmpty()) {
+                return Collections.emptyList();
+            }
+            return tags.stream()
+                    .filter(StringUtils::hasText)
+                    .distinct()
+                    .toList();
+        } catch (JsonProcessingException e) {
+            log.warn("解析推荐目标 meta_tags JSON 失败: {}", json, e);
+            return Collections.emptyList();
+        }
+    }
+
+    private Integer parseReleaseYear(String date) {
+        if (!StringUtils.hasText(date) || date.length() < 4) {
+            return null;
+        }
+        String year = date.substring(0, 4);
+        if (!year.chars().allMatch(Character::isDigit)) {
+            return null;
+        }
+        return Integer.parseInt(year);
+    }
+
+    private BangumiSubject toRecommendedSubject(SubjectRecommendationRow row) {
+        BangumiSubject subject = new BangumiSubject();
+        subject.setId(row.getId());
+        subject.setName(row.getName());
+        subject.setNameCN(row.getNameCn());
+        subject.setType(row.getType());
+        subject.setNsfw(row.getNsfw());
+        subject.setInfo(InfoboxParser.toInfo(row.getInfobox()));
+        subject.setLocked(false);
+
+        BangumiRating rating = new BangumiRating();
+        rating.setRank(row.getRank());
+        rating.setScore(row.getScore());
+        rating.setCount(parseScoreDetails(row.getScoreDetails()));
+        rating.setTotal(rating.getCount().stream().mapToInt(Integer::intValue).sum());
+        subject.setRating(rating);
+
+        CoverImages images = imageBackfillService.resolve(row.getImages(), row.getId(), null);
+        if (images != null) {
+            Utils.applyWsrvCdnInPlace(images);
+            subject.setImages(images);
+        }
+        return subject;
     }
 
     /**

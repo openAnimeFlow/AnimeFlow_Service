@@ -6,6 +6,7 @@ import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
 import com.ligg.common.vo.bangumi.SearchSuggestionsVo;
 import com.ligg.common.vo.bangumi.SubjectDetailVo;
 import com.ligg.common.vo.bangumi.SubjectRelationsVo;
+import com.ligg.common.vo.bangumi.SubjectsVo;
 
 public interface BangumiService {
 
@@ -35,4 +36,9 @@ public interface BangumiService {
      * 获取关联条目
      */
     SubjectRelationsVo getRelatedSubjects(Integer subjectId, int limit, int offset, int type, String bangumiAccessToken);
+
+    /**
+     * 获取相似条目推荐
+     */
+    SubjectsVo getRecommendedSubjects(Integer subjectId, int limit, int offset);
 }

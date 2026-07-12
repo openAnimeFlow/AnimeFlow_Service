@@ -3,49 +3,133 @@
 <mapper namespace="com.ligg.flowclient.mapper.BangumiSubjectMapper">
 
     <select id="selectSearchSuggestions" resultType="com.ligg.flowclient.module.dto.SearchSuggestionRow">
-        SELECT id,
+        select id,
                name,
-               name_cn AS nameCn
-        FROM bangumi_subject
+               name_cn as nameCn
+        from bangumi_subject
         where type = #{type}
-          AND (name_cn LIKE CONCAT('%', #{keyword}, '%')
-            OR name LIKE CONCAT('%', #{keyword}, '%'))
-        ORDER BY CASE
-                     WHEN name_cn LIKE CONCAT(#{keyword}, '%') THEN 0
-                     WHEN name LIKE CONCAT(#{keyword}, '%') THEN 1
-                     WHEN name_cn LIKE CONCAT('%', #{keyword}, '%') THEN 2
-                     ELSE 3
-                     END,
-                 `rank` IS NULL,
-                 `rank` ASC
-        LIMIT #{limit}
+          and (name_cn like concat('%', #{keyword}, '%')
+            or name like concat('%', #{keyword}, '%'))
+        order by case
+                     when name_cn like concat(#{keyword}, '%') then 0
+                     when name like concat(#{keyword}, '%') then 1
+                     when name_cn like concat('%', #{keyword}, '%') then 2
+                     else 3
+                     end,
+                 `rank` is null,
+                 `rank` asc
+        limit #{limit}
     </select>
 
     <select id="selectRelatedSubjects" resultType="com.ligg.flowclient.module.dto.SubjectRelationRow">
-        SELECT r.subject_id    AS subjectId,
-               r.relation_type AS relationType,
+        select r.subject_id    as subjectId,
+               r.relation_type as relationType,
                r.`order`,
                s.id,
                s.type,
                s.name,
-               s.name_cn       AS nameCn,
+               s.name_cn       as nameCn,
                s.infobox,
                s.platform,
                s.summary,
                s.nsfw,
                s.tags,
-               s.meta_tags     AS metaTags,
+               s.meta_tags     as metaTags,
                s.score,
-               s.score_details AS scoreDetails,
+               s.score_details as scoreDetails,
                s.`rank`,
                s.date,
                s.favorite,
                s.series,
                s.images
-        FROM bangumi_subject_relation r
-                 JOIN bangumi_subject s ON r.related_subject_id = s.id
-        WHERE r.subject_id = #{subjectId} and s.type = #{type}
-        ORDER BY r.`order`, r.related_subject_id
+        from bangumi_subject_relation r
+                 join bangumi_subject s on r.related_subject_id = s.id
+        where r.subject_id = #{subjectId} and s.type = #{type}
+        order by r.`order`, r.related_subject_id
+    </select>
+
+    <select id="selectRecommendedSubjects" resultType="com.ligg.flowclient.module.dto.SubjectRecommendationRow">
+        select candidate.id,
+               candidate.type,
+               candidate.name,
+               candidate.name_cn       as nameCn,
+               candidate.infobox,
+               candidate.nsfw,
+               candidate.score,
+               candidate.score_details as scoreDetails,
+               candidate.`rank`,
+               candidate.images
+        from (
+            select s.id,
+                   s.type,
+                   s.name,
+                   s.name_cn,
+                   s.infobox,
+                   s.nsfw,
+                   s.score,
+                   s.score_details,
+                   s.`rank`,
+                   s.`date`,
+                   s.images,
+                   <choose>
+                       <when test="tagNames != null and tagNames.size() > 0">
+                           (
+                               select count(distinct subject_tag.name)
+                               from json_table(coalesce(s.tags, cast('[]' as json)),
+                                               '$[*]' columns (name varchar(128) path '$.name')) subject_tag
+                               where subject_tag.name in
+                               <foreach collection="tagNames" item="tagName" open="(" separator="," close=")">
+                                   #{tagName}
+                               </foreach>
+                           )
+                       </when>
+                       <otherwise>0</otherwise>
+                   </choose> as tag_matches,
+                   <choose>
+                       <when test="metaTagNames != null and metaTagNames.size() > 0">
+                           (
+                               select count(distinct subject_meta.name)
+                               from json_table(coalesce(s.meta_tags, cast('[]' as json)),
+                                               '$[*]' columns (name varchar(128) path '$')) subject_meta
+                               where subject_meta.name in
+                               <foreach collection="metaTagNames" item="metaTagName" open="(" separator="," close=")">
+                                   #{metaTagName}
+                               </foreach>
+                           )
+                       </when>
+                       <otherwise>0</otherwise>
+                   </choose> as meta_matches
+            from bangumi_subject s
+            where s.id != #{subjectId}
+              and s.type = #{type}
+              and s.nsfw = #{nsfw}
+        ) candidate
+        where candidate.tag_matches > 0
+           or candidate.meta_matches > 0
+           or (candidate.`rank` is not null and candidate.`rank` > 0)
+        order by (
+                     candidate.tag_matches * 10
+                         + candidate.meta_matches * 6
+                         + case
+                               when #{releaseYear} is not null
+                                   and candidate.`date` regexp '^[0-9]{4}'
+                                   then greatest(0, 4 - least(4, abs(cast(substring(candidate.`date`, 1, 4) as signed)
+                                       - #{releaseYear})))
+                               else 0
+                               end
+                         + coalesce(candidate.score, 0)
+                         + case
+                               when candidate.`rank` is not null and candidate.`rank` > 0
+                                   then greatest(0, 5 - least(candidate.`rank`, 5000) / 1000)
+                               else 0
+                               end
+                     ) desc,
+                 candidate.`rank` is null,
+                 candidate.`rank` = 0,
+                 candidate.`rank`,
+                 candidate.score desc,
+                 candidate.id
+        limit #{limit} offset #{offset}
     </select>
 
 </mapper>
