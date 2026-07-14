@@ -132,47 +132,4 @@
         limit #{limit} offset #{offset}
     </select>
 
-    <select id="countRecommendedSubjects" resultType="java.lang.Integer">
-        select count(*)
-        from (
-            select s.id,
-                   <choose>
-                       <when test="tagNames != null and tagNames.size() > 0">
-                           (
-                               select count(distinct subject_tag.name)
-                               from json_table(coalesce(s.tags, cast('[]' as json)),
-                                               '$[*]' columns (name varchar(128) path '$.name')) subject_tag
-                               where subject_tag.name in
-                               <foreach collection="tagNames" item="tagName" open="(" separator="," close=")">
-                                   #{tagName}
-                               </foreach>
-                           )
-                       </when>
-                       <otherwise>0</otherwise>
-                   </choose> as tag_matches,
-                   <choose>
-                       <when test="metaTagNames != null and metaTagNames.size() > 0">
-                           (
-                               select count(distinct subject_meta.name)
-                               from json_table(coalesce(s.meta_tags, cast('[]' as json)),
-                                               '$[*]' columns (name varchar(128) path '$')) subject_meta
-                               where subject_meta.name in
-                               <foreach collection="metaTagNames" item="metaTagName" open="(" separator="," close=")">
-                                   #{metaTagName}
-                               </foreach>
-                           )
-                       </when>
-                       <otherwise>0</otherwise>
-                   </choose> as meta_matches,
-                   s.`rank`
-            from bangumi_subject s
-            where s.id != #{subjectId}
-              and s.type = #{type}
-              and s.nsfw = #{nsfw}
-        ) candidate
-        where candidate.tag_matches > 0
-           or candidate.meta_matches > 0
-           or (candidate.`rank` is not null and candidate.`rank` > 0)
-    </select>
-
 </mapper>

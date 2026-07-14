@@ -12,11 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 /**
  * 条目图片处理服务
@@ -78,14 +74,7 @@ public class ImageBackfillService {
             }
 
             CoverImages images = new CoverImages();
-            boolean anySucceeded = false;
-
-            try {
-                anySucceeded = fetchImages(subjectId, accessToken, images);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.warn("获取条目图片被中断, subjectId={}", subjectId, e);
-            }
+            boolean anySucceeded = fetchImages(subjectId, accessToken, images);
 
             if (anySucceeded) {
                 try {
@@ -105,35 +94,20 @@ public class ImageBackfillService {
         }
     }
 
-    private boolean fetchImages(int subjectId, String accessToken, CoverImages images) throws InterruptedException {
-        try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            var tasks = Arrays.stream(SubjectImageType.values())
-                    .map(type -> new ImageFetchTask(
-                            type,
-                            executor.submit(() -> bangumiV0Client.getSubjectImageUrl(subjectId, type, accessToken))))
-                    .toList();
-
-            boolean anySucceeded = false;
-            for (ImageFetchTask task : tasks) {
-                try {
-                    String url = task.future().get();
-                    if (StringUtils.hasText(url)) {
-                        setField(images, task.type(), url);
-                        anySucceeded = true;
-                    }
-                } catch (ExecutionException e) {
-                    log.warn(
-                            "获取条目图片失败, subjectId={}, type={}",
-                            subjectId,
-                            task.type().getValue(),
-                            e.getCause());
-                } catch (InterruptedException e) {
-                    tasks.forEach(imageFetchTask -> imageFetchTask.future().cancel(true));
-                    throw e;
+    private boolean fetchImages(int subjectId, String accessToken, CoverImages images) {
+        boolean anySucceeded = false;
+        for (SubjectImageType type : SubjectImageType.values()) {
+            try {
+                String url = bangumiV0Client.getSubjectImageUrl(subjectId, type, accessToken);
+                if (StringUtils.hasText(url)) {
+                    setField(images, type, url);
+                    anySucceeded = true;
                 }
+            } catch (Exception e) {
+                log.warn("获取条目图片失败, subjectId={}, type={}", subjectId, type.getValue(), e);
             }
-            return anySucceeded;
         }
+        return anySucceeded;
     }
 
     private static void setField(CoverImages images, SubjectImageType type, String url) {
@@ -145,11 +119,6 @@ public class ImageBackfillService {
             case GRID -> CoverImages::setGrid;
         };
         setter.set(images, url);
-    }
-
-    private record ImageFetchTask(
-            SubjectImageType type,
-            Future<String> future) {
     }
 
     private interface ImageSetter {

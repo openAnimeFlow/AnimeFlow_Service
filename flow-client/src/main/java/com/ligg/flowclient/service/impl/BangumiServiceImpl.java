@@ -359,7 +359,8 @@ public class BangumiServiceImpl implements BangumiService {
      * 推荐逻辑分为两段：先读取目标番剧，解析出 type、nsfw、tags、meta_tags 和发行年份；
      * 再把这些轻量参数传给 SQL。SQL 只在同类型、同 NSFW 范围内选择候选番剧，
      * 按标签命中数、公共标签命中数、年份接近度、评分和排名综合排序后分页返回。
-     * 这样避免在数据库里反复展开目标番剧的 JSON 标签，减少推荐接口的查询耗时。
+     * 这样避免在数据库里反复展开目标番剧的 JSON 标签；分页多取一条判断是否还有下一页，
+     * 避免额外执行一次昂贵的 count 查询。
      */
     @Override
     public SubjectsVo getRecommendedSubjects(Integer subjectId, int limit, int offset) {
@@ -382,12 +383,6 @@ public class BangumiServiceImpl implements BangumiService {
         List<String> tagNames = parseSubjectTagNames(target.getTags());
         List<String> metaTagNames = parseMetaTagNames(target.getMetaTags());
         Integer releaseYear = parseReleaseYear(target.getDate());
-        Integer total = subjectMapper.countRecommendedSubjects(
-                subjectId,
-                target.getType(),
-                target.getNsfw(),
-                tagNames,
-                metaTagNames);
         List<SubjectRecommendationRow> rows = subjectMapper.selectRecommendedSubjects(
                 subjectId,
                 target.getType(),
@@ -395,17 +390,19 @@ public class BangumiServiceImpl implements BangumiService {
                 releaseYear,
                 tagNames,
                 metaTagNames,
-                normalizedLimit,
+                normalizedLimit + 1,
                 normalizedOffset);
 
         if (rows == null || rows.isEmpty()) {
             vo.setData(Collections.emptyList());
-            vo.setTotal(total);
+            vo.setTotal(normalizedOffset);
             return vo;
         }
 
-        vo.setData(rows.stream().map(this::toRecommendedSubject).toList());
-        vo.setTotal(total);
+        boolean hasMore = rows.size() > normalizedLimit;
+        List<SubjectRecommendationRow> pageRows = hasMore ? rows.subList(0, normalizedLimit) : rows;
+        vo.setData(pageRows.stream().map(this::toRecommendedSubject).toList());
+        vo.setTotal(normalizedOffset + pageRows.size() + (hasMore ? 1 : 0));
         return vo;
     }
 

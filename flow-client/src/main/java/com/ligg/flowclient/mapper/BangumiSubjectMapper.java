@@ -29,9 +29,4 @@ public interface BangumiSubjectMapper extends BaseMapper<BangumiSubjectEntity> {
                                                              @Param("limit") int limit,
                                                              @Param("offset") int offset);
 
-    Integer countRecommendedSubjects(@Param("subjectId") Integer subjectId,
-                                     @Param("type") Integer type,
-                                     @Param("nsfw") Boolean nsfw,
-                                     @Param("tagNames") List<String> tagNames,
-                                     @Param("metaTagNames") List<String> metaTagNames);
 }
