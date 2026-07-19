@@ -37,8 +37,9 @@ public class FlowUserController {
     @GetMapping
     public Result<FlowUserVo> getUserInfo(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken) {
-        FlowUserVo userVo = userService.getUserInfo(accessToken);
-        return Result.success(ResponseCode.SUCCESS, userVo);
+        return Result.success(ResponseCode.SUCCESS,
+                userService.getUserInfo(accessToken)
+        );
     }
 
     /**
@@ -48,8 +49,9 @@ public class FlowUserController {
     public Result<FlowUserVo> updateUserInfo(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
             @Valid @RequestBody UpdateUserDto body) {
-        FlowUserVo userVo = userService.updateUserInfo(accessToken, body);
-        return Result.success(ResponseCode.SUCCESS, userVo);
+        return Result.success(ResponseCode.SUCCESS,
+                userService.updateUserInfo(accessToken, body)
+        );
     }
 
     /**
@@ -60,8 +62,9 @@ public class FlowUserController {
     public Result<FlowUserVo> uploadAvatar(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
             @RequestParam("file") MultipartFile file) {
-        FlowUserVo userVo = userService.uploadAvatar(accessToken, file);
-        return Result.success(ResponseCode.SUCCESS, userVo);
+        return Result.success(ResponseCode.SUCCESS,
+                userService.uploadAvatar(accessToken, file)
+        );
     }
 
 
@@ -95,7 +98,8 @@ public class FlowUserController {
     public Result<SubjectEpisodeWatchStatusVo> getSubjectEpisodeWatchStatus(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
             @PathVariable int subjectId) {
-        SubjectEpisodeWatchStatusVo vo = userEpisodeWatchService.getSubjectWatchStatus(accessToken, subjectId);
-        return Result.success(ResponseCode.SUCCESS, vo);
+        return Result.success(ResponseCode.SUCCESS,
+                userEpisodeWatchService.getSubjectWatchStatus(accessToken, subjectId)
+        );
     }
 }
