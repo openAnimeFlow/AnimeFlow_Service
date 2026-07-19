@@ -21,6 +21,135 @@
         limit #{limit}
     </select>
 
+    <sql id="localSearchWhere">
+        where
+        <choose>
+            <when test="types != null and types.size() > 0">
+                idx.type in
+                <foreach collection="types" item="type" open="(" separator="," close=")">
+                    #{type}
+                </foreach>
+            </when>
+            <otherwise>
+                idx.type = 2
+            </otherwise>
+        </choose>
+        <if test="!includeNsfw">
+            and idx.nsfw = 0
+        </if>
+        <if test="minYear != null">
+            and idx.year &gt;= #{minYear}
+        </if>
+        <if test="maxYear != null">
+            and idx.year &lt;= #{maxYear}
+        </if>
+        <if test="minRating != null">
+            and idx.score &gt;= #{minRating}
+        </if>
+        <if test="maxRating != null">
+            and idx.score &lt;= #{maxRating}
+        </if>
+        <if test="minRank != null">
+            and idx.subject_rank &gt;= #{minRank}
+        </if>
+        <if test="maxRank != null">
+            and idx.subject_rank &gt; 0
+            and idx.subject_rank &lt;= #{maxRank}
+        </if>
+        <if test="tags != null and tags.size() > 0">
+            <foreach collection="tags" item="tag">
+                and idx.tags_text like concat('%', #{tag}, '%')
+            </foreach>
+        </if>
+        <if test="metaTags != null and metaTags.size() > 0">
+            <foreach collection="metaTags" item="metaTag">
+                and idx.meta_tags_text like concat('%', #{metaTag}, '%')
+            </foreach>
+        </if>
+        and (
+            <if test="exactSubjectId != null">
+                idx.subject_id = #{exactSubjectId}
+                or
+            </if>
+            idx.name like concat('%', #{keyword}, '%')
+            or idx.name_cn like concat('%', #{keyword}, '%')
+            or idx.aliases like concat('%', #{keyword}, '%')
+            or match(idx.name, idx.name_cn, idx.aliases, idx.tags_text, idx.meta_tags_text, idx.search_text)
+               against(#{keyword} in natural language mode)
+        )
+    </sql>
+
+    <select id="selectLocalSearchSubjects" resultType="com.ligg.flowclient.module.dto.SubjectSearchRow">
+        select bs.id,
+               bs.type,
+               bs.name,
+               bs.name_cn as nameCn,
+               bs.infobox,
+               bs.nsfw,
+               bs.score,
+               bs.score_details as scoreDetails,
+               bs.`rank`,
+               bs.images,
+               (
+                   case when idx.subject_id = #{exactSubjectId} then 2000 else 0 end
+                   + case when idx.name_cn = #{keyword} then 1200 else 0 end
+                   + case when idx.name = #{keyword} then 1100 else 0 end
+                   + case when idx.name_cn like concat(#{keyword}, '%') then 500 else 0 end
+                   + case when idx.name like concat(#{keyword}, '%') then 450 else 0 end
+                   + case when idx.aliases like concat('%', #{keyword}, '%') then 320 else 0 end
+                   + match(idx.name, idx.name_cn, idx.aliases, idx.tags_text, idx.meta_tags_text, idx.search_text)
+                     against(#{keyword} in natural language mode) * 100
+                   + case when idx.subject_rank is not null and idx.subject_rank &gt; 0
+                          then greatest(0, 100 - idx.subject_rank / 50)
+                          else 0
+                     end
+                   + coalesce(idx.score, 0) * 8
+                   + least(idx.favorite_done, 100000) / 2000
+               ) as relevanceScore
+        from bangumi_subject_search idx
+                 join bangumi_subject bs on bs.id = idx.subject_id
+        <include refid="localSearchWhere"/>
+        order by
+        <choose>
+            <when test="sort == 'heat'">
+                idx.favorite_done desc,
+                idx.subject_rank = 0,
+                idx.subject_rank is null,
+                idx.subject_rank,
+                idx.score desc,
+            </when>
+            <when test="sort == 'rank'">
+                idx.subject_rank = 0,
+                idx.subject_rank is null,
+                idx.subject_rank,
+                idx.score desc,
+                idx.favorite_done desc,
+            </when>
+            <when test="sort == 'score'">
+                idx.score desc,
+                idx.subject_rank = 0,
+                idx.subject_rank is null,
+                idx.subject_rank,
+                idx.favorite_done desc,
+            </when>
+            <otherwise>
+                relevanceScore desc,
+                idx.subject_rank = 0,
+                idx.subject_rank is null,
+                idx.subject_rank,
+                idx.favorite_done desc,
+            </otherwise>
+        </choose>
+        idx.subject_id
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="countLocalSearchSubjects" resultType="java.lang.Integer">
+        select count(*)
+        from bangumi_subject_search idx
+        <include refid="localSearchWhere"/>
+    </select>
+
     <select id="selectRelatedSubjects" resultType="com.ligg.flowclient.module.dto.SubjectRelationRow">
         select r.subject_id    as subjectId,
                r.relation_type as relationType,

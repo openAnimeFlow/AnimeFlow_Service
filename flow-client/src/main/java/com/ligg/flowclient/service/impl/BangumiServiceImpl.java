@@ -10,16 +10,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.common.constants.Constants;
 import com.ligg.common.entity.BangumiEpisodeEntity;
 import com.ligg.common.entity.BangumiSubjectEntity;
-import com.ligg.common.entity.UserOauthEntity;
-import com.ligg.common.exception.LoginExpiredException;
 import com.ligg.common.model.CoverImages;
 import com.ligg.common.thirdparty.bangumi.model.BangumiRating;
 import com.ligg.common.thirdparty.bangumi.model.BangumiSubject;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
+import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsFilter;
 import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectRelationsDto.RelationInfo;
@@ -36,6 +34,7 @@ import com.ligg.flowclient.mapper.UserBgmCollectionMapper;
 import com.ligg.flowclient.module.dto.SearchSuggestionRow;
 import com.ligg.flowclient.module.dto.SubjectRecommendationRow;
 import com.ligg.flowclient.module.dto.SubjectRelationRow;
+import com.ligg.flowclient.module.dto.SubjectSearchRow;
 import com.ligg.flowclient.module.dto.UserSubjectInterestRow;
 import com.ligg.flowclient.mybatis.LimitOffsetPage;
 import com.ligg.flowclient.service.*;
@@ -46,6 +45,8 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -54,10 +55,6 @@ public class BangumiServiceImpl implements BangumiService {
 
     private final BangumiEpisodeMapper episodeMapper;
     private final BangumiSubjectMapper subjectMapper;
-    private final BangumiClient bangumiClient;
-    private final JwtTokenService jwtTokenService;
-    private final BangumiOAuthTokenService bangumiOAuthTokenService;
-    private final BangumiOAuthExecutor bangumiOAuthExecutor;
     private final ObjectMapper objectMapper;
     private final ImageBackfillService imageBackfillService;
     private final UserBgmCollectionMapper userBgmCollectionMapper;
@@ -310,19 +307,243 @@ public class BangumiServiceImpl implements BangumiService {
 
     @Override
     public SubjectsDto searchSubjects(SearchSubjectsBody body, int limit, int offset, String flowAccessToken) {
-        if (StringUtils.hasText(flowAccessToken)) {
-            try {
-                Long userId = jwtTokenService.validateAccessToken(flowAccessToken);
-                UserOauthEntity oauth = bangumiOAuthTokenService.findBangumiOauth(userId);
-                if (oauth != null) {
-                    return bangumiOAuthExecutor.execute(oauth,
-                            bangumiToken -> bangumiClient.searchSubjects(body, limit, offset, bangumiToken));
+        SubjectsDto dto = new SubjectsDto();
+        if (body == null || !StringUtils.hasText(body.getKeyword()) || limit <= 0) {
+            dto.setData(Collections.emptyList());
+            dto.setTotal(0);
+            return dto;
+        }
+
+        String keyword = body.getKeyword().trim();
+        LocalSearchCriteria criteria = toLocalSearchCriteria(body);
+        int normalizedLimit = Math.min(limit, 100);
+        int normalizedOffset = Math.max(offset, 0);
+
+        Integer total = subjectMapper.countLocalSearchSubjects(
+                keyword,
+                criteria.exactSubjectId(),
+                criteria.types(),
+                criteria.includeNsfw(),
+                criteria.tags(),
+                criteria.metaTags(),
+                criteria.minYear(),
+                criteria.maxYear(),
+                criteria.minRating(),
+                criteria.maxRating(),
+                criteria.minRank(),
+                criteria.maxRank());
+        if (total == null || total == 0) {
+            dto.setData(Collections.emptyList());
+            dto.setTotal(0);
+            return dto;
+        }
+
+        List<SubjectSearchRow> rows = subjectMapper.selectLocalSearchSubjects(
+                keyword,
+                criteria.exactSubjectId(),
+                criteria.types(),
+                criteria.includeNsfw(),
+                criteria.tags(),
+                criteria.metaTags(),
+                criteria.minYear(),
+                criteria.maxYear(),
+                criteria.minRating(),
+                criteria.maxRating(),
+                criteria.minRank(),
+                criteria.maxRank(),
+                criteria.sort(),
+                normalizedLimit,
+                normalizedOffset);
+        dto.setData(rows == null ? Collections.emptyList() : rows.stream().map(this::toSearchSubject).toList());
+        dto.setTotal(total);
+        return dto;
+    }
+
+    private LocalSearchCriteria toLocalSearchCriteria(SearchSubjectsBody body) {
+        SearchSubjectsFilter filter = body.getFilter();
+        List<Integer> types = filter != null && filter.getType() != null && !filter.getType().isEmpty()
+                ? filter.getType()
+                : List.of(2);
+        List<String> tags = normalizeTextList(filter != null ? filter.getTags() : null);
+        List<String> metaTags = normalizeTextList(filter != null ? filter.getMetaTags() : null);
+        boolean includeNsfw = filter != null && Boolean.TRUE.equals(filter.getNsfw());
+        Integer exactSubjectId = parseExactSubjectId(body.getKeyword());
+
+        IntRange yearRange = parseYearRange(filter != null ? filter.getDate() : null);
+        DoubleRange ratingRange = parseRatingRange(filter != null ? filter.getRating() : null);
+        IntRange rankRange = parseRankRange(filter != null ? filter.getRank() : null);
+        String sort = body.getSort() != null ? body.getSort().getValue() : "match";
+
+        return new LocalSearchCriteria(
+                types,
+                includeNsfw,
+                tags,
+                metaTags,
+                yearRange.min(),
+                yearRange.max(),
+                ratingRange.min(),
+                ratingRange.max(),
+                rankRange.min(),
+                rankRange.max(),
+                exactSubjectId,
+                sort);
+    }
+
+    private BangumiSubject toSearchSubject(SubjectSearchRow row) {
+        BangumiSubject subject = new BangumiSubject();
+        subject.setId(row.getId());
+        subject.setName(row.getName());
+        subject.setNameCN(row.getNameCn());
+        subject.setType(row.getType());
+        subject.setNsfw(row.getNsfw());
+        subject.setInfo(InfoboxParser.toInfo(row.getInfobox()));
+        subject.setLocked(false);
+
+        BangumiRating rating = new BangumiRating();
+        rating.setRank(row.getRank());
+        rating.setScore(row.getScore());
+        rating.setCount(parseScoreDetails(row.getScoreDetails()));
+        rating.setTotal(rating.getCount().stream().mapToInt(Integer::intValue).sum());
+        subject.setRating(rating);
+
+        CoverImages images = imageBackfillService.resolve(row.getImages(), row.getId(), null);
+        Utils.applyWsrvCdnInPlace(images);
+        subject.setImages(images);
+        return subject;
+    }
+
+    private static List<String> normalizeTextList(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return values.stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .distinct()
+                .toList();
+    }
+
+    private static Integer parseExactSubjectId(String keyword) {
+        if (!StringUtils.hasText(keyword)) {
+            return null;
+        }
+        String trimmed = keyword.trim();
+        if (!trimmed.chars().allMatch(Character::isDigit)) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(trimmed);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private static IntRange parseYearRange(List<String> values) {
+        List<Integer> years = extractIntegers(values).stream()
+                .filter(value -> value >= 1900 && value <= 2100)
+                .toList();
+        if (years.isEmpty()) {
+            return IntRange.empty();
+        }
+        if (years.size() == 1) {
+            return new IntRange(years.get(0), years.get(0));
+        }
+        return new IntRange(Collections.min(years), Collections.max(years));
+    }
+
+    private static DoubleRange parseRatingRange(List<String> values) {
+        List<Double> ratings = extractDoubles(values).stream()
+                .filter(value -> value >= 0 && value <= 10)
+                .toList();
+        if (ratings.isEmpty()) {
+            return DoubleRange.empty();
+        }
+        if (ratings.size() == 1) {
+            return new DoubleRange(ratings.get(0), null);
+        }
+        return new DoubleRange(Collections.min(ratings), Collections.max(ratings));
+    }
+
+    private static IntRange parseRankRange(List<String> values) {
+        List<Integer> ranks = extractIntegers(values).stream()
+                .filter(value -> value > 0)
+                .toList();
+        if (ranks.isEmpty()) {
+            return IntRange.empty();
+        }
+        if (ranks.size() == 1) {
+            return new IntRange(null, ranks.get(0));
+        }
+        return new IntRange(Collections.min(ranks), Collections.max(ranks));
+    }
+
+    private static List<Integer> extractIntegers(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Integer> result = new ArrayList<>();
+        for (String value : values) {
+            if (!StringUtils.hasText(value)) {
+                continue;
+            }
+           Matcher matcher = Pattern.compile("\\d+").matcher(value);
+            while (matcher.find()) {
+                try {
+                    result.add(Integer.parseInt(matcher.group()));
+                } catch (NumberFormatException ignored) {
+                    // skip oversized values
                 }
-            } catch (LoginExpiredException ignored) {
-                // Flow JWT 无效或未绑定 Bangumi，回退匿名搜索
             }
         }
-        return bangumiClient.searchSubjects(body, limit, offset, null);
+        return result;
+    }
+
+    private static List<Double> extractDoubles(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Double> result = new ArrayList<>();
+        for (String value : values) {
+            if (!StringUtils.hasText(value)) {
+                continue;
+            }
+           Matcher matcher = Pattern.compile("\\d+(?:\\.\\d+)?").matcher(value);
+            while (matcher.find()) {
+                try {
+                    result.add(Double.parseDouble(matcher.group()));
+                } catch (NumberFormatException ignored) {
+                    // skip oversized values
+                }
+            }
+        }
+        return result;
+    }
+
+    private record LocalSearchCriteria(
+            List<Integer> types,
+            boolean includeNsfw,
+            List<String> tags,
+            List<String> metaTags,
+            Integer minYear,
+            Integer maxYear,
+            Double minRating,
+            Double maxRating,
+            Integer minRank,
+            Integer maxRank,
+            Integer exactSubjectId,
+            String sort) {
+    }
+
+    private record IntRange(Integer min, Integer max) {
+        static IntRange empty() {
+            return new IntRange(null, null);
+        }
+    }
+
+    private record DoubleRange(Double min, Double max) {
+        static DoubleRange empty() {
+            return new DoubleRange(null, null);
+        }
     }
 
     /**

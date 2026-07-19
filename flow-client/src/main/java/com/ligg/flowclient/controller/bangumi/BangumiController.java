@@ -6,7 +6,6 @@ package com.ligg.flowclient.controller.bangumi;
 
 import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.common.constants.BangumiConstants;
-import com.ligg.common.exception.BangumiUpstreamException;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
@@ -25,14 +24,12 @@ import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 /**
@@ -48,7 +45,6 @@ public class BangumiController {
     private final BangumiClient bangumiClient;
     private final BangumiCacheService bangumiCacheService;
     private final BangumiService bangumiService;
-    private final RedisTemplate<String, Object> redisTemplate;
 
     /**
      * 获取每日放送。
@@ -128,12 +124,10 @@ public class BangumiController {
 
     /**
      * 搜索条目。
-     * 对应 Bangumi {@code POST /p1/search/subjects}；全站串行限流，两次请求间隔至少 1.5 秒。
-     * 携带 Flow JWT 且已绑定 Bangumi 时，服务端换取 Bangumi OAuth token 直查以返回 {@code interest}。
      * @param limit       每页条数，1–100
      * @param offset      偏移量
      * @param body        搜索关键词与筛选条件
-     * @param accessToken 可选 Bearer，来自可选鉴权拦截器
+     * @param accessToken 可选 Bearer，当前本地搜索不依赖该值
      */
     @PostMapping("/search/subjects")
     public Result<SubjectsVo> searchSubjects(
@@ -142,20 +136,9 @@ public class BangumiController {
             @RequestBody @Valid SearchSubjectsBody body,
             @RequestAttribute(name = AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, required = false)
             String accessToken) {
-        SubjectsVo vo = executeSearchWithSerialLimit(() -> {
-            SubjectsDto dto = bangumiService.searchSubjects(body, limit, offset, accessToken);
-            if (dto.getData() != null) {
-                for (var subject : dto.getData()) {
-                    if (subject == null) {
-                        continue;
-                    }
-                    Utils.applyWsrvCdnInPlace(subject.getImages());
-                }
-            }
-            SubjectsVo result = new SubjectsVo();
-            BeanUtils.copyProperties(dto, result);
-            return result;
-        });
+        SubjectsDto dto = bangumiService.searchSubjects(body, limit, offset, accessToken);
+        SubjectsVo vo = new SubjectsVo();
+        BeanUtils.copyProperties(dto, vo);
         log.info("搜索条目 keyword={}, limit={}, offset={}, total={}",
                 body.getKeyword(), limit, offset, vo.getTotal());
         return Result.success(ResponseCode.SUCCESS, vo);
@@ -347,61 +330,4 @@ public class BangumiController {
     }
 
 
-    /**
-     * 在全局搜索锁与冷却键约束下串行执行 {@code action}，满足 Bangumi 搜索频率限制。
-     *
-     * @param action 实际搜索逻辑
-     * @return 搜索结果
-     */
-    private <T> T executeSearchWithSerialLimit(Supplier<T> action) {
-        long deadline = System.currentTimeMillis() + BangumiConstants.BANGUMI_SEARCH_WAIT_MILLIS;
-        while (true) {
-            if (redisTemplate.hasKey(BangumiConstants.BANGUMI_SEARCH_COOLDOWN_KEY)) {
-                if (System.currentTimeMillis() >= deadline) {
-                    throw new BangumiUpstreamException("搜索请求排队超时，请稍后重试");
-                }
-                sleepForSearchQueue();
-                continue;
-            }
-
-            Boolean locked = redisTemplate.opsForValue().setIfAbsent(
-                    BangumiConstants.BANGUMI_SEARCH_LOCK_KEY,
-                    "1",
-                    BangumiConstants.BANGUMI_SEARCH_LOCK_TTL_SECONDS,
-                    TimeUnit.SECONDS);
-            if (Boolean.TRUE.equals(locked)) {
-                try {
-                    if (redisTemplate.hasKey(BangumiConstants.BANGUMI_SEARCH_COOLDOWN_KEY)) {
-                        continue;
-                    }
-                    T result = action.get();
-                    redisTemplate.opsForValue().set(
-                            BangumiConstants.BANGUMI_SEARCH_COOLDOWN_KEY,
-                            "1",
-                            BangumiConstants.BANGUMI_SEARCH_COOLDOWN_MILLIS,
-                            TimeUnit.MILLISECONDS);
-                    return result;
-                } finally {
-                    redisTemplate.delete(BangumiConstants.BANGUMI_SEARCH_LOCK_KEY);
-                }
-            }
-
-            if (System.currentTimeMillis() >= deadline) {
-                throw new BangumiUpstreamException("搜索请求排队超时，请稍后重试");
-            }
-            sleepForSearchQueue();
-        }
-    }
-
-    /**
-     * 搜索排队等待，被中断时抛出 {@link BangumiUpstreamException}。
-     */
-    private void sleepForSearchQueue() {
-        try {
-            Thread.sleep(BangumiConstants.BANGUMI_SEARCH_POLL_INTERVAL_MILLIS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new BangumiUpstreamException("搜索请求被中断", e);
-        }
-    }
 }

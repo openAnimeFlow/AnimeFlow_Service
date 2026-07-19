@@ -6,6 +6,7 @@ import com.ligg.common.entity.BangumiSubjectEntity;
 import com.ligg.flowclient.module.dto.SearchSuggestionRow;
 import com.ligg.flowclient.module.dto.SubjectRecommendationRow;
 import com.ligg.flowclient.module.dto.SubjectRelationRow;
+import com.ligg.flowclient.module.dto.SubjectSearchRow;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -17,6 +18,35 @@ public interface BangumiSubjectMapper extends BaseMapper<BangumiSubjectEntity> {
     List<SearchSuggestionRow> selectSearchSuggestions(@Param("keyword") String keyword,
                                                     @Param("type") int type,
                                                     @Param("limit") int limit);
+
+    List<SubjectSearchRow> selectLocalSearchSubjects(@Param("keyword") String keyword,
+                                                     @Param("exactSubjectId") Integer exactSubjectId,
+                                                     @Param("types") List<Integer> types,
+                                                     @Param("includeNsfw") boolean includeNsfw,
+                                                     @Param("tags") List<String> tags,
+                                                     @Param("metaTags") List<String> metaTags,
+                                                     @Param("minYear") Integer minYear,
+                                                     @Param("maxYear") Integer maxYear,
+                                                     @Param("minRating") Double minRating,
+                                                     @Param("maxRating") Double maxRating,
+                                                     @Param("minRank") Integer minRank,
+                                                     @Param("maxRank") Integer maxRank,
+                                                     @Param("sort") String sort,
+                                                     @Param("limit") int limit,
+                                                     @Param("offset") int offset);
+
+    Integer countLocalSearchSubjects(@Param("keyword") String keyword,
+                                     @Param("exactSubjectId") Integer exactSubjectId,
+                                     @Param("types") List<Integer> types,
+                                     @Param("includeNsfw") boolean includeNsfw,
+                                     @Param("tags") List<String> tags,
+                                     @Param("metaTags") List<String> metaTags,
+                                     @Param("minYear") Integer minYear,
+                                     @Param("maxYear") Integer maxYear,
+                                     @Param("minRating") Double minRating,
+                                     @Param("maxRating") Double maxRating,
+                                     @Param("minRank") Integer minRank,
+                                     @Param("maxRank") Integer maxRank);
 
     IPage<SubjectRelationRow> selectRelatedSubjects(IPage<?> page, @Param("subjectId") Integer subjectId ,@Param("type") Integer type);
 

@@ -26,7 +26,7 @@ public interface BangumiService {
     SearchSuggestionsVo getSearchSuggestions(String keyword, int type, int limit);
 
     /**
-     * 搜索条目。已登录且绑定 Bangumi 时经 OAuth executor 携带 Bangumi token 搜索（含 interest），否则匿名搜索。
+     * 搜索条目。请求参数兼容 Bangumi 搜索 API，实际读取本地搜索索引。
      *
      * @param flowAccessToken 可选 Flow JWT
      */
