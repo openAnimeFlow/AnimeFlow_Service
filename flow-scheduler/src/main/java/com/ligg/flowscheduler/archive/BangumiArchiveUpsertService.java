@@ -21,6 +21,7 @@ public class BangumiArchiveUpsertService {
 
     private final BangumiArchiveUpsertMapper upsertMapper;
     private final BangumiArchiveSyncProperties properties;
+    private final BangumiSubjectSearchIndexBuilder searchIndexBuilder;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void upsertCharacterBatch(List<BangumiCharacterEntity> batch) {
@@ -52,6 +53,7 @@ public class BangumiArchiveUpsertService {
             return;
         }
         upsertMapper.upsertSubjectBatch(batch);
+        upsertMapper.upsertSubjectSearchBatch(searchIndexBuilder.buildBatch(batch));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

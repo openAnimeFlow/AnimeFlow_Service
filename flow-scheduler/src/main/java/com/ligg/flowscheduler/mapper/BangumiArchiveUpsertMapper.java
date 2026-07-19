@@ -22,6 +22,8 @@ public interface BangumiArchiveUpsertMapper {
 
     void upsertSubjectBatch(@Param("list") List<BangumiSubjectEntity> list);
 
+    void upsertSubjectSearchBatch(@Param("list") List<BangumiSubjectSearchEntity> list);
+
     void upsertPersonCharacterBatch(@Param("list") List<BangumiPersonCharacterEntity> list);
 
     void upsertPersonRelationBatch(@Param("list") List<BangumiPersonRelationEntity> list);

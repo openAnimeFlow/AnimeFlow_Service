@@ -80,6 +80,31 @@
         series = values(series)
     </insert>
 
+    <insert id="upsertSubjectSearchBatch">
+        insert into bangumi_subject_search (subject_id, type, nsfw, name, name_cn, aliases, tags_text, meta_tags_text,
+        year, platform, score, subject_rank, favorite_done, search_text)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.subjectId}, #{item.type}, #{item.nsfw}, #{item.name}, #{item.nameCn}, #{item.aliases},
+            #{item.tagsText}, #{item.metaTagsText}, #{item.year}, #{item.platform}, #{item.score},
+            #{item.subjectRank}, #{item.favoriteDone}, #{item.searchText})
+        </foreach>
+        on duplicate key update
+        type = values(type),
+        nsfw = values(nsfw),
+        name = values(name),
+        name_cn = values(name_cn),
+        aliases = values(aliases),
+        tags_text = values(tags_text),
+        meta_tags_text = values(meta_tags_text),
+        year = values(year),
+        platform = values(platform),
+        score = values(score),
+        subject_rank = values(subject_rank),
+        favorite_done = values(favorite_done),
+        search_text = values(search_text)
+    </insert>
+
     <insert id="upsertPersonCharacterBatch">
         insert into bangumi_person_character (person_id, subject_id, character_id, type, summary)
         values
