@@ -4,7 +4,7 @@
  */
 package com.ligg.common.apipath;
 
-public class DandanPlayApiPath {
+public final class DandanPlayApiPath {
     /**
      * dandanPlay API
      */

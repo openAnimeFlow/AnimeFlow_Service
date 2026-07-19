@@ -4,7 +4,7 @@
  */
 package com.ligg.common.apipath;
 
-public class BangumiNextApiPath {
+public final class BangumiNextApiPath {
 
     private BangumiNextApiPath() {}
     public static final String BANGUMI_NEXT_API_BASE_URL = "https://next.bgm.tv";
