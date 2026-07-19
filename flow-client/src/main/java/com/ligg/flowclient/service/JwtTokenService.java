@@ -144,7 +144,8 @@ public class JwtTokenService {
      * 绑定邮箱后同步更新 Redis 中该用户所有活跃会话的 email，刷新 token 时新 JWT 会携带最新邮箱。
      */
     public void updateUserEmail(Long userId, String email) {
-        Set<Object> sessionIds = redisTemplate.opsForSet().members(userSessionsRedisKey(userId));
+        String userSessionsKey = userSessionsRedisKey(userId);
+        Set<Object> sessionIds = redisTemplate.opsForSet().members(userSessionsKey);
         if (sessionIds == null || sessionIds.isEmpty()) {
             return;
         }
@@ -155,6 +156,7 @@ public class JwtTokenService {
             String sessionId = sessionIdObj.toString();
             AuthSessionDto session = loadSession(sessionId);
             if (session == null) {
+                redisTemplate.opsForSet().remove(userSessionsKey, sessionId);
                 continue;
             }
             session.setEmail(email);
@@ -234,7 +236,9 @@ public class JwtTokenService {
                 refreshExpireSeconds,
                 TimeUnit.SECONDS
         );
-        redisTemplate.opsForSet().add(userSessionsRedisKey(session.getUserId()), session.getSessionId());
+        String userSessionsKey = userSessionsRedisKey(session.getUserId());
+        redisTemplate.opsForSet().add(userSessionsKey, session.getSessionId());
+        redisTemplate.expire(userSessionsKey, refreshExpireSeconds, TimeUnit.SECONDS);
     }
 
     private void removeTokenIndexes(AuthSessionDto session) {
