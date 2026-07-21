@@ -372,7 +372,7 @@ public class BangumiServiceImpl implements BangumiService {
         IntRange yearRange = parseYearRange(filter != null ? filter.getDate() : null);
         DoubleRange ratingRange = parseRatingRange(filter != null ? filter.getRating() : null);
         IntRange rankRange = parseRankRange(filter != null ? filter.getRank() : null);
-        String sort = body.getSort() != null ? body.getSort().getValue() : "match";
+        String sort = body.getSort() != null ? body.getSort().getValue() : "heat";
 
         return new LocalSearchCriteria(
                 types,

@@ -16,7 +16,7 @@ public class SearchSubjectsBody {
     private String keyword;
 
     /**
-     * 排序方式，默认 {@link SubjectSearchSort#MATCH}
+     * 排序方式，默认 {@link SubjectSearchSort#HEAT}
      */
     private SubjectSearchSort sort;
 
