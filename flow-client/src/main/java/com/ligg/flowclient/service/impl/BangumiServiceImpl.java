@@ -321,19 +321,16 @@ public class BangumiServiceImpl implements BangumiService {
             return dto;
         }
 
-        String keyword = body.getKeyword().trim();
-        String compactKeyword = compactSearchKeyword(keyword);
-        String anchorKeyword = extractAnchorKeyword(keyword, compactKeyword);
-        boolean anchoredTitleSearch = StringUtils.hasText(anchorKeyword);
+        SearchKeyword keyword = SearchKeyword.from(body.getKeyword());
         LocalSearchCriteria criteria = toLocalSearchCriteria(body);
         int normalizedLimit = Math.min(limit, 100);
         int normalizedOffset = Math.max(offset, 0);
 
         Integer total = subjectMapper.countLocalSearchSubjects(
-                keyword,
-                compactKeyword,
-                anchorKeyword,
-                anchoredTitleSearch,
+                keyword.raw(),
+                keyword.compact(),
+                keyword.anchor(),
+                keyword.anchored(),
                 criteria.exactSubjectId(),
                 criteria.types(),
                 criteria.includeNsfw(),
@@ -352,10 +349,10 @@ public class BangumiServiceImpl implements BangumiService {
         }
 
         List<SubjectSearchRow> rows = subjectMapper.selectLocalSearchSubjects(
-                keyword,
-                compactKeyword,
-                anchorKeyword,
-                anchoredTitleSearch,
+                keyword.raw(),
+                keyword.compact(),
+                keyword.anchor(),
+                keyword.anchored(),
                 criteria.exactSubjectId(),
                 criteria.types(),
                 criteria.includeNsfw(),
@@ -373,21 +370,6 @@ public class BangumiServiceImpl implements BangumiService {
         dto.setData(rows == null ? Collections.emptyList() : rows.stream().map(this::toSearchSubject).toList());
         dto.setTotal(total);
         return dto;
-    }
-
-    private static String compactSearchKeyword(String keyword) {
-        if (!StringUtils.hasText(keyword)) {
-            return "";
-        }
-        return keyword.trim().replaceAll("[\\s　·・:：\\-－—_]+", "");
-    }
-
-    private static String extractAnchorKeyword(String keyword, String compactKeyword) {
-        if (compactKeyword.length() < 4 || !SEASON_TITLE_PATTERN.matcher(keyword).find()) {
-            return "";
-        }
-        String anchorKeyword = COMPACT_SEASON_QUALIFIER_PATTERN.matcher(compactKeyword).replaceAll("");
-        return anchorKeyword.length() >= 2 ? anchorKeyword : "";
     }
 
     private LocalSearchCriteria toLocalSearchCriteria(SearchSubjectsBody body) {
@@ -574,6 +556,24 @@ public class BangumiServiceImpl implements BangumiService {
     private record DoubleRange(Double min, Double max) {
         static DoubleRange empty() {
             return new DoubleRange(null, null);
+        }
+    }
+
+    private record SearchKeyword(String raw, String compact, String anchor, boolean anchored) {
+
+        static SearchKeyword from(String rawKeyword) {
+            String raw = rawKeyword.trim();
+            String compact = raw.replaceAll("[\\s　·・:：\\-－—_]+", "");
+            String anchor = extractAnchor(raw, compact);
+            return new SearchKeyword(raw, compact, anchor, StringUtils.hasText(anchor));
+        }
+
+        private static String extractAnchor(String raw, String compact) {
+            if (compact.length() < 4 || !SEASON_TITLE_PATTERN.matcher(raw).find()) {
+                return "";
+            }
+            String anchor = COMPACT_SEASON_QUALIFIER_PATTERN.matcher(compact).replaceAll("");
+            return anchor.length() >= 2 ? anchor : "";
         }
     }
 

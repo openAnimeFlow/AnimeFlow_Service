@@ -2,10 +2,14 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ligg.flowclient.mapper.BangumiSubjectMapper">
 
+    <sql id="compactText">
+        replace(replace(replace(replace(replace(replace(${column}, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '')
+    </sql>
+
     <select id="selectSearchSuggestions" resultType="com.ligg.flowclient.module.dto.SearchSuggestionRow">
         select id,
                name,
-               name_cn as nameCn
+               name_cn
         from bangumi_subject
         where type = #{type}
           and (name_cn like concat('%', #{keyword}, '%')
@@ -74,13 +78,13 @@
             idx.name like concat('%', #{keyword}, '%')
             or idx.name_cn like concat('%', #{keyword}, '%')
             or idx.aliases like concat('%', #{keyword}, '%')
-            or replace(replace(replace(replace(replace(replace(idx.name, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') like concat('%', #{compactKeyword}, '%')
-            or replace(replace(replace(replace(replace(replace(idx.name_cn, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') like concat('%', #{compactKeyword}, '%')
-            or replace(replace(replace(replace(replace(replace(idx.aliases, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') like concat('%', #{compactKeyword}, '%')
+            or <include refid="compactText"><property name="column" value="idx.name"/></include> like concat('%', #{compactKeyword}, '%')
+            or <include refid="compactText"><property name="column" value="idx.name_cn"/></include> like concat('%', #{compactKeyword}, '%')
+            or <include refid="compactText"><property name="column" value="idx.aliases"/></include> like concat('%', #{compactKeyword}, '%')
             <if test="anchoredTitleSearch">
-                or replace(replace(replace(replace(replace(replace(idx.name, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') like concat('%', #{anchorKeyword}, '%')
-                or replace(replace(replace(replace(replace(replace(idx.name_cn, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') like concat('%', #{anchorKeyword}, '%')
-                or replace(replace(replace(replace(replace(replace(idx.aliases, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') like concat('%', #{anchorKeyword}, '%')
+                or <include refid="compactText"><property name="column" value="idx.name"/></include> like concat('%', #{anchorKeyword}, '%')
+                or <include refid="compactText"><property name="column" value="idx.name_cn"/></include> like concat('%', #{anchorKeyword}, '%')
+                or <include refid="compactText"><property name="column" value="idx.aliases"/></include> like concat('%', #{anchorKeyword}, '%')
             </if>
             <if test="!anchoredTitleSearch">
                 or match(idx.name, idx.name_cn, idx.aliases, idx.tags_text, idx.meta_tags_text, idx.search_text)
@@ -93,24 +97,24 @@
         select bs.id,
                bs.type,
                bs.name,
-               bs.name_cn as nameCn,
+               bs.name_cn,
                bs.infobox,
                bs.nsfw,
                bs.score,
-               bs.score_details as scoreDetails,
+               bs.score_details,
                bs.`rank`,
                bs.images,
                (
                    case when idx.subject_id = #{exactSubjectId} then 2000 else 0 end
                    + case when idx.name_cn = #{keyword} then 1200 else 0 end
                    + case when idx.name = #{keyword} then 1100 else 0 end
-                   + case when replace(replace(replace(replace(replace(replace(idx.name_cn, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') = #{compactKeyword} then 1150 else 0 end
-                   + case when replace(replace(replace(replace(replace(replace(idx.name, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') = #{compactKeyword} then 1050 else 0 end
-                   + case when replace(replace(replace(replace(replace(replace(idx.aliases, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') like concat('%', #{compactKeyword}, '%') then 900 else 0 end
+                   + case when <include refid="compactText"><property name="column" value="idx.name_cn"/></include> = #{compactKeyword} then 1150 else 0 end
+                   + case when <include refid="compactText"><property name="column" value="idx.name"/></include> = #{compactKeyword} then 1050 else 0 end
+                   + case when <include refid="compactText"><property name="column" value="idx.aliases"/></include> like concat('%', #{compactKeyword}, '%') then 900 else 0 end
                    + case when idx.name_cn like concat(#{keyword}, '%') then 500 else 0 end
                    + case when idx.name like concat(#{keyword}, '%') then 450 else 0 end
-                   + case when replace(replace(replace(replace(replace(replace(idx.name_cn, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') like concat(#{compactKeyword}, '%') then 620 else 0 end
-                   + case when replace(replace(replace(replace(replace(replace(idx.name, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') like concat(#{compactKeyword}, '%') then 560 else 0 end
+                   + case when <include refid="compactText"><property name="column" value="idx.name_cn"/></include> like concat(#{compactKeyword}, '%') then 620 else 0 end
+                   + case when <include refid="compactText"><property name="column" value="idx.name"/></include> like concat(#{compactKeyword}, '%') then 560 else 0 end
                    + case when idx.aliases like concat('%', #{keyword}, '%') then 320 else 0 end
                    + match(idx.name, idx.name_cn, idx.aliases, idx.tags_text, idx.meta_tags_text, idx.search_text)
                      against(#{keyword} in natural language mode) * 100
@@ -169,21 +173,21 @@
     </select>
 
     <select id="selectRelatedSubjects" resultType="com.ligg.flowclient.module.dto.SubjectRelationRow">
-        select r.subject_id    as subjectId,
-               r.relation_type as relationType,
+        select r.subject_id,
+               r.relation_type,
                r.`order`,
                s.id,
                s.type,
                s.name,
-               s.name_cn       as nameCn,
+               s.name_cn,
                s.infobox,
                s.platform,
                s.summary,
                s.nsfw,
                s.tags,
-               s.meta_tags     as metaTags,
+               s.meta_tags,
                s.score,
-               s.score_details as scoreDetails,
+               s.score_details,
                s.`rank`,
                s.date,
                s.favorite,
@@ -199,11 +203,11 @@
         select candidate.id,
                candidate.type,
                candidate.name,
-               candidate.name_cn       as nameCn,
+               candidate.name_cn,
                candidate.infobox,
                candidate.nsfw,
                candidate.score,
-               candidate.score_details as scoreDetails,
+               candidate.score_details,
                candidate.`rank`,
                candidate.images
         from (
