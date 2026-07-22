@@ -20,6 +20,9 @@ public interface BangumiSubjectMapper extends BaseMapper<BangumiSubjectEntity> {
                                                     @Param("limit") int limit);
 
     List<SubjectSearchRow> selectLocalSearchSubjects(@Param("keyword") String keyword,
+                                                     @Param("compactKeyword") String compactKeyword,
+                                                     @Param("anchorKeyword") String anchorKeyword,
+                                                     @Param("anchoredTitleSearch") boolean anchoredTitleSearch,
                                                      @Param("exactSubjectId") Integer exactSubjectId,
                                                      @Param("types") List<Integer> types,
                                                      @Param("includeNsfw") boolean includeNsfw,
@@ -36,6 +39,9 @@ public interface BangumiSubjectMapper extends BaseMapper<BangumiSubjectEntity> {
                                                      @Param("offset") int offset);
 
     Integer countLocalSearchSubjects(@Param("keyword") String keyword,
+                                     @Param("compactKeyword") String compactKeyword,
+                                     @Param("anchorKeyword") String anchorKeyword,
+                                     @Param("anchoredTitleSearch") boolean anchoredTitleSearch,
                                      @Param("exactSubjectId") Integer exactSubjectId,
                                      @Param("types") List<Integer> types,
                                      @Param("includeNsfw") boolean includeNsfw,

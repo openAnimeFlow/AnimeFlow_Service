@@ -74,8 +74,18 @@
             idx.name like concat('%', #{keyword}, '%')
             or idx.name_cn like concat('%', #{keyword}, '%')
             or idx.aliases like concat('%', #{keyword}, '%')
-            or match(idx.name, idx.name_cn, idx.aliases, idx.tags_text, idx.meta_tags_text, idx.search_text)
-               against(#{keyword} in natural language mode)
+            or replace(replace(replace(replace(replace(replace(idx.name, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') like concat('%', #{compactKeyword}, '%')
+            or replace(replace(replace(replace(replace(replace(idx.name_cn, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') like concat('%', #{compactKeyword}, '%')
+            or replace(replace(replace(replace(replace(replace(idx.aliases, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') like concat('%', #{compactKeyword}, '%')
+            <if test="anchoredTitleSearch">
+                or replace(replace(replace(replace(replace(replace(idx.name, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') like concat('%', #{anchorKeyword}, '%')
+                or replace(replace(replace(replace(replace(replace(idx.name_cn, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') like concat('%', #{anchorKeyword}, '%')
+                or replace(replace(replace(replace(replace(replace(idx.aliases, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') like concat('%', #{anchorKeyword}, '%')
+            </if>
+            <if test="!anchoredTitleSearch">
+                or match(idx.name, idx.name_cn, idx.aliases, idx.tags_text, idx.meta_tags_text, idx.search_text)
+                   against(#{keyword} in natural language mode)
+            </if>
         )
     </sql>
 
@@ -94,8 +104,13 @@
                    case when idx.subject_id = #{exactSubjectId} then 2000 else 0 end
                    + case when idx.name_cn = #{keyword} then 1200 else 0 end
                    + case when idx.name = #{keyword} then 1100 else 0 end
+                   + case when replace(replace(replace(replace(replace(replace(idx.name_cn, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') = #{compactKeyword} then 1150 else 0 end
+                   + case when replace(replace(replace(replace(replace(replace(idx.name, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') = #{compactKeyword} then 1050 else 0 end
+                   + case when replace(replace(replace(replace(replace(replace(idx.aliases, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') like concat('%', #{compactKeyword}, '%') then 900 else 0 end
                    + case when idx.name_cn like concat(#{keyword}, '%') then 500 else 0 end
                    + case when idx.name like concat(#{keyword}, '%') then 450 else 0 end
+                   + case when replace(replace(replace(replace(replace(replace(idx.name_cn, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') like concat(#{compactKeyword}, '%') then 620 else 0 end
+                   + case when replace(replace(replace(replace(replace(replace(idx.name, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '') like concat(#{compactKeyword}, '%') then 560 else 0 end
                    + case when idx.aliases like concat('%', #{keyword}, '%') then 320 else 0 end
                    + match(idx.name, idx.name_cn, idx.aliases, idx.tags_text, idx.meta_tags_text, idx.search_text)
                      against(#{keyword} in natural language mode) * 100
@@ -112,6 +127,7 @@
         order by
         <choose>
             <when test="sort == 'heat'">
+                relevanceScore desc,
                 idx.favorite_done desc,
                 idx.subject_rank = 0,
                 idx.subject_rank is null,
@@ -119,6 +135,7 @@
                 idx.score desc,
             </when>
             <when test="sort == 'rank'">
+                relevanceScore desc,
                 idx.subject_rank = 0,
                 idx.subject_rank is null,
                 idx.subject_rank,
@@ -126,6 +143,7 @@
                 idx.favorite_done desc,
             </when>
             <when test="sort == 'score'">
+                relevanceScore desc,
                 idx.score desc,
                 idx.subject_rank = 0,
                 idx.subject_rank is null,

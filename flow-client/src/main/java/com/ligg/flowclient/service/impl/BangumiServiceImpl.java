@@ -53,6 +53,13 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class BangumiServiceImpl implements BangumiService {
 
+    private static final Pattern SEASON_TITLE_PATTERN = Pattern.compile(
+            "(第[0-9一二三四五六七八九十百]+[季期]|season\\s*[0-9]+|s[0-9]+)",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern COMPACT_SEASON_QUALIFIER_PATTERN = Pattern.compile(
+            "(第[0-9一二三四五六七八九十百]+[季期]|season[0-9]+|s[0-9]+)",
+            Pattern.CASE_INSENSITIVE);
+
     private final BangumiEpisodeMapper episodeMapper;
     private final BangumiSubjectMapper subjectMapper;
     private final ObjectMapper objectMapper;
@@ -315,12 +322,18 @@ public class BangumiServiceImpl implements BangumiService {
         }
 
         String keyword = body.getKeyword().trim();
+        String compactKeyword = compactSearchKeyword(keyword);
+        String anchorKeyword = extractAnchorKeyword(keyword, compactKeyword);
+        boolean anchoredTitleSearch = StringUtils.hasText(anchorKeyword);
         LocalSearchCriteria criteria = toLocalSearchCriteria(body);
         int normalizedLimit = Math.min(limit, 100);
         int normalizedOffset = Math.max(offset, 0);
 
         Integer total = subjectMapper.countLocalSearchSubjects(
                 keyword,
+                compactKeyword,
+                anchorKeyword,
+                anchoredTitleSearch,
                 criteria.exactSubjectId(),
                 criteria.types(),
                 criteria.includeNsfw(),
@@ -340,6 +353,9 @@ public class BangumiServiceImpl implements BangumiService {
 
         List<SubjectSearchRow> rows = subjectMapper.selectLocalSearchSubjects(
                 keyword,
+                compactKeyword,
+                anchorKeyword,
+                anchoredTitleSearch,
                 criteria.exactSubjectId(),
                 criteria.types(),
                 criteria.includeNsfw(),
@@ -357,6 +373,21 @@ public class BangumiServiceImpl implements BangumiService {
         dto.setData(rows == null ? Collections.emptyList() : rows.stream().map(this::toSearchSubject).toList());
         dto.setTotal(total);
         return dto;
+    }
+
+    private static String compactSearchKeyword(String keyword) {
+        if (!StringUtils.hasText(keyword)) {
+            return "";
+        }
+        return keyword.trim().replaceAll("[\\s　·・:：\\-－—_]+", "");
+    }
+
+    private static String extractAnchorKeyword(String keyword, String compactKeyword) {
+        if (compactKeyword.length() < 4 || !SEASON_TITLE_PATTERN.matcher(keyword).find()) {
+            return "";
+        }
+        String anchorKeyword = COMPACT_SEASON_QUALIFIER_PATTERN.matcher(compactKeyword).replaceAll("");
+        return anchorKeyword.length() >= 2 ? anchorKeyword : "";
     }
 
     private LocalSearchCriteria toLocalSearchCriteria(SearchSubjectsBody body) {
