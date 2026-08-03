@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ligg.flowclient.mapper.UserPlayHistoryMapper">
+
+    <insert id="upsert">
+        insert into user_play_history (
+            user_id, subject_id, episode_id, episode_sort,
+            subject_name, cover, alias, position_seconds, duration_seconds,
+            is_completed, completed_at, last_played_at
+        ) values (
+            #{row.userId}, #{row.subjectId}, #{row.episodeId}, #{row.episodeSort},
+            #{row.subjectName}, #{row.cover}, #{row.alias},
+            #{row.positionSeconds}, #{row.durationSeconds},
+            0, null, current_timestamp
+        )
+        on duplicate key update
+            episode_id = values(episode_id),
+            episode_sort = values(episode_sort),
+            subject_name = values(subject_name),
+            cover = values(cover),
+            alias = values(alias),
+            position_seconds = values(position_seconds),
+            duration_seconds = values(duration_seconds),
+            is_completed = 0,
+            completed_at = null,
+            last_played_at = current_timestamp
+    </insert>
+
+    <select id="selectPageByUser" resultType="com.ligg.flowclient.module.dto.UserPlayHistoryRow">
+        select id, subject_id, episode_id, episode_sort,
+               subject_name, cover, alias, position_seconds, duration_seconds,
+               is_completed, completed_at, last_played_at
+        from user_play_history
+        where user_id = #{userId}
+        order by last_played_at desc, id desc
+        limit #{limit} offset #{offset}
+    </select>
+
+    <select id="selectByUserAndSubject" resultType="com.ligg.flowclient.module.dto.UserPlayHistoryRow">
+        select id, subject_id, episode_id, episode_sort,
+               subject_name, cover, alias, position_seconds, duration_seconds,
+               is_completed, completed_at, last_played_at
+        from user_play_history
+        where user_id = #{userId}
+          and subject_id = #{subjectId}
+        limit 1
+    </select>
+
+    <update id="clearProgress">
+        update user_play_history
+        set position_seconds = 0,
+            duration_seconds = 0,
+            is_completed = 1,
+            completed_at = current_timestamp,
+            last_played_at = current_timestamp
+        where user_id = #{userId}
+          and subject_id = #{subjectId}
+    </update>
+
+</mapper>
