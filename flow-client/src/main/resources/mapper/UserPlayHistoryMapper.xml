@@ -14,13 +14,13 @@
             0, null, current_timestamp
         )
         on duplicate key update
-            episode_id = values(episode_id),
-            episode_sort = values(episode_sort),
-            subject_name = values(subject_name),
-            cover = values(cover),
-            alias = values(alias),
-            position_seconds = values(position_seconds),
-            duration_seconds = values(duration_seconds),
+            episode_id = #{row.episodeId},
+            episode_sort = #{row.episodeSort},
+            subject_name = #{row.subjectName},
+            cover = #{row.cover},
+            alias = #{row.alias},
+            position_seconds = #{row.positionSeconds},
+            duration_seconds = #{row.durationSeconds},
             is_completed = 0,
             completed_at = null,
             last_played_at = current_timestamp

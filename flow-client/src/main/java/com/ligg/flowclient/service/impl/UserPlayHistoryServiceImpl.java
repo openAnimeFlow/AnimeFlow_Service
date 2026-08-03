@@ -40,12 +40,15 @@ public class UserPlayHistoryServiceImpl implements UserPlayHistoryService {
         if (!dto.getSubjectId().equals(episode.getSubjectId())) {
             throw new IllegalArgumentException("剧集不属于指定番剧");
         }
+        if (dto.getPositionSeconds() > dto.getDurationSeconds()) {
+            throw new IllegalArgumentException("播放进度不能超过视频时长");
+        }
 
         UserPlayHistoryEntity row = new UserPlayHistoryEntity();
         row.setUserId(userId);
         row.setSubjectId(dto.getSubjectId());
         row.setEpisodeId(dto.getEpisodeId());
-        row.setEpisodeSort(dto.getEpisodeSort());
+        row.setEpisodeSort(episode.getSort());
         row.setSubjectName(dto.getSubjectName().trim());
         row.setCover(dto.getCover().trim());
         row.setAlias(toJson(dto.getAlias()));
