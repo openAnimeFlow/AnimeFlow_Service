@@ -7,14 +7,14 @@
         values
         <foreach collection="list" item="item" separator=",">
             (#{item.id}, #{item.role}, #{item.name}, #{item.infobox}, #{item.summary}, #{item.comments}, #{item.collects})
-        </foreach>
+        </foreach> as new
         on duplicate key update
-        role = values(role),
-        name = values(name),
-        infobox = values(infobox),
-        summary = values(summary),
-        comments = values(comments),
-        collects = values(collects)
+        role = new.role,
+        name = new.name,
+        infobox = new.infobox,
+        summary = new.summary,
+        comments = new.comments,
+        collects = new.collects
     </insert>
 
     <insert id="upsertEpisodeBatch">
@@ -23,17 +23,17 @@
         <foreach collection="list" item="item" separator=",">
             (#{item.id}, #{item.name}, #{item.nameCn}, #{item.description}, #{item.airdate}, #{item.disc},
             #{item.duration}, #{item.subjectId}, #{item.sort}, #{item.type})
-        </foreach>
+        </foreach> as new
         on duplicate key update
-        name = values(name),
-        name_cn = values(name_cn),
-        description = values(description),
-        airdate = values(airdate),
-        disc = values(disc),
-        duration = values(duration),
-        subject_id = values(subject_id),
-        sort = values(sort),
-        type = values(type)
+        name = new.name,
+        name_cn = new.name_cn,
+        description = new.description,
+        airdate = new.airdate,
+        disc = new.disc,
+        duration = new.duration,
+        subject_id = new.subject_id,
+        sort = new.sort,
+        type = new.type
     </insert>
 
     <insert id="upsertPersonBatch">
@@ -42,15 +42,15 @@
         <foreach collection="list" item="item" separator=",">
             (#{item.id}, #{item.name}, #{item.type}, #{item.career}, #{item.infobox}, #{item.summary},
             #{item.comments}, #{item.collects})
-        </foreach>
+        </foreach> as new
         on duplicate key update
-        name = values(name),
-        type = values(type),
-        career = values(career),
-        infobox = values(infobox),
-        summary = values(summary),
-        comments = values(comments),
-        collects = values(collects)
+        name = new.name,
+        type = new.type,
+        career = new.career,
+        infobox = new.infobox,
+        summary = new.summary,
+        comments = new.comments,
+        collects = new.collects
     </insert>
 
     <insert id="upsertSubjectBatch">
@@ -61,23 +61,23 @@
             (#{item.id}, #{item.type}, #{item.name}, #{item.nameCn}, #{item.infobox}, #{item.platform},
             #{item.summary}, #{item.nsfw}, #{item.tags}, #{item.metaTags}, #{item.score}, #{item.scoreDetails},
             #{item.rank}, #{item.date}, #{item.favorite}, #{item.series})
-        </foreach>
+        </foreach> as new
         on duplicate key update
-        type = values(type),
-        name = values(name),
-        name_cn = values(name_cn),
-        infobox = values(infobox),
-        platform = values(platform),
-        summary = values(summary),
-        nsfw = values(nsfw),
-        tags = values(tags),
-        meta_tags = values(meta_tags),
-        score = values(score),
-        score_details = values(score_details),
-        `rank` = values(`rank`),
-        date = values(date),
-        favorite = values(favorite),
-        series = values(series)
+        type = new.type,
+        name = new.name,
+        name_cn = new.name_cn,
+        infobox = new.infobox,
+        platform = new.platform,
+        summary = new.summary,
+        nsfw = new.nsfw,
+        tags = new.tags,
+        meta_tags = new.meta_tags,
+        score = new.score,
+        score_details = new.score_details,
+        `rank` = new.`rank`,
+        date = new.date,
+        favorite = new.favorite,
+        series = new.series
     </insert>
 
     <insert id="upsertSubjectSearchBatch">
@@ -88,21 +88,21 @@
             (#{item.subjectId}, #{item.type}, #{item.nsfw}, #{item.name}, #{item.nameCn}, #{item.aliases},
             #{item.tagsText}, #{item.metaTagsText}, #{item.year}, #{item.platform}, #{item.score},
             #{item.subjectRank}, #{item.favoriteDone}, #{item.searchText})
-        </foreach>
+        </foreach> as new
         on duplicate key update
-        type = values(type),
-        nsfw = values(nsfw),
-        name = values(name),
-        name_cn = values(name_cn),
-        aliases = values(aliases),
-        tags_text = values(tags_text),
-        meta_tags_text = values(meta_tags_text),
-        year = values(year),
-        platform = values(platform),
-        score = values(score),
-        subject_rank = values(subject_rank),
-        favorite_done = values(favorite_done),
-        search_text = values(search_text)
+        type = new.type,
+        nsfw = new.nsfw,
+        name = new.name,
+        name_cn = new.name_cn,
+        aliases = new.aliases,
+        tags_text = new.tags_text,
+        meta_tags_text = new.meta_tags_text,
+        year = new.year,
+        platform = new.platform,
+        score = new.score,
+        subject_rank = new.subject_rank,
+        favorite_done = new.favorite_done,
+        search_text = new.search_text
     </insert>
 
     <insert id="upsertPersonCharacterBatch">
@@ -110,10 +110,10 @@
         values
         <foreach collection="list" item="item" separator=",">
             (#{item.personId}, #{item.subjectId}, #{item.characterId}, #{item.type}, #{item.summary})
-        </foreach>
+        </foreach> as new
         on duplicate key update
-        type = values(type),
-        summary = values(summary)
+        type = new.type,
+        summary = new.summary
     </insert>
 
     <insert id="upsertPersonRelationBatch">
@@ -122,10 +122,10 @@
         <foreach collection="list" item="item" separator=",">
             (#{item.personType}, #{item.personId}, #{item.relatedPersonId}, #{item.relationType},
             #{item.spoiler}, #{item.ended})
-        </foreach>
+        </foreach> as new
         on duplicate key update
-        spoiler = values(spoiler),
-        ended = values(ended)
+        spoiler = new.spoiler,
+        ended = new.ended
     </insert>
 
     <insert id="upsertSubjectCharacterBatch">
@@ -133,10 +133,10 @@
         values
         <foreach collection="list" item="item" separator=",">
             (#{item.characterId}, #{item.subjectId}, #{item.type}, #{item.order})
-        </foreach>
+        </foreach> as new
         on duplicate key update
-        type = values(type),
-        `order` = values(`order`)
+        type = new.type,
+        `order` = new.`order`
     </insert>
 
     <insert id="upsertSubjectPersonBatch">
@@ -144,9 +144,9 @@
         values
         <foreach collection="list" item="item" separator=",">
             (#{item.personId}, #{item.subjectId}, #{item.position}, #{item.appearEps})
-        </foreach>
+        </foreach> as new
         on duplicate key update
-        appear_eps = values(appear_eps)
+        appear_eps = new.appear_eps
     </insert>
 
     <insert id="upsertSubjectRelationBatch">
@@ -154,9 +154,9 @@
         values
         <foreach collection="list" item="item" separator=",">
             (#{item.subjectId}, #{item.relationType}, #{item.relatedSubjectId}, #{item.order})
-        </foreach>
+        </foreach> as new
         on duplicate key update
-        `order` = values(`order`)
+        `order` = new.`order`
     </insert>
 
 </mapper>

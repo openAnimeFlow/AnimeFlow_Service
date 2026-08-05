@@ -7,11 +7,11 @@
         values
         <foreach collection="episodeIds" item="episodeId" separator=",">
             (#{userId}, #{subjectId}, #{episodeId}, 1, current_timestamp)
-        </foreach>
+        </foreach> as new
         on duplicate key update
-        subject_id = values(subject_id),
-        watch_status = values(watch_status),
-        watched_at = coalesce(watched_at, values(watched_at))
+        subject_id = new.subject_id,
+        watch_status = new.watch_status,
+        watched_at = coalesce(watched_at, new.watched_at)
     </insert>
 
 </mapper>

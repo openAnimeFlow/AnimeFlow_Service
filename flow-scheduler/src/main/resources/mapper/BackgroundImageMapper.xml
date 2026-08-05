@@ -7,9 +7,9 @@
         values
         <foreach collection="list" item="item" separator=",">
             (#{item.name}, #{item.image})
-        </foreach>
+        </foreach> as new
         on duplicate key update
-        `image` = values(`image`)
+        `image` = new.`image`
     </insert>
 
     <delete id="deleteByNameNotIn">
