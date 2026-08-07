@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ligg.flowscheduler.mapper.ApiAccessLogMapper">
+    <insert id="insertBatch">
+        INSERT INTO api_access_log (
+            trace_id, request_time, method, uri, route, query_string,
+            client_ip, user_agent, referer, http_status, success,
+            cost_ms, exception_type
+        ) VALUES
+        <foreach collection="logs" item="log" separator=",">
+            (
+                #{log.traceId}, #{log.requestTime}, #{log.method}, #{log.uri},
+                #{log.route}, #{log.queryString}, #{log.clientIp},
+                #{log.userAgent}, #{log.referer}, #{log.httpStatus},
+                #{log.success}, #{log.costMs}, #{log.exceptionType}
+            )
+        </foreach>
+    </insert>
+</mapper>
