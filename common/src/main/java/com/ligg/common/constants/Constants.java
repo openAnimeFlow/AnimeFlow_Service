@@ -159,4 +159,13 @@ public class Constants {
      * 已同步的背景图片 index.json lastUpdated
      */
     public static final String BACKGROUND_IMAGE_SYNC_UPDATED_AT_KEY = "animeflow:background:image:source_updated_at";
+
+    /** 接口访问日志 Redis 队列。 */
+    public static final String API_ACCESS_LOG_QUEUE_KEY = "animeflow:access-log:queue";
+
+    /** 无法解析的接口访问日志死信队列。 */
+    public static final String API_ACCESS_LOG_DEAD_LETTER_QUEUE_KEY = "animeflow:access-log:dead-letter";
+
+    /** 接口访问日志同步分布式锁。 */
+    public static final String API_ACCESS_LOG_SYNC_LOCK_KEY = "animeflow:access-log:sync:lock";
 }

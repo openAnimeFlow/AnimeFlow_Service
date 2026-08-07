@@ -17,6 +17,8 @@ public class ApiAccessLogEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
 
+    /** 事件唯一标识，用于 Redis 重试后的幂等写入。 */
+    private String eventId;
     private String traceId;
     private LocalDateTime requestTime;
     private String method;

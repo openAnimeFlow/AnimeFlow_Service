@@ -70,6 +70,7 @@ public class ApiAccessLogFilter extends OncePerRequestFilter {
     ) {
         try {
             ApiAccessLogEntity entity = new ApiAccessLogEntity();
+            entity.setEventId(UUID.randomUUID().toString().replace("-", ""));
             entity.setTraceId(traceId);
             entity.setRequestTime(LocalDateTime.now());
             entity.setMethod(request.getMethod());
@@ -83,7 +84,7 @@ public class ApiAccessLogFilter extends OncePerRequestFilter {
             entity.setSuccess(failure == null && response.getStatus() < 400);
             entity.setCostMs((int) Math.min(Integer.MAX_VALUE,
                     (System.nanoTime() - startNanos) / 1_000_000));
-            entity.setExceptionType(failure == null ? null : failure.getClass().getName());
+            entity.setExceptionType(failure == null ? null : limit(failure.getClass().getName(), 256));
             apiAccessLogRedisProducer.enqueue(entity);
         } catch (Exception exception) {
             // 访问日志不能影响原始请求响应。

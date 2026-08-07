@@ -334,4 +334,33 @@ CREATE TABLE `user_oauth`  (
   UNIQUE INDEX `uk_platform_uid`(`platform` ASC, `platform_uid` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 22 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户第三方 OAuth 绑定' ROW_FORMAT = Dynamic;
 
+-- ----------------------------
+-- Table structure for api_access_log
+-- ----------------------------
+DROP TABLE IF EXISTS `api_access_log`;
+CREATE TABLE `api_access_log`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键 ID',
+  `event_id` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '访问事件唯一 ID，用于重试幂等',
+  `trace_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '请求链路 ID',
+  `request_time` datetime(3) NOT NULL COMMENT '请求开始时间',
+  `method` varchar(16) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL COMMENT 'HTTP 方法',
+  `uri` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '请求 URI',
+  `route` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '接口模板路径',
+  `query_string` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '脱敏后的查询参数',
+  `client_ip` varchar(64) CHARACTER SET ascii COLLATE ascii_general_ci NULL DEFAULT NULL COMMENT '客户端 IP',
+  `user_agent` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT 'User-Agent',
+  `referer` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT 'Referer',
+  `http_status` smallint NULL DEFAULT NULL COMMENT 'HTTP 响应状态码',
+  `success` tinyint(1) NOT NULL COMMENT '请求是否成功',
+  `cost_ms` int UNSIGNED NOT NULL DEFAULT 0 COMMENT '请求耗时（毫秒）',
+  `exception_type` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '异常类型',
+  `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '记录创建时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_event_id`(`event_id` ASC) USING BTREE,
+  INDEX `idx_request_time`(`request_time` ASC) USING BTREE,
+  INDEX `idx_route_time`(`route` ASC, `request_time` ASC) USING BTREE,
+  INDEX `idx_client_ip_time`(`client_ip` ASC, `request_time` ASC) USING BTREE,
+  INDEX `idx_status_time`(`http_status` ASC, `request_time` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '接口访问日志' ROW_FORMAT = Dynamic;
+
 SET FOREIGN_KEY_CHECKS = 1;
