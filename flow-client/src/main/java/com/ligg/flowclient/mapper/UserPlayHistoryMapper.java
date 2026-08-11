@@ -2,6 +2,7 @@ package com.ligg.flowclient.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.ligg.common.entity.UserPlayHistoryEntity;
+import com.ligg.flowclient.module.enums.PlayHistorySaveEventType;
 import com.ligg.flowclient.module.dto.UserPlayHistoryRow;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -11,7 +12,8 @@ import java.util.List;
 @Mapper
 public interface UserPlayHistoryMapper extends BaseMapper<UserPlayHistoryEntity> {
 
-    int upsert(@Param("row") UserPlayHistoryEntity row);
+    int upsert(@Param("row") UserPlayHistoryEntity row,
+               @Param("eventType") PlayHistorySaveEventType eventType);
 
     List<UserPlayHistoryRow> selectPageByUser(@Param("userId") Long userId,
                                               @Param("limit") int limit,

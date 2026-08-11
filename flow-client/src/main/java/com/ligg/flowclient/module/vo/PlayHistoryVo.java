@@ -18,6 +18,5 @@ public class PlayHistoryVo {
     private Integer positionSeconds;
     private Integer durationSeconds;
     private Boolean completed;
-    private LocalDateTime completedAt;
     private LocalDateTime lastPlayedAt;
 }

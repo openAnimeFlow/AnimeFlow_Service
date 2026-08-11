@@ -9,6 +9,7 @@ import com.ligg.flowclient.mapper.BangumiEpisodeMapper;
 import com.ligg.flowclient.mapper.UserPlayHistoryMapper;
 import com.ligg.flowclient.module.dto.SavePlayHistoryDto;
 import com.ligg.flowclient.module.dto.UserPlayHistoryRow;
+import com.ligg.flowclient.module.enums.PlayHistorySaveEventType;
 import com.ligg.flowclient.module.vo.PlayHistoryVo;
 import com.ligg.flowclient.service.JwtTokenService;
 import com.ligg.flowclient.service.UserPlayHistoryService;
@@ -54,7 +55,10 @@ public class UserPlayHistoryServiceImpl implements UserPlayHistoryService {
         row.setAlias(toJson(dto.getAlias()));
         row.setPositionSeconds(dto.getPositionSeconds());
         row.setDurationSeconds(dto.getDurationSeconds());
-        userPlayHistoryMapper.upsert(row);
+        PlayHistorySaveEventType eventType = dto.getEventType() == null
+                ? PlayHistorySaveEventType.DEFAULT
+                : dto.getEventType();
+        userPlayHistoryMapper.upsert(row, eventType);
     }
 
     @Override
@@ -91,7 +95,6 @@ public class UserPlayHistoryServiceImpl implements UserPlayHistoryService {
         vo.setPositionSeconds(row.getPositionSeconds());
         vo.setDurationSeconds(row.getDurationSeconds());
         vo.setCompleted(Boolean.TRUE.equals(row.getIsCompleted()));
-        vo.setCompletedAt(row.getCompletedAt());
         vo.setLastPlayedAt(row.getLastPlayedAt());
         return vo;
     }

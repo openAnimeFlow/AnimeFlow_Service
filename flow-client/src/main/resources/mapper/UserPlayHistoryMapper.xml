@@ -14,16 +14,41 @@
             0, null, current_timestamp
         )
         on duplicate key update
+            position_seconds = if(
+                #{eventType} = 'FORCE_OVERWRITE'
+                or episode_id &lt;&gt; #{row.episodeId}
+                or position_seconds &lt;= #{row.positionSeconds},
+                #{row.positionSeconds}, position_seconds
+            ),
+            duration_seconds = if(
+                #{eventType} = 'FORCE_OVERWRITE'
+                or episode_id &lt;&gt; #{row.episodeId}
+                or position_seconds &lt;= #{row.positionSeconds},
+                #{row.durationSeconds}, duration_seconds
+            ),
+            is_completed = if(
+                #{eventType} = 'FORCE_OVERWRITE'
+                or episode_id &lt;&gt; #{row.episodeId}
+                or position_seconds &lt;= #{row.positionSeconds},
+                0, is_completed
+            ),
+            completed_at = if(
+                #{eventType} = 'FORCE_OVERWRITE'
+                or episode_id &lt;&gt; #{row.episodeId}
+                or position_seconds &lt;= #{row.positionSeconds},
+                null, completed_at
+            ),
+            last_played_at = if(
+                #{eventType} = 'FORCE_OVERWRITE'
+                or episode_id &lt;&gt; #{row.episodeId}
+                or position_seconds &lt;= #{row.positionSeconds},
+                current_timestamp, last_played_at
+            ),
             episode_id = #{row.episodeId},
             episode_sort = #{row.episodeSort},
             subject_name = #{row.subjectName},
             cover = #{row.cover},
-            alias = #{row.alias},
-            position_seconds = #{row.positionSeconds},
-            duration_seconds = #{row.durationSeconds},
-            is_completed = 0,
-            completed_at = null,
-            last_played_at = current_timestamp
+            alias = #{row.alias}
     </insert>
 
     <select id="selectPageByUser" resultType="com.ligg.flowclient.module.dto.UserPlayHistoryRow">
