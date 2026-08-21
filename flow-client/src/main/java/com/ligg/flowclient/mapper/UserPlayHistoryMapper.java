@@ -15,6 +15,9 @@ public interface UserPlayHistoryMapper extends BaseMapper<UserPlayHistoryEntity>
     int upsert(@Param("row") UserPlayHistoryEntity row,
                @Param("eventType") PlayHistorySaveEventType eventType);
 
+    int deleteExceedingByUser(@Param("userId") Long userId,
+                              @Param("limit") int limit);
+
     List<UserPlayHistoryRow> selectPageByUser(@Param("userId") Long userId,
                                               @Param("limit") int limit,
                                               @Param("offset") int offset);

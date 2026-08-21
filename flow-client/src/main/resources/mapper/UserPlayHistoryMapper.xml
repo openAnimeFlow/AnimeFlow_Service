@@ -51,6 +51,21 @@
             alias = #{row.alias}
     </insert>
 
+    <delete id="deleteExceedingByUser">
+        delete from user_play_history
+        where user_id = #{userId}
+          and id not in (
+              select id
+              from (
+                  select id
+                  from user_play_history
+                  where user_id = #{userId}
+                  order by last_played_at desc, id desc
+                  limit #{limit}
+              ) as keep_rows
+          )
+    </delete>
+
     <select id="selectPageByUser" resultType="com.ligg.flowclient.module.dto.UserPlayHistoryRow">
         select id, subject_id, episode_id, episode_sort,
                subject_name, cover, alias, position_seconds, duration_seconds,

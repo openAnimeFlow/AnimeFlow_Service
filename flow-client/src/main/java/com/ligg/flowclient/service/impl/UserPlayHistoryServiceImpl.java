@@ -15,6 +15,7 @@ import com.ligg.flowclient.service.JwtTokenService;
 import com.ligg.flowclient.service.UserPlayHistoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.Collections;
@@ -25,6 +26,7 @@ import java.util.List;
 public class UserPlayHistoryServiceImpl implements UserPlayHistoryService {
 
     private static final TypeReference<List<String>> ALIAS_TYPE = new TypeReference<>() {};
+    private static final int MAX_PLAY_HISTORY_COUNT = 50;
 
     private final JwtTokenService jwtTokenService;
     private final BangumiEpisodeMapper bangumiEpisodeMapper;
@@ -32,6 +34,7 @@ public class UserPlayHistoryServiceImpl implements UserPlayHistoryService {
     private final ObjectMapper objectMapper;
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void save(String accessToken, SavePlayHistoryDto dto) {
         Long userId = jwtTokenService.validateAccessToken(accessToken);
         BangumiEpisodeEntity episode = bangumiEpisodeMapper.selectById(dto.getEpisodeId());
@@ -59,6 +62,7 @@ public class UserPlayHistoryServiceImpl implements UserPlayHistoryService {
                 ? PlayHistorySaveEventType.DEFAULT
                 : dto.getEventType();
         userPlayHistoryMapper.upsert(row, eventType);
+        userPlayHistoryMapper.deleteExceedingByUser(userId, MAX_PLAY_HISTORY_COUNT);
     }
 
     @Override
