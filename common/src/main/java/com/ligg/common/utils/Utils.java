@@ -14,6 +14,8 @@ import java.util.Random;
 
 public final class Utils {
 
+    private static final String WSRV_CDN_IMAGE_URL_PREFIX = Constants.WSRV_CDN + "/?url=";
+
     private Utils() {
     }
 
@@ -47,7 +49,7 @@ public final class Utils {
         if (imageUrl.startsWith(Constants.WSRV_CDN)) {
             return imageUrl;
         }
-        return Constants.WSRV_CDN + "/?url=" + imageUrl;
+        return WSRV_CDN_IMAGE_URL_PREFIX + imageUrl;
     }
 
     /**
