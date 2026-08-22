@@ -128,7 +128,7 @@ public class Constants {
      * 新用户默认头像
      */
     public static final String DEFAULT_USER_AVATAR_URL =
-            "https://wsrv.nl/?url=https://raw.githubusercontent.com/openAnimeFlow/animeFlow-assets/main/image/logo1.webp";
+            "https://wsrv.nl/?url=https://raw.githubusercontent.com/openAnimeFlow/animeFlow-assets/main/image/logo.webp";
 
     /**
      * Bangumi Archive 同步分布式锁，完整键为 animeflow:bangumi:archive:sync:lock
