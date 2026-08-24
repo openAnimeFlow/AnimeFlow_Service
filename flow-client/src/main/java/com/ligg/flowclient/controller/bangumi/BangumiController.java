@@ -49,43 +49,10 @@ public class BangumiController {
     private final BangumiService bangumiService;
 
     /**
-     * 获取每日放送。
-     * 对应 Bangumi {@code GET /p1/calendar}，结果写入 Redis 全局缓存。
-     */
-    @GetMapping("/calendar")
-    public Result<CalendarVo> calendar() {
-        CalendarVo calendarVo = bangumiCacheService.getOrLoad(
-                BangumiConstants.BANGUMI_CALENDAR_CACHE_KEY,
-                BangumiConstants.BANGUMI_CALENDAR_LOCK_KEY,
-                CalendarVo.class,
-                BangumiConstants.BANGUMI_CALENDAR_CACHE_TTL_SECONDS,
-                "获取每日放送超时，请稍后重试",
-                "获取每日放送被中断",
-                () -> {
-                    CalendarDto calendarDto = bangumiClient.getCalendar();
-                    for (List<CalendarDto.Entry> entries : calendarDto.getDays().values()) {
-                        if (entries == null) {
-                            continue;
-                        }
-                        for (CalendarDto.Entry entry : entries) {
-                            if (entry == null || entry.getSubject() == null) {
-                                continue;
-                            }
-                            Utils.applyWsrvCdnInPlace(entry.getSubject().getImages());
-                        }
-                    }
-                    CalendarVo vo = new CalendarVo();
-                    vo.getDays().putAll(calendarDto.getDays());
-                    return vo;
-                });
-        return Result.success(ResponseCode.SUCCESS, calendarVo);
-    }
-
-    /**
      * 获取季番新番周表。
      * 再按放送星期分组为周一至周日；季度根据当前时间自动计算。
      */
-    @GetMapping("/season-calendar")
+    @GetMapping("/calendar")
     public Result<SeasonCalendarVo> seasonCalendar(
             @RequestParam(defaultValue = "true") boolean includeNextSeason) {
         String cacheKey = BangumiConstants.BANGUMI_SEASON_CALENDAR_CACHE_KEY_PREFIX + ':'

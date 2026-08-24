@@ -5,20 +5,6 @@
 package com.ligg.common.constants;
 
 public class BangumiConstants {
-    /**
-     * Bangumi 每日放送缓存键
-     */
-    public static final String BANGUMI_CALENDAR_CACHE_KEY = "bangumi:calendar";
-
-    /**
-     * Bangumi 每日放送重建缓存锁
-     */
-    public static final String BANGUMI_CALENDAR_LOCK_KEY = "bangumi:calendar:lock";
-
-    /**
-     * Bangumi 每日放送缓存时长（秒）
-     */
-    public static final long BANGUMI_CALENDAR_CACHE_TTL_SECONDS = 17280;
 
     /**
      * Bangumi 每日放送重建缓存锁时长（秒）
