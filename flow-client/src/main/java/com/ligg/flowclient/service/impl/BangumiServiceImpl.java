@@ -687,7 +687,10 @@ public class BangumiServiceImpl implements BangumiService {
 
     @Override
     public SeasonCalendarVo getSeasonCalendar(boolean includeNsfw) {
-        LocalDate now = LocalDate.now();
+        return getSeasonCalendar(includeNsfw, LocalDate.now());
+    }
+
+    SeasonCalendarVo getSeasonCalendar(boolean includeNsfw, LocalDate now) {
         int year = now.getYear();
         int month = BangumiSeasonUtils.startMonthOf(now.getMonthValue());
         String monthPrefix = BangumiSeasonUtils.currentSeasonMonthPrefix(now);
@@ -715,7 +718,7 @@ public class BangumiServiceImpl implements BangumiService {
         List<CalendarDto.Entry> unknown = new ArrayList<>();
         for (SeasonSubjectRow row : rows) {
             CalendarDto.Entry entry = toCalendarEntry(row);
-            applyEpisodeSummary(entry, episodesBySubject.get(row.getId()));
+            applyEpisodeSummary(entry, episodesBySubject.get(row.getId()), now);
             List<Integer> weekdays = resolveWeekdays(row.getDate(), row.getInfobox());
             if (weekdays.isEmpty()) {
                 unknown.add(entry);
@@ -738,13 +741,12 @@ public class BangumiServiceImpl implements BangumiService {
         return entry;
     }
 
-    private void applyEpisodeSummary(CalendarDto.Entry entry, List<SeasonEpisodeRow> episodes) {
+    private void applyEpisodeSummary(CalendarDto.Entry entry, List<SeasonEpisodeRow> episodes, LocalDate today) {
         if (episodes == null || episodes.isEmpty()) {
             return;
         }
         entry.setEpisodeCount(episodes.size());
 
-        LocalDate today = LocalDate.now();
         EpisodeSummary latest = null;
         EpisodeSummary next = null;
         for (SeasonEpisodeRow episode : episodes) {

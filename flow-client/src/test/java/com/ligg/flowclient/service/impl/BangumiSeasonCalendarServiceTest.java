@@ -2,6 +2,7 @@ package com.ligg.flowclient.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ligg.common.model.CoverImages;
+import com.ligg.common.utils.BangumiSeasonUtils;
 import com.ligg.common.vo.bangumi.SeasonCalendarVo;
 import com.ligg.flowclient.mapper.BangumiEpisodeMapper;
 import com.ligg.flowclient.mapper.BangumiSubjectMapper;
@@ -28,6 +29,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class BangumiSeasonCalendarServiceTest {
 
+    private static final LocalDate FIXED_NOW = LocalDate.of(2026, 7, 15);
+
     @org.mockito.Mock
     private BangumiEpisodeMapper episodeMapper;
 
@@ -49,22 +52,22 @@ class BangumiSeasonCalendarServiceTest {
         thursday.setFavorite("{\"done\": 12}");
         SeasonSubjectRow saturday = row(2, "2026-07-04", "星期六", 7.0);
         SeasonSubjectRow unknownWeekday = row(3, "2026-07-04", "", 6.0);
-        when(subjectMapper.selectSeasonSubjects(eq(currentMonthPrefix()), eq(2), eq(false)))
+        when(subjectMapper.selectSeasonSubjects(
+                eq(BangumiSeasonUtils.currentSeasonMonthPrefix(FIXED_NOW)), eq(2), eq(false)))
                 .thenReturn(List.of(thursday, saturday, unknownWeekday));
-        LocalDate today = LocalDate.now();
-        when(subjectMapper.selectSeasonEpisodes(eq(currentMonthPrefix())))
+        LocalDate today = FIXED_NOW;
+        when(subjectMapper.selectSeasonEpisodes(eq(BangumiSeasonUtils.currentSeasonMonthPrefix(FIXED_NOW))))
                 .thenReturn(List.of(
                         episode(1, 1, today.minusDays(7).toString()),
                         episode(1, 2, today.plusDays(7).toString())));
         mockImage();
 
         BangumiServiceImpl service = service();
-        SeasonCalendarVo vo = service.getSeasonCalendar(false);
+        SeasonCalendarVo vo = service.getSeasonCalendar(false, FIXED_NOW);
 
-        LocalDate now = LocalDate.now();
-        assertEquals(now.getYear(), vo.getYear());
-        assertEquals(currentSeasonStartMonth(now.getMonthValue()), vo.getMonth());
-        assertEquals(now.getYear() + "年" + currentSeasonStartMonth(now.getMonthValue()) + "月新番",
+        assertEquals(2026, vo.getYear());
+        assertEquals(7, vo.getMonth());
+        assertEquals("2026年7月新番",
                 vo.getSeasonName());
         assertEquals(3, vo.getTotal());
         assertEquals(1, vo.getDays().get("4").size());
@@ -83,11 +86,12 @@ class BangumiSeasonCalendarServiceTest {
     @Test
     void multipleWeekdaysPutSubjectIntoEachDay() {
         SeasonSubjectRow row = row(4, "2026-07-03", "星期二、星期五", 7.5);
-        when(subjectMapper.selectSeasonSubjects(eq(currentMonthPrefix()), eq(2), eq(false)))
+        when(subjectMapper.selectSeasonSubjects(
+                eq(BangumiSeasonUtils.currentSeasonMonthPrefix(FIXED_NOW)), eq(2), eq(false)))
                 .thenReturn(List.of(row));
         mockImage();
 
-        SeasonCalendarVo vo = service().getSeasonCalendar(false);
+        SeasonCalendarVo vo = service().getSeasonCalendar(false, FIXED_NOW);
 
         assertEquals(1, vo.getDays().get("2").size());
         assertEquals(1, vo.getDays().get("5").size());
@@ -128,20 +132,6 @@ class BangumiSeasonCalendarServiceTest {
         episode.setSort(sort);
         episode.setAirdate(airdate);
         return episode;
-    }
-
-    private static String currentMonthPrefix() {
-        LocalDate now = LocalDate.now();
-        return String.format("%04d-%02d", now.getYear(), currentSeasonStartMonth(now.getMonthValue()));
-    }
-
-    private static int currentSeasonStartMonth(int currentMonth) {
-        return switch (currentMonth) {
-            case 1, 2, 3 -> 1;
-            case 4, 5, 6 -> 4;
-            case 7, 8, 9 -> 7;
-            default -> 10;
-        };
     }
 
     private void mockImage() {
