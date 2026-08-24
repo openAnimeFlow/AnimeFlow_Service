@@ -1,15 +1,15 @@
-name: Unit Tests
+name: Test & Package
 
 on:
   push:
   pull_request:
 
 concurrency:
-  group: unit-tests-${{ github.workflow }}-${{ github.ref }}
+  group: test-package-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  maven-test:
+  test-and-package:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -24,3 +24,6 @@ jobs:
 
       - name: Run unit tests
         run: mvn -B test
+
+      - name: Package project
+        run: mvn -B package -DskipTests
