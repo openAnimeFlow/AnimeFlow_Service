@@ -2,6 +2,49 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ligg.flowclient.mapper.BangumiSubjectMapper">
 
+    <select id="selectSeasonSubjects" resultType="com.ligg.flowclient.module.dto.SeasonSubjectRow">
+        select id,
+               type,
+               name,
+               name_cn,
+               infobox,
+               meta_tags,
+               platform,
+               nsfw,
+               score,
+               score_details,
+               `rank`,
+               date,
+               favorite,
+               images
+        from bangumi_subject
+        where type = #{type}
+          and date like concat(#{monthPrefix}, '%')
+          and infobox like '%放送星期%'
+          <if test="!includeNsfw">
+              and nsfw = 0
+          </if>
+        order by date asc, id asc
+    </select>
+
+    <select id="selectSeasonEpisodes" resultType="com.ligg.flowclient.module.dto.SeasonEpisodeRow">
+        select e.subject_id,
+               e.id,
+               e.name,
+               e.name_cn,
+               e.sort,
+               e.airdate,
+               e.duration
+        from bangumi_episode e
+                 join bangumi_subject s on s.id = e.subject_id
+        where s.type = 2
+          and s.date like concat(#{monthPrefix}, '%')
+          and s.infobox like '%放送星期%'
+          and s.nsfw = 0
+          and e.type = 0
+        order by e.subject_id asc, e.sort asc
+    </select>
+
     <sql id="compactText">
         replace(replace(replace(replace(replace(replace(${column}, ' ', ''), '　', ''), '·', ''), '・', ''), ':', ''), '：', '')
     </sql>

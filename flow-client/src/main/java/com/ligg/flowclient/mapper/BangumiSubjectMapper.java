@@ -3,6 +3,8 @@ package com.ligg.flowclient.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.ligg.common.entity.BangumiSubjectEntity;
+import com.ligg.flowclient.module.dto.SeasonEpisodeRow;
+import com.ligg.flowclient.module.dto.SeasonSubjectRow;
 import com.ligg.flowclient.module.dto.SearchSuggestionRow;
 import com.ligg.flowclient.module.dto.SubjectRecommendationRow;
 import com.ligg.flowclient.module.dto.SubjectRelationRow;
@@ -14,6 +16,12 @@ import java.util.List;
 
 @Mapper
 public interface BangumiSubjectMapper extends BaseMapper<BangumiSubjectEntity> {
+
+    List<SeasonSubjectRow> selectSeasonSubjects(@Param("monthPrefix") String monthPrefix,
+                                                @Param("type") int type,
+                                                @Param("includeNsfw") boolean includeNsfw);
+
+    List<SeasonEpisodeRow> selectSeasonEpisodes(@Param("monthPrefix") String monthPrefix);
 
     List<SearchSuggestionRow> selectSearchSuggestions(@Param("keyword") String keyword,
                                                     @Param("type") int type,

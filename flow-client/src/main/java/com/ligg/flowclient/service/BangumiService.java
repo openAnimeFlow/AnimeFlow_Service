@@ -4,6 +4,7 @@ import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
 import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
 import com.ligg.common.vo.bangumi.SearchSuggestionsVo;
+import com.ligg.common.vo.bangumi.SeasonCalendarVo;
 import com.ligg.common.vo.bangumi.SubjectDetailVo;
 import com.ligg.common.vo.bangumi.SubjectRelationsVo;
 import com.ligg.common.vo.bangumi.SubjectsVo;
@@ -41,4 +42,9 @@ public interface BangumiService {
      * 获取相似条目推荐
      */
     SubjectsVo getRecommendedSubjects(Integer subjectId, int limit, int offset);
+
+    /**
+     * 根据当前时间自动获取本季度新番周表。
+     */
+    SeasonCalendarVo getSeasonCalendar(boolean includeNsfw);
 }

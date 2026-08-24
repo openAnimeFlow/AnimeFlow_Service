@@ -10,6 +10,7 @@ import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
 import com.ligg.common.thirdparty.bangumi.response.*;
+import com.ligg.common.utils.BangumiSeasonUtils;
 import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.bangumi.*;
 import com.ligg.flowclient.annotation.IpEndpointRateLimit;
@@ -27,13 +28,14 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * Bangumi 数据代理接口：转发 {@code next.bgm.tv} 请求，统一 CDN 图片处理与 Redis 缓存。
+ * Bangumi
  */
 @Slf4j
 @Validated
@@ -77,6 +79,27 @@ public class BangumiController {
                     return vo;
                 });
         return Result.success(ResponseCode.SUCCESS, calendarVo);
+    }
+
+    /**
+     * 获取季番新番周表。
+     * 再按放送星期分组为周一至周日；季度根据当前时间自动计算。
+     */
+    @GetMapping("/season-calendar")
+    public Result<SeasonCalendarVo> seasonCalendar(
+            @RequestParam(defaultValue = "true") boolean includeNextSeason) {
+        String cacheKey = BangumiConstants.BANGUMI_SEASON_CALENDAR_CACHE_KEY_PREFIX + ':'
+                + BangumiSeasonUtils.currentSeasonMonthPrefix(LocalDate.now())
+                + ':' + includeNextSeason;
+        SeasonCalendarVo vo = bangumiCacheService.getOrLoad(
+                cacheKey,
+                SeasonCalendarVo.class,
+                BangumiConstants.BANGUMI_SEASON_CALENDAR_CACHE_TTL_SECONDS,
+                "获取季番周表超时，请稍后重试",
+                "获取季番周表被中断",
+                () -> bangumiService.getSeasonCalendar(includeNextSeason),
+                () -> log.info("季番周表(命中缓存), cacheKey={}", cacheKey));
+        return Result.success(ResponseCode.SUCCESS, vo);
     }
 
 
@@ -124,6 +147,7 @@ public class BangumiController {
 
     /**
      * 搜索条目。
+     *
      * @param limit       每页条数，1–100
      * @param offset      偏移量
      * @param body        搜索关键词与筛选条件
@@ -228,10 +252,10 @@ public class BangumiController {
      * 角色出演作品列表。
      * 对应 Bangumi {@code GET /p1/characters/{id}/casts}；前 2 页走缓存。
      *
-     * @param characterId  角色 ID
-     * @param subjectType  条目类型，默认 2（动画）
-     * @param limit        每页条数，默认 20
-     * @param offset       偏移量，默认 0
+     * @param characterId 角色 ID
+     * @param subjectType 条目类型，默认 2（动画）
+     * @param limit       每页条数，默认 20
+     * @param offset      偏移量，默认 0
      */
     @GetMapping("/characters/{characterId}/casts")
     public Result<CharacterCastsVo> characterCasts(

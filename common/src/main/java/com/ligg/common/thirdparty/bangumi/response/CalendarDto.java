@@ -7,6 +7,7 @@ package com.ligg.common.thirdparty.bangumi.response;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.ligg.common.thirdparty.bangumi.model.BangumiSubject;
 import lombok.Data;
 
@@ -38,5 +39,22 @@ public class CalendarDto {
     public static class Entry {
         private BangumiSubject subject;
         private Integer watchers;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private EpisodeSummary latestEpisode;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private EpisodeSummary nextEpisode;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private Integer episodeCount;
+
+        @Data
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        public static class EpisodeSummary {
+            private Integer id;
+            private Integer sort;
+            private String name;
+            private String nameCn;
+            private String airdate;
+            private String duration;
+        }
     }
 }

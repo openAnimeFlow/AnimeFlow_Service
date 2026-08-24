@@ -18,19 +18,25 @@ import com.ligg.common.thirdparty.bangumi.model.BangumiRating;
 import com.ligg.common.thirdparty.bangumi.model.BangumiSubject;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsFilter;
+import com.ligg.common.thirdparty.bangumi.response.CalendarDto;
+import com.ligg.common.thirdparty.bangumi.response.CalendarDto.Entry.EpisodeSummary;
 import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectRelationsDto.RelationInfo;
 import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
+import com.ligg.common.utils.BangumiSeasonUtils;
 import com.ligg.common.utils.InfoboxParser;
 import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.bangumi.SearchSuggestionsVo;
+import com.ligg.common.vo.bangumi.SeasonCalendarVo;
 import com.ligg.common.vo.bangumi.SubjectDetailVo;
 import com.ligg.common.vo.bangumi.SubjectRelationsVo;
 import com.ligg.common.vo.bangumi.SubjectsVo;
 import com.ligg.flowclient.mapper.BangumiEpisodeMapper;
 import com.ligg.flowclient.mapper.BangumiSubjectMapper;
 import com.ligg.flowclient.mapper.UserBgmCollectionMapper;
+import com.ligg.flowclient.module.dto.SeasonEpisodeRow;
+import com.ligg.flowclient.module.dto.SeasonSubjectRow;
 import com.ligg.flowclient.module.dto.SearchSuggestionRow;
 import com.ligg.flowclient.module.dto.SubjectRecommendationRow;
 import com.ligg.flowclient.module.dto.SubjectRelationRow;
@@ -44,6 +50,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -59,6 +66,26 @@ public class BangumiServiceImpl implements BangumiService {
     private static final Pattern COMPACT_SEASON_QUALIFIER_PATTERN = Pattern.compile(
             "(第[0-9一二三四五六七八九十百]+[季期]|season[0-9]+|s[0-9]+)",
             Pattern.CASE_INSENSITIVE);
+    private static final List<String> WEEKDAY_KEYS = List.of("1", "2", "3", "4", "5", "6", "7");
+    private static final Map<String, Integer> WEEKDAY_CN = Map.ofEntries(
+            Map.entry("星期一", 1), Map.entry("星期二", 2), Map.entry("星期三", 3),
+            Map.entry("星期四", 4), Map.entry("星期五", 5), Map.entry("星期六", 6),
+            Map.entry("星期日", 7), Map.entry("星期天", 7),
+            Map.entry("周一", 1), Map.entry("周二", 2), Map.entry("周三", 3),
+            Map.entry("周四", 4), Map.entry("周五", 5), Map.entry("周六", 6),
+            Map.entry("周日", 7), Map.entry("周天", 7), Map.entry("日", 7),
+            Map.entry("週一", 1), Map.entry("週二", 2), Map.entry("週三", 3),
+            Map.entry("週四", 4), Map.entry("週五", 5), Map.entry("週六", 6),
+            Map.entry("週日", 7),
+            Map.entry("礼拜一", 1), Map.entry("礼拜二", 2), Map.entry("礼拜三", 3),
+            Map.entry("礼拜四", 4), Map.entry("礼拜五", 5), Map.entry("礼拜六", 6),
+            Map.entry("礼拜日", 7), Map.entry("礼拜天", 7),
+            Map.entry("月曜日", 1), Map.entry("火曜日", 2), Map.entry("水曜日", 3),
+            Map.entry("木曜日", 4), Map.entry("金曜日", 5), Map.entry("土曜日", 6),
+            Map.entry("日曜日", 7),
+            Map.entry("1", 1), Map.entry("2", 2), Map.entry("3", 3),
+            Map.entry("4", 4), Map.entry("5", 5), Map.entry("6", 6),
+            Map.entry("7", 7));
 
     private final BangumiEpisodeMapper episodeMapper;
     private final BangumiSubjectMapper subjectMapper;
@@ -656,6 +683,170 @@ public class BangumiServiceImpl implements BangumiService {
         vo.setData(pageRows.stream().map(this::toRecommendedSubject).toList());
         vo.setTotal(normalizedOffset + pageRows.size() + (hasMore ? 1 : 0));
         return vo;
+    }
+
+    @Override
+    public SeasonCalendarVo getSeasonCalendar(boolean includeNsfw) {
+        LocalDate now = LocalDate.now();
+        int year = now.getYear();
+        int month = BangumiSeasonUtils.startMonthOf(now.getMonthValue());
+        String monthPrefix = BangumiSeasonUtils.currentSeasonMonthPrefix(now);
+        List<SeasonSubjectRow> rows = subjectMapper.selectSeasonSubjects(monthPrefix, 2, includeNsfw);
+        if (rows == null) {
+            rows = Collections.emptyList();
+        }
+        List<SeasonEpisodeRow> episodeRows = subjectMapper.selectSeasonEpisodes(monthPrefix);
+        Map<Integer, List<SeasonEpisodeRow>> episodesBySubject = new HashMap<>();
+        if (episodeRows != null) {
+            for (SeasonEpisodeRow episode : episodeRows) {
+                episodesBySubject.computeIfAbsent(episode.getSubjectId(), key -> new ArrayList<>()).add(episode);
+            }
+        }
+
+        SeasonCalendarVo vo = new SeasonCalendarVo();
+        vo.setYear(year);
+        vo.setMonth(month);
+        vo.setSeasonName(year + "年" + month + "月新番");
+        vo.setTotal(rows.size());
+        for (String key : WEEKDAY_KEYS) {
+            vo.setDay(key, new ArrayList<>());
+        }
+
+        List<CalendarDto.Entry> unknown = new ArrayList<>();
+        for (SeasonSubjectRow row : rows) {
+            CalendarDto.Entry entry = toCalendarEntry(row);
+            applyEpisodeSummary(entry, episodesBySubject.get(row.getId()));
+            List<Integer> weekdays = resolveWeekdays(row.getDate(), row.getInfobox());
+            if (weekdays.isEmpty()) {
+                unknown.add(entry);
+                continue;
+            }
+            for (Integer weekday : weekdays) {
+                vo.getDays().get(String.valueOf(weekday)).add(entry);
+            }
+        }
+        if (!unknown.isEmpty()) {
+            vo.setUnknown(unknown);
+        }
+        return vo;
+    }
+
+    private CalendarDto.Entry toCalendarEntry(SeasonSubjectRow row) {
+        CalendarDto.Entry entry = new CalendarDto.Entry();
+        entry.setSubject(toCalendarSubject(row));
+        entry.setWatchers(parseFavoriteDone(row.getFavorite()));
+        return entry;
+    }
+
+    private void applyEpisodeSummary(CalendarDto.Entry entry, List<SeasonEpisodeRow> episodes) {
+        if (episodes == null || episodes.isEmpty()) {
+            return;
+        }
+        entry.setEpisodeCount(episodes.size());
+
+        LocalDate today = LocalDate.now();
+        EpisodeSummary latest = null;
+        EpisodeSummary next = null;
+        for (SeasonEpisodeRow episode : episodes) {
+            LocalDate aired = parseEpisodeDate(episode.getAirdate());
+            if (aired == null) {
+                continue;
+            }
+            if (!aired.isAfter(today)) {
+                latest = toEpisodeSummary(episode);
+            } else {
+                next = toEpisodeSummary(episode);
+                break;
+            }
+        }
+        entry.setLatestEpisode(latest);
+        entry.setNextEpisode(next);
+    }
+
+    private static EpisodeSummary toEpisodeSummary(SeasonEpisodeRow episode) {
+        EpisodeSummary summary = new EpisodeSummary();
+        summary.setId(episode.getId());
+        summary.setSort(episode.getSort());
+        summary.setName(episode.getName());
+        summary.setNameCn(episode.getNameCn());
+        summary.setAirdate(episode.getAirdate());
+        summary.setDuration(episode.getDuration());
+        return summary;
+    }
+
+    private static LocalDate parseEpisodeDate(String airdate) {
+        if (!StringUtils.hasText(airdate)) {
+            return null;
+        }
+        String datePart = airdate.trim();
+        if (datePart.length() >= 10 && datePart.charAt(4) == '-' && datePart.charAt(7) == '-') {
+            datePart = datePart.substring(0, 10);
+        }
+        try {
+            return LocalDate.parse(datePart);
+        } catch (DateTimeParseException ignored) {
+            return null;
+        }
+    }
+
+    private BangumiSubject toCalendarSubject(SeasonSubjectRow row) {
+        BangumiSubject subject = new BangumiSubject();
+        subject.setId(row.getId());
+        subject.setName(row.getName());
+        subject.setNameCN(row.getNameCn() != null ? row.getNameCn() : "");
+        subject.setType(row.getType());
+        subject.setInfo(InfoboxParser.toInfo(row.getInfobox()));
+        subject.setMetaTags(parseMetaTagNames(row.getMetaTags()));
+        subject.setLocked(false);
+        subject.setNsfw(Boolean.TRUE.equals(row.getNsfw()));
+
+        BangumiRating rating = new BangumiRating();
+        rating.setRank(row.getRank() != null ? row.getRank() : 0);
+        rating.setScore(row.getScore() != null ? row.getScore() : 0.0);
+        rating.setCount(parseScoreDetails(row.getScoreDetails()));
+        rating.setTotal(rating.getCount().stream().mapToInt(Integer::intValue).sum());
+        subject.setRating(rating);
+
+        CoverImages images = imageBackfillService.resolve(row.getImages(), row.getId(), null);
+        if (images != null) {
+            Utils.applyWsrvCdnInPlace(images);
+            subject.setImages(images);
+        }
+        return subject;
+    }
+
+    private static List<Integer> resolveWeekdays(String date, String infobox) {
+        String raw = InfoboxParser.toMap(infobox).getOrDefault("放送星期", "").trim();
+        List<Integer> weekdays = new ArrayList<>();
+        if (StringUtils.hasText(raw)) {
+            for (String part : raw.split("[、,，/\\s]+")) {
+                Integer weekday = WEEKDAY_CN.get(part.trim());
+                if (weekday != null) {
+                    weekdays.add(weekday);
+                }
+            }
+        }
+        if (weekdays.isEmpty() && StringUtils.hasText(date)) {
+            try {
+                weekdays.add(LocalDate.parse(date.trim()).getDayOfWeek().getValue());
+            } catch (DateTimeParseException ignored) {
+                // 日期不完整时归入 unknown
+            }
+        }
+        return weekdays.stream().distinct().toList();
+    }
+
+    private int parseFavoriteDone(String json) {
+        if (!StringUtils.hasText(json)) {
+            return 0;
+        }
+        try {
+            JsonNode node = objectMapper.readTree(json);
+            JsonNode done = node.get("done");
+            return done != null && done.isNumber() ? done.intValue() : 0;
+        } catch (JsonProcessingException ignored) {
+            return 0;
+        }
     }
 
     private List<String> parseSubjectTagNames(String json) {

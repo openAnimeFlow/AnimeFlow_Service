@@ -122,7 +122,7 @@ mvn -pl flow-bootstrap spring-boot:run
 
 ### Bangumi 元数据（`/api/v1/bangumi`）
 
-日历、Trending、条目搜索、角色/章节评论等；条目详情与关联数据见 `/api/v1/bangumi/subjects/**`；用户主页与公开收藏见 `/api/v1/bangumi/users/**`。
+日历、Trending、条目搜索、角色/章节评论等；条目详情与关联数据见 `/api/v1/bangumi/subjects/**`；季番周表见 `/api/v1/bangumi/season-calendar`（无需传参，按当前时间自动获取本季度）；用户主页与公开收藏见 `/api/v1/bangumi/users/**`。
 
 ### 其他
 

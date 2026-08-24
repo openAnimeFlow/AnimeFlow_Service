@@ -36,6 +36,16 @@ public class BangumiConstants {
     public static final long BANGUMI_CALENDAR_CACHE_POLL_INTERVAL_MILLIS = 100;
 
     /**
+     * Bangumi 季番周表缓存键前缀
+     */
+    public static final String BANGUMI_SEASON_CALENDAR_CACHE_KEY_PREFIX = "bangumi:season-calendar";
+
+    /**
+     * Bangumi 季番周表缓存时长（秒）
+     */
+    public static final long BANGUMI_SEASON_CALENDAR_CACHE_TTL_SECONDS = 43200;
+
+    /**
      * Bangumi 趋势条目缓存键前缀
      */
     public static final String BANGUMI_TRENDING_CACHE_KEY_PREFIX = "bangumi:trending";
