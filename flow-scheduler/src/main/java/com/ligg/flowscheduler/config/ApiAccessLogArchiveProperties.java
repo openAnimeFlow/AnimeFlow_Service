@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /** 接口访问日志月度归档配置。 */
 @Data
-@ConfigurationProperties(prefix = "anime-flow.access-log.archive")
+@ConfigurationProperties(prefix = "anime-flow.sync.access-log.archive")
 public class ApiAccessLogArchiveProperties {
 
     private boolean enabled = true;

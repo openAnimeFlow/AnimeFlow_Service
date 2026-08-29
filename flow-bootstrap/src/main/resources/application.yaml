@@ -27,14 +27,6 @@ mybatis-plus:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 anime-flow:
-  access-log:
-    archive:
-      enabled: true
-      cron: "0 0 2 1 * *"
-      zone: Asia/Shanghai
-      directory: ${ANIME_FLOW_ACCESS_LOG_ARCHIVE_DIR:${user.home}/anime-flow/api-access-log}
-      batch-size: 1000
-      lock-ttl-seconds: 7200
   api-auth:
     enabled: true
     app_id: ${ANIME_FLOW_APP_ID}
@@ -80,6 +72,15 @@ anime-flow:
       cron: "0 30 4 * * *"
       connect-timeout-seconds: 15
       read-timeout-seconds: 30
+
+    access-log:
+      archive:
+        enabled: true
+        cron: "0 0 2 1 * *"
+        zone: Asia/Shanghai
+        directory: ${ANIME_FLOW_ACCESS_LOG_ARCHIVE_DIR:${user.home}/anime-flow/api-access-log}
+        batch-size: 1000
+        lock-ttl-seconds: 7200
 
   resend:
     api_key: ${RESEND_API_KEY}
