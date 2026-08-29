@@ -19,4 +19,25 @@
         </foreach>
         ON DUPLICATE KEY UPDATE id = id
     </insert>
+
+    <select id="selectArchiveBatch" resultType="com.ligg.common.entity.ApiAccessLogEntity">
+        SELECT id, event_id, trace_id, request_time, method, uri, route, query_string,
+               client_ip, user_agent, referer, http_status, success, cost_ms,
+               exception_type, created_at
+        FROM api_access_log
+        WHERE request_time &gt;= #{from}
+          AND request_time &lt; #{to}
+          AND (request_time &gt; #{cursorTime}
+               OR (request_time = #{cursorTime} AND id &gt; #{cursorId}))
+        ORDER BY request_time ASC, id ASC
+        LIMIT #{limit}
+    </select>
+
+    <delete id="deleteByIds">
+        DELETE FROM api_access_log
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
 </mapper>

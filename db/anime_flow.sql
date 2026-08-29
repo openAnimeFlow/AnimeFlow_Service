@@ -370,6 +370,7 @@ CREATE TABLE `api_access_log`  (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_event_id`(`event_id` ASC) USING BTREE,
   INDEX `idx_request_time`(`request_time` ASC) USING BTREE,
+  INDEX `idx_request_time_id`(`request_time` ASC, `id` ASC) USING BTREE,
   INDEX `idx_route_time`(`route` ASC, `request_time` ASC) USING BTREE,
   INDEX `idx_client_ip_time`(`client_ip` ASC, `request_time` ASC) USING BTREE,
   INDEX `idx_status_time`(`http_status` ASC, `request_time` ASC) USING BTREE

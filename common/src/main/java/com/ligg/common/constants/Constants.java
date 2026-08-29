@@ -168,4 +168,5 @@ public class Constants {
 
     /** 接口访问日志同步分布式锁。 */
     public static final String API_ACCESS_LOG_SYNC_LOCK_KEY = "animeflow:access-log:sync:lock";
+    public static final String API_ACCESS_LOG_ARCHIVE_LOCK_KEY = "animeflow:access-log:archive:lock";
 }

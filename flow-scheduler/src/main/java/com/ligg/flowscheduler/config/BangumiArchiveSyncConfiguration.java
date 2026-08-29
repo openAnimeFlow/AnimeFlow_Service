@@ -17,7 +17,7 @@ import java.util.concurrent.Executor;
 @Configuration
 @EnableScheduling
 @EnableAsync
-@EnableConfigurationProperties(BangumiArchiveSyncProperties.class)
+@EnableConfigurationProperties({BangumiArchiveSyncProperties.class, ApiAccessLogArchiveProperties.class})
 public class BangumiArchiveSyncConfiguration {
 
   @Bean(name = "bangumiArchiveSyncExecutor")
