@@ -41,7 +41,7 @@ public interface BangumiService {
     /**
      * 获取相似条目推荐
      */
-    SubjectsVo getRecommendedSubjects(Integer subjectId, int limit, int offset);
+    SubjectsVo getRecommendedSubjects(Integer subjectId);
 
     /**
      * 根据当前时间自动获取本季度新番周表。

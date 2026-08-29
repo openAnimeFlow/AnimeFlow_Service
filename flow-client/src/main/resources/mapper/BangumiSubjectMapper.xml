@@ -206,7 +206,7 @@
             </otherwise>
         </choose>
         idx.subject_id
-        limit #{limit} offset #{offset}
+        limit 20
     </select>
 
     <select id="countLocalSearchSubjects" resultType="java.lang.Integer">
@@ -267,33 +267,41 @@
                    s.images,
                    <choose>
                        <when test="tagNames != null and tagNames.size() > 0">
-                           (
-                               select count(distinct subject_tag.name)
-                               from json_table(coalesce(s.tags, cast('[]' as json)),
-                                               '$[*]' columns (name varchar(128) path '$.name')) subject_tag
-                               where subject_tag.name in
-                               <foreach collection="tagNames" item="tagName" open="(" separator="," close=")">
-                                   #{tagName}
-                               </foreach>
-                           )
+                           coalesce(tag_match.match_count, 0)
                        </when>
                        <otherwise>0</otherwise>
                    </choose> as tag_matches,
                    <choose>
                        <when test="metaTagNames != null and metaTagNames.size() > 0">
-                           (
-                               select count(distinct subject_meta.name)
-                               from json_table(coalesce(s.meta_tags, cast('[]' as json)),
-                                               '$[*]' columns (name varchar(128) path '$')) subject_meta
-                               where subject_meta.name in
-                               <foreach collection="metaTagNames" item="metaTagName" open="(" separator="," close=")">
-                                   #{metaTagName}
-                               </foreach>
-                           )
+                           coalesce(meta_tag_match.match_count, 0)
                        </when>
                        <otherwise>0</otherwise>
                    </choose> as meta_matches
             from bangumi_subject s
+            <if test="tagNames != null and tagNames.size() > 0">
+                left join (
+                    select subject_id, count(*) as match_count
+                    from bangumi_subject_tag
+                    where tag_type = 1
+                      and tag_name in
+                    <foreach collection="tagNames" item="tagName" open="(" separator="," close=")">
+                        #{tagName}
+                    </foreach>
+                    group by subject_id
+                ) tag_match on tag_match.subject_id = s.id
+            </if>
+            <if test="metaTagNames != null and metaTagNames.size() > 0">
+                left join (
+                    select subject_id, count(*) as match_count
+                    from bangumi_subject_tag
+                    where tag_type = 2
+                      and tag_name in
+                    <foreach collection="metaTagNames" item="metaTagName" open="(" separator="," close=")">
+                        #{metaTagName}
+                    </foreach>
+                    group by subject_id
+                ) meta_tag_match on meta_tag_match.subject_id = s.id
+            </if>
             where s.id != #{subjectId}
               and s.type = #{type}
               and s.nsfw = #{nsfw}
@@ -323,7 +331,7 @@
                  candidate.`rank`,
                  candidate.score desc,
                  candidate.id
-        limit #{limit} offset #{offset}
+        limit 20
     </select>
 
 </mapper>

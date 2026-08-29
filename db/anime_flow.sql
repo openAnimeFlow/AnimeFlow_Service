@@ -135,9 +135,21 @@ CREATE TABLE `bangumi_subject`  (
   `series` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否为系列作品',
   `images` json NULL,
   PRIMARY KEY (`id`) USING BTREE,
-  INDEX `idx_type`(`type` ASC) USING BTREE,
+  INDEX `idx_type_nsfw`(`type` ASC, `nsfw` ASC) USING BTREE,
   INDEX `idx_bgm_rank`(`rank` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Bangumi 条目' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for bangumi_subject_tag
+-- ----------------------------
+DROP TABLE IF EXISTS `bangumi_subject_tag`;
+CREATE TABLE `bangumi_subject_tag`  (
+  `subject_id` int UNSIGNED NOT NULL COMMENT '条目 ID',
+  `tag_type` tinyint UNSIGNED NOT NULL COMMENT '1: tags, 2: meta_tags',
+  `tag_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '标签名',
+  PRIMARY KEY (`subject_id`, `tag_type`, `tag_name`) USING BTREE,
+  INDEX `idx_tag_lookup`(`tag_type` ASC, `tag_name` ASC, `subject_id` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Bangumi 条目标签索引' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for bangumi_subject_search

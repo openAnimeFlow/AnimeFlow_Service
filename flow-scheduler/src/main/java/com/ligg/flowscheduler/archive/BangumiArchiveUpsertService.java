@@ -22,6 +22,7 @@ public class BangumiArchiveUpsertService {
     private final BangumiArchiveUpsertMapper upsertMapper;
     private final BangumiArchiveSyncProperties properties;
     private final BangumiSubjectSearchIndexBuilder searchIndexBuilder;
+    private final BangumiSubjectTagIndexBuilder subjectTagIndexBuilder;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void upsertCharacterBatch(List<BangumiCharacterEntity> batch) {
@@ -53,6 +54,11 @@ public class BangumiArchiveUpsertService {
             return;
         }
         upsertMapper.upsertSubjectBatch(batch);
+        upsertMapper.deleteSubjectTagsBySubjectIds(batch.stream().map(BangumiSubjectEntity::getId).toList());
+        List<BangumiSubjectTagEntity> tagRows = subjectTagIndexBuilder.buildBatch(batch);
+        if (!tagRows.isEmpty()) {
+            upsertMapper.insertSubjectTagBatch(tagRows);
+        }
         upsertMapper.upsertSubjectSearchBatch(searchIndexBuilder.buildBatch(batch));
     }
 

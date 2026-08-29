@@ -105,6 +105,22 @@
         search_text = new.search_text
     </insert>
 
+    <delete id="deleteSubjectTagsBySubjectIds">
+        delete from bangumi_subject_tag
+        where subject_id in
+        <foreach collection="subjectIds" item="subjectId" open="(" separator="," close=")">
+            #{subjectId}
+        </foreach>
+    </delete>
+
+    <insert id="insertSubjectTagBatch">
+        insert into bangumi_subject_tag (subject_id, tag_type, tag_name)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.subjectId}, #{item.tagType}, #{item.tagName})
+        </foreach>
+    </insert>
+
     <insert id="upsertPersonCharacterBatch">
         insert into bangumi_person_character (person_id, subject_id, character_id, type, summary)
         values

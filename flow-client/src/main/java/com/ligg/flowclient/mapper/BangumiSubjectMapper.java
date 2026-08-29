@@ -69,8 +69,6 @@ public interface BangumiSubjectMapper extends BaseMapper<BangumiSubjectEntity> {
                                                              @Param("nsfw") Boolean nsfw,
                                                              @Param("releaseYear") Integer releaseYear,
                                                              @Param("tagNames") List<String> tagNames,
-                                                             @Param("metaTagNames") List<String> metaTagNames,
-                                                             @Param("limit") int limit,
-                                                             @Param("offset") int offset);
+                                                             @Param("metaTagNames") List<String> metaTagNames);
 
 }
