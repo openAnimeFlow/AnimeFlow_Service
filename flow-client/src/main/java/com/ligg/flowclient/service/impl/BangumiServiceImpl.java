@@ -724,6 +724,12 @@ public class BangumiServiceImpl implements BangumiService {
         if (!unknown.isEmpty()) {
             vo.setUnknown(unknown);
         }
+        vo.getDays().values().forEach(entries -> entries.sort(
+                Comparator.comparingInt((CalendarDto.Entry entry) ->
+                                entry.getWatchers() != null ? entry.getWatchers() : 0)
+                        .reversed()
+                        .thenComparing(entry -> entry.getSubject() != null && entry.getSubject().getId() != null
+                                ? entry.getSubject().getId() : Integer.MAX_VALUE)));
         return vo;
     }
 

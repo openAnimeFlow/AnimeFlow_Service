@@ -99,6 +99,25 @@ class BangumiSeasonCalendarServiceTest {
         assertEquals(4, vo.getDays().get("5").get(0).getSubject().getId());
     }
 
+    @Test
+    void sortsEachWeekdayByWatchersDescending() {
+        SeasonSubjectRow fewerWatchers = row(5, "2026-07-04", "星期六", 8.0);
+        fewerWatchers.setFavorite("{\"done\": 3}");
+        SeasonSubjectRow moreWatchers = row(6, "2026-07-04", "星期六", 7.0);
+        moreWatchers.setFavorite("{\"done\": 12}");
+        when(subjectMapper.selectSeasonSubjects(
+                eq(BangumiSeasonUtils.currentSeasonMonthPrefix(FIXED_NOW)), eq(2), eq(false)))
+                .thenReturn(List.of(fewerWatchers, moreWatchers));
+        mockImage();
+
+        SeasonCalendarVo vo = service().getSeasonCalendar(false, FIXED_NOW);
+
+        assertEquals(List.of(6, 5), vo.getDays().get("6").stream()
+                .map(entry -> entry.getSubject().getId()).toList());
+        assertEquals(List.of(12, 3), vo.getDays().get("6").stream()
+                .map(com.ligg.common.thirdparty.bangumi.response.CalendarDto.Entry::getWatchers).toList());
+    }
+
     private BangumiServiceImpl service() {
         return new BangumiServiceImpl(
                 episodeMapper,

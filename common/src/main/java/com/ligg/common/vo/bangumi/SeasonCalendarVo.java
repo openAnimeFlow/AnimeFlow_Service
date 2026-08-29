@@ -8,7 +8,7 @@ import lombok.EqualsAndHashCode;
 import java.util.List;
 
 /**
- * 本地 Bangumi 归档数据生成的季番周表。
+ * 番周表。
  * days 结构与 Bangumi 日历一致：1=周一 … 7=周日。
  */
 @Data
