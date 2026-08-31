@@ -4,18 +4,13 @@
  */
 package com.ligg.flowclient.controller;
 
-import com.ligg.common.entity.UserOauthEntity;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
-import com.ligg.flowclient.annotation.IpEndpointRateLimit;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
-import com.ligg.flowclient.module.dto.UpdateUserCollectionDto;
 import com.ligg.flowclient.module.dto.UpdateEpisodeWatchDto;
 import com.ligg.flowclient.module.dto.UpdateUserDto;
 import com.ligg.flowclient.module.vo.FlowUserVo;
 import com.ligg.flowclient.module.vo.SubjectEpisodeWatchStatusVo;
-import com.ligg.common.vo.bangumi.UserCollectionsVo;
-import com.ligg.flowclient.module.vo.UserBgmCollectionSyncStatusVo;
 import com.ligg.flowclient.service.*;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
