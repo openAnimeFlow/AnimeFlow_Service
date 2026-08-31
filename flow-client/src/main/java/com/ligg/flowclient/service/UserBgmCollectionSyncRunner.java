@@ -133,7 +133,11 @@ public class UserBgmCollectionSyncRunner {
         UserCollectionsDto.Interest interest = item.getInterest();
         UserBgmCollectionEntity existing = userBgmCollectionMapper.selectOne(
                 new LambdaQueryWrapper<UserBgmCollectionEntity>()
-                        .eq(UserBgmCollectionEntity::getBgmInterestId, interest.getId()));
+                        // user_bgm_collection 的业务唯一键是 (user_id, subject_id)。
+                        // bgm_interest_id 在重新绑定/重新收藏后可能发生变化，不能用它作为
+                        // 判断本地记录是否存在的唯一依据，否则会把同一用户同一条目误判为新增。
+                        .eq(UserBgmCollectionEntity::getUserId, userId)
+                        .eq(UserBgmCollectionEntity::getSubjectId, item.getId()));
 
         UserBgmCollectionEntity row = existing != null ? existing : new UserBgmCollectionEntity();
         row.setUserId(userId);
