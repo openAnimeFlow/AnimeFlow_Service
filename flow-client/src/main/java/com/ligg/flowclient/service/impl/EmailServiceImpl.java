@@ -42,7 +42,7 @@ public class EmailServiceImpl implements EmailService {
     @Override
     public void checkSendCooldown(String email) {
         String key = Constants.EMAIL_SEND_COOLDOWN_KEY + ':' + email;
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
+        if (redisTemplate.hasKey(key)) {
             throw new RateLimitExceededException("发送过于频繁，请稍后再试");
         }
     }
