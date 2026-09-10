@@ -2,6 +2,7 @@ package com.ligg.flowclient.service.impl;
 
 import com.ligg.common.entity.UserOauthEntity;
 import com.ligg.common.exception.LoginExpiredException;
+import com.ligg.common.exception.BangumiAuthorizationException;
 import com.ligg.flowclient.service.BangumiOAuthExecutor;
 import com.ligg.flowclient.service.BangumiOAuthTokenService;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,11 @@ public class BangumiOAuthExecutorImpl implements BangumiOAuthExecutor {
             return apiCall.apply(oauth.getAccessToken());
         } catch (LoginExpiredException e) {
             bangumiOAuthTokenService.refreshBangumiAccessToken(oauth);
-            return apiCall.apply(oauth.getAccessToken());
+            try {
+                return apiCall.apply(oauth.getAccessToken());
+            } catch (LoginExpiredException retryError) {
+                throw new BangumiAuthorizationException(retryError);
+            }
         }
     }
 

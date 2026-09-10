@@ -24,4 +24,7 @@ public class JwtProperties {
      * refresh_token 有效期（秒），默认 7 天。
      */
     private long refreshExpireSeconds = 604800L;
+
+    /** 同一旧 refresh token 返回同一刷新结果的窗口，限制为 1-120 秒。 */
+    private long refreshRetrySeconds = 30L;
 }

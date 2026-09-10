@@ -90,6 +90,7 @@ anime-flow:
     secret: ${JWT_SECRET}
     expire-seconds: 7200
     refresh-expire-seconds: 604800
+    refresh-retry-seconds: 30
 
   ## 接口限流
   rate-limit:

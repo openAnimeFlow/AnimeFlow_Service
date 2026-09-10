@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.ligg.api.bgmtvapi.BgmTvClient;
 import com.ligg.common.entity.UserOauthEntity;
 import com.ligg.common.exception.BangumiUpstreamException;
-import com.ligg.common.exception.LoginExpiredException;
+import com.ligg.common.exception.BangumiAuthorizationException;
 import com.ligg.common.response.TokenVo;
 import com.ligg.flowclient.mapper.UserOauthMapper;
 import org.junit.jupiter.api.Test;
@@ -36,7 +36,7 @@ class BangumiOAuthTokenServiceImplTest {
                         刷新 token 失败: {"error":"invalid_grant","error_description":"Invalid refresh token"}
                         """));
 
-        assertThrows(LoginExpiredException.class, () -> service.refreshBangumiAccessToken(oauth));
+        assertThrows(BangumiAuthorizationException.class, () -> service.refreshBangumiAccessToken(oauth));
 
         verify(userOauthMapper).delete(anyOauthWrapper());
         verify(userOauthMapper, never()).updateById(any(UserOauthEntity.class));
@@ -47,7 +47,7 @@ class BangumiOAuthTokenServiceImplTest {
         BangumiOAuthTokenServiceImpl service = new BangumiOAuthTokenServiceImpl(userOauthMapper, bgmTvClient);
         UserOauthEntity oauth = oauth(null);
 
-        assertThrows(LoginExpiredException.class, () -> service.refreshBangumiAccessToken(oauth));
+        assertThrows(BangumiAuthorizationException.class, () -> service.refreshBangumiAccessToken(oauth));
 
         verify(userOauthMapper).delete(anyOauthWrapper());
         verify(userOauthMapper, never()).updateById(any(UserOauthEntity.class));
@@ -60,7 +60,7 @@ class BangumiOAuthTokenServiceImplTest {
         when(bgmTvClient.refreshToken("old-refresh"))
                 .thenThrow(new BangumiUpstreamException("bgm.tv 响应超时，请稍后重试"));
 
-        assertThrows(LoginExpiredException.class, () -> service.refreshBangumiAccessToken(oauth));
+        assertThrows(BangumiUpstreamException.class, () -> service.refreshBangumiAccessToken(oauth));
 
         verify(userOauthMapper, never()).delete(anyOauthWrapper());
         verify(userOauthMapper, never()).updateById(any(UserOauthEntity.class));

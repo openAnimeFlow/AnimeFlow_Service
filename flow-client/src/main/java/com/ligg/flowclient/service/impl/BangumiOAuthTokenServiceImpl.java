@@ -5,7 +5,7 @@ import com.ligg.api.bgmtvapi.BgmTvClient;
 import com.ligg.common.constants.Constants;
 import com.ligg.common.entity.UserOauthEntity;
 import com.ligg.common.exception.BangumiUpstreamException;
-import com.ligg.common.exception.LoginExpiredException;
+import com.ligg.common.exception.BangumiAuthorizationException;
 import com.ligg.common.response.TokenVo;
 import com.ligg.flowclient.mapper.UserOauthMapper;
 import com.ligg.flowclient.service.BangumiOAuthTokenService;
@@ -47,7 +47,7 @@ public class BangumiOAuthTokenServiceImpl implements BangumiOAuthTokenService {
     public void refreshBangumiAccessToken(UserOauthEntity oauth) {
         if (!StringUtils.hasText(oauth.getRefreshToken())) {
             deleteBangumiOauth(oauth, "missing refresh token");
-            throw new LoginExpiredException();
+            throw new BangumiAuthorizationException();
         }
         try {
             TokenVo token = bgmTvClient.refreshToken(oauth.getRefreshToken());
@@ -61,8 +61,9 @@ public class BangumiOAuthTokenServiceImpl implements BangumiOAuthTokenService {
         } catch (BangumiUpstreamException e) {
             if (isInvalidRefreshToken(e)) {
                 deleteBangumiOauth(oauth, "invalid refresh token");
+                throw new BangumiAuthorizationException(e);
             }
-            throw new LoginExpiredException(e);
+            throw e;
         }
     }
 

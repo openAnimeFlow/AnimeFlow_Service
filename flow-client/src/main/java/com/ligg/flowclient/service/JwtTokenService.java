@@ -1,8 +1,8 @@
 package com.ligg.flowclient.service;
 
 import com.ligg.common.constants.Constants;
-import com.ligg.common.exception.AuthenticationFailedException;
-import com.ligg.common.exception.LoginExpiredException;
+import com.ligg.common.exception.RefreshTokenInvalidException;
+import com.ligg.common.exception.AccessTokenExpiredException;
 import com.ligg.common.response.FlowTokenVo;
 import com.ligg.common.statuenum.Platform;
 import com.ligg.flowclient.config.JwtProperties;
@@ -15,6 +15,10 @@ import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.serializer.RedisSerializer;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -22,6 +26,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -41,11 +46,24 @@ public class JwtTokenService {
     private final RedisTemplate<String, Object> redisTemplate;
 
     private SecretKey secretKey;
+    private static final DefaultRedisScript<byte[]> REFRESH_SCRIPT = new DefaultRedisScript<>();
+    private static final DefaultRedisScript<Long> SESSION_CAS_SCRIPT = new DefaultRedisScript<>();
+    static {
+        REFRESH_SCRIPT.setLocation(new ClassPathResource("lua/auth_refresh.lua"));
+        REFRESH_SCRIPT.setResultType(byte[].class);
+        SESSION_CAS_SCRIPT.setLocation(new ClassPathResource("lua/auth_session_cas.lua"));
+        SESSION_CAS_SCRIPT.setResultType(Long.class);
+    }
 
     @PostConstruct
     void init() {
         if (!StringUtils.hasText(jwtProperties.getSecret()) || jwtProperties.getSecret().length() < 32) {
             throw new IllegalStateException("anime-flow.jwt.secret 未配置或长度不足 32 字符");
+        }
+        if (jwtProperties.getExpireSeconds() <= 0 || jwtProperties.getRefreshExpireSeconds() <= 0
+                || jwtProperties.getRefreshRetrySeconds() <= 0
+                || jwtProperties.getRefreshRetrySeconds() > 120) {
+            throw new IllegalStateException("JWT 有效期必须为正，刷新重试窗口必须为 1-120 秒");
         }
         secretKey = Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
     }
@@ -70,15 +88,36 @@ public class JwtTokenService {
         String refreshJti = claims.getId();
         String sessionId = claims.get(CLAIM_SESSION, String.class);
 
-        AuthSessionDto session = loadSession(sessionId);
-        if (session == null
-                || !refreshJti.equals(session.getRefreshJti())
-                || !parseUserId(claims.getSubject()).equals(session.getUserId())) {
-            throw new AuthenticationFailedException("刷新令牌无效或已过期");
+        Long userId = parseUserId(claims.getSubject());
+        for (int attempt = 0; attempt < 8; attempt++) {
+            byte[] snapshot = readSessionBytes(sessionId);
+            AuthSessionDto session = deserializeSession(snapshot);
+            if (session == null || !userId.equals(session.getUserId())) {
+                throw new RefreshTokenInvalidException();
+            }
+            String oldAccessJti = session.getAccessJti();
+            String oldRefreshJti = session.getRefreshJti();
+            FlowTokenVo candidate = buildTokenPair(session);
+            String replayKey = Constants.AUTH_REFRESH_TOKEN_KEY + ":retry:" + refreshJti;
+            long grace = Math.min(jwtProperties.getRefreshRetrySeconds(),
+                    Math.min(jwtProperties.getExpireSeconds(), jwtProperties.getRefreshExpireSeconds()));
+            byte[] result = redisTemplate.execute(REFRESH_SCRIPT,
+                    RedisSerializer.byteArray(), RedisSerializer.byteArray(),
+                    List.of(sessionRedisKey(sessionId), replayKey, replayKey + ":jti",
+                            accessRedisKey(session.getAccessJti()), refreshRedisKey(session.getRefreshJti()),
+                            accessRedisKey(oldAccessJti), refreshRedisKey(oldRefreshJti), userSessionsRedisKey(userId)),
+                    snapshot, serialize(session), serialize(candidate), bytes(refreshJti),
+                    bytes(session.getRefreshJti()), serialize(sessionId),
+                    bytes(jwtProperties.getExpireSeconds()), bytes(jwtProperties.getRefreshExpireSeconds()), bytes(grace));
+            if (result == null) throw new RefreshTokenInvalidException();
+            if (result.length == 0) continue; // Concurrent email update/rotation: reload and retry CAS.
+            FlowTokenVo token = (FlowTokenVo) redisTemplate.getValueSerializer().deserialize(result);
+            // Cached responses must not advertise a fresh lifetime on every retry.
+            token.setExpiresIn(remainingSeconds(token.getAccessToken()));
+            token.setRefreshExpiresIn(remainingSeconds(token.getRefreshToken()));
+            return token;
         }
-
-        removeTokenIndexes(session);
-        return issueTokenPair(session);
+        throw new IllegalStateException("会话正在更新，请重试刷新");
     }
 
     /**
@@ -111,11 +150,11 @@ public class JwtTokenService {
      * 校验 AnimeFlow access_token：JWT 签名/过期 + Redis 缓存存在。
      *
      * @return 当前登录用户 ID
-     * @throws LoginExpiredException token 过期或 Redis 中不存在时
+     * @throws AccessTokenExpiredException token 过期或 Redis 中不存在时
      */
     public Long validateAccessToken(String accessToken) {
         if (!StringUtils.hasText(accessToken)) {
-            throw new LoginExpiredException();
+            throw new AccessTokenExpiredException();
         }
         try {
             Claims claims = Jwts.parser()
@@ -125,18 +164,21 @@ public class JwtTokenService {
                     .getPayload();
 
             if (!TYPE_ACCESS.equals(claims.get(CLAIM_TYPE, String.class))) {
-                throw new LoginExpiredException();
+                throw new AccessTokenExpiredException();
             }
 
             String accessJti = claims.getId();
             Object cachedSessionId = redisTemplate.opsForValue().get(accessRedisKey(accessJti));
-            if (cachedSessionId == null) {
-                throw new LoginExpiredException();
+            String sessionId = claims.get(CLAIM_SESSION, String.class);
+            AuthSessionDto session = loadSession(sessionId);
+            if (cachedSessionId == null || !cachedSessionId.equals(sessionId) || session == null
+                    || !parseUserIdOrExpired(claims.getSubject()).equals(session.getUserId())) {
+                throw new AccessTokenExpiredException();
             }
 
             return parseUserIdOrExpired(claims.getSubject());
         } catch (JwtException e) {
-            throw new LoginExpiredException(e);
+            throw new AccessTokenExpiredException(e);
         }
     }
 
@@ -154,20 +196,19 @@ public class JwtTokenService {
                 continue;
             }
             String sessionId = sessionIdObj.toString();
-            AuthSessionDto session = loadSession(sessionId);
-            if (session == null) {
-                redisTemplate.opsForSet().remove(userSessionsKey, sessionId);
-                continue;
-            }
-            session.setEmail(email);
-            long ttlSeconds = redisTemplate.getExpire(sessionRedisKey(sessionId), TimeUnit.SECONDS);
-            if (ttlSeconds > 0) {
-                redisTemplate.opsForValue().set(
-                        sessionRedisKey(sessionId),
-                        session,
-                        ttlSeconds,
-                        TimeUnit.SECONDS
-                );
+            for (int attempt = 0; attempt < 8; attempt++) {
+                byte[] snapshot = readSessionBytes(sessionId);
+                AuthSessionDto session = deserializeSession(snapshot);
+                if (session == null) {
+                    redisTemplate.opsForSet().remove(userSessionsKey, sessionId);
+                    break;
+                }
+                session.setEmail(email);
+                Long updated = redisTemplate.execute(SESSION_CAS_SCRIPT,
+                        RedisSerializer.byteArray(), new org.springframework.data.redis.serializer.GenericToStringSerializer<>(Long.class),
+                        List.of(sessionRedisKey(sessionId)), snapshot, serialize(session));
+                if (Long.valueOf(1).equals(updated)) break;
+                if (attempt == 7) throw new IllegalStateException("会话正在更新，请重试邮箱更新");
             }
         }
     }
@@ -176,11 +217,17 @@ public class JwtTokenService {
         try {
             return Long.parseLong(subject);
         } catch (NumberFormatException e) {
-            throw new LoginExpiredException();
+            throw new AccessTokenExpiredException();
         }
     }
 
     private FlowTokenVo issueTokenPair(AuthSessionDto session) {
+        FlowTokenVo token = buildTokenPair(session);
+        persistSession(session, jwtProperties.getExpireSeconds(), jwtProperties.getRefreshExpireSeconds());
+        return token;
+    }
+
+    private FlowTokenVo buildTokenPair(AuthSessionDto session) {
         long accessExpireSeconds = jwtProperties.getExpireSeconds();
         long refreshExpireSeconds = jwtProperties.getRefreshExpireSeconds();
         Instant now = Instant.now();
@@ -205,7 +252,6 @@ public class JwtTokenService {
                 now.plusSeconds(refreshExpireSeconds)
         );
 
-        persistSession(session, accessExpireSeconds, refreshExpireSeconds);
 
         return new FlowTokenVo(
                 accessToken,
@@ -247,8 +293,8 @@ public class JwtTokenService {
     }
 
     private void revokeSession(AuthSessionDto session) {
-        removeTokenIndexes(session);
         redisTemplate.delete(sessionRedisKey(session.getSessionId()));
+        removeTokenIndexes(session);
         redisTemplate.opsForSet().remove(userSessionsRedisKey(session.getUserId()), session.getSessionId());
     }
 
@@ -271,12 +317,14 @@ public class JwtTokenService {
                     .parseSignedClaims(refreshToken)
                     .getPayload();
 
-            if (!TYPE_REFRESH.equals(claims.get(CLAIM_TYPE, String.class))) {
-                throw new AuthenticationFailedException("刷新令牌无效或已过期");
+            if (!TYPE_REFRESH.equals(claims.get(CLAIM_TYPE, String.class))
+                    || !StringUtils.hasText(claims.getId())
+                    || !StringUtils.hasText(claims.get(CLAIM_SESSION, String.class))) {
+                throw new RefreshTokenInvalidException();
             }
             return claims;
-        } catch (JwtException e) {
-            throw new AuthenticationFailedException("刷新令牌无效或已过期");
+        } catch (JwtException | IllegalArgumentException e) {
+            throw new RefreshTokenInvalidException();
         }
     }
 
@@ -317,6 +365,31 @@ public class JwtTokenService {
                 .compact();
     }
 
+    private long remainingSeconds(String token) {
+        Claims claims = Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload();
+        return Math.max(0, claims.getExpiration().toInstant().getEpochSecond() - Instant.now().getEpochSecond());
+    }
+
+    private byte[] readSessionBytes(String sessionId) {
+        return redisTemplate.execute((RedisCallback<byte[]>) connection ->
+                connection.stringCommands().get(bytes(sessionRedisKey(sessionId))));
+    }
+
+    private AuthSessionDto deserializeSession(byte[] value) {
+        if (value == null) return null;
+        Object decoded = redisTemplate.getValueSerializer().deserialize(value);
+        return decoded instanceof AuthSessionDto session ? session : null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private byte[] serialize(Object value) {
+        return ((RedisSerializer<Object>) redisTemplate.getValueSerializer()).serialize(value);
+    }
+
+    private static byte[] bytes(Object value) {
+        return value.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
     private static String newJti() {
         return UUID.randomUUID().toString().replace("-", "");
     }
@@ -341,7 +414,7 @@ public class JwtTokenService {
         try {
             return Long.parseLong(subject);
         } catch (NumberFormatException e) {
-            throw new AuthenticationFailedException("刷新令牌无效或已过期");
+            throw new RefreshTokenInvalidException();
         }
     }
 }

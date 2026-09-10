@@ -1,6 +1,9 @@
 package com.ligg.common.handler;
 
 import com.ligg.common.exception.BangumiUpstreamException;
+import com.ligg.common.exception.AccessTokenExpiredException;
+import com.ligg.common.exception.RefreshTokenInvalidException;
+import com.ligg.common.exception.BangumiAuthorizationException;
 import com.ligg.common.exception.CaptchaExpiredException;
 import com.ligg.common.exception.EmailSendException;
 import com.ligg.common.exception.LoginExpiredException;
@@ -144,9 +147,24 @@ public class GlobalExceptionHandler {
     /**
      * Bangumi 返回 401，访问令牌失效或登录已过期
      */
+    @ExceptionHandler(AccessTokenExpiredException.class)
+    public Result<Void> handleAccessTokenExpired(AccessTokenExpiredException e) {
+        return Result.authError("access_token_expired", "访问令牌已失效，请刷新令牌");
+    }
+
+    @ExceptionHandler(RefreshTokenInvalidException.class)
+    public Result<Void> handleRefreshTokenInvalid(RefreshTokenInvalidException e) {
+        return Result.authError("refresh_token_invalid", "刷新令牌无效或已过期");
+    }
+
+    @ExceptionHandler(BangumiAuthorizationException.class)
+    public Result<Void> handleBangumiAuthorization(BangumiAuthorizationException e) {
+        return Result.authError("bangumi_auth_required", "Bangumi 授权已失效，请重新授权 Bangumi");
+    }
+
     @ExceptionHandler(LoginExpiredException.class)
     public Result<Void> handleBangumiLoginExpired(LoginExpiredException e) {
-        log.warn("Bangumi 登录过期: {}", e.getMessage());
+        log.warn("登录凭证失效: {}", e.getMessage());
         return Result.error(ResponseCode.UNAUTHORIZED, "登录已过期，请重新登录");
     }
 

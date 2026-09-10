@@ -2,7 +2,6 @@ package com.ligg.flowclient.interceptor;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ligg.common.response.Result;
-import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.flowclient.config.ApiAuthProperties;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -102,7 +101,7 @@ public class ApiSignatureInterceptor implements HandlerInterceptor {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        Result<Void> body = Result.error(ResponseCode.UNAUTHORIZED);
+        Result<Void> body = Result.authError("api_signature_invalid", "API 请求签名无效或已过期");
         response.getWriter().write(objectMapper.writeValueAsString(body));
         return false;
     }
