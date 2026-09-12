@@ -84,9 +84,8 @@ public class DanmakuController {
      * 搜索番剧
      */
     @GetMapping("/search")
-    public Result<DandanplaySearchVo> searchAnimes(@RequestParam String keyword,
-                                                   @RequestParam(defaultValue = "1") Integer type) {
-        return Result.success(ResponseCode.SUCCESS, dandanplayClient.searchAnimes(keyword, type));
+    public Result<DandanplaySearchVo> searchAnimes(@RequestParam String keyword) {
+        return Result.success(ResponseCode.SUCCESS, dandanplayClient.searchAnimes(keyword));
     }
 
     /**

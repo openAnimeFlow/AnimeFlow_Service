@@ -21,6 +21,11 @@ public final class DandanPlayApiPath {
     public static final String DANDAN_API_SEARCH_ANIME = "/api/v2/search/anime";
 
     /**
+     * 检索弹弹番剧元数据
+     */
+    public static final String DANDAN_API_SEARCH_EPISODES = "/api/v2/search/episodes";
+
+    /**
      * 获取番剧详情
      */
     public static final String DANDAN_API_ELEMENT = "/api/v2/bangumi";

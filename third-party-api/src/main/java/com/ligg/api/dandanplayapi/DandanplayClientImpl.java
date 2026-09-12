@@ -63,15 +63,12 @@ public class DandanplayClientImpl implements DandanplayClient {
     }
 
     @Override
-    public DandanplaySearchVo searchAnimes(String keyword, Integer type) {
+    public DandanplaySearchVo searchAnimes(String keyword) {
         try {
             ResponseEntity<DandanplaySearchVo> response = dandanPlayClient.get()
                     .uri(uriBuilder -> {
-                        var b = uriBuilder.path(DandanPlayApiPath.DANDAN_API_SEARCH_ANIME)
-                                .queryParam("keyword", keyword);
-                        if (type != null) {
-                            b = b.queryParam("type", type);
-                        }
+                        var b = uriBuilder.path(DandanPlayApiPath.DANDAN_API_SEARCH_EPISODES)
+                                .queryParam("anime", keyword).queryParam("v2", "true");
                         return b.build();
                     })
                     .retrieve()

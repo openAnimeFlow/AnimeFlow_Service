@@ -29,7 +29,7 @@ public interface DandanplayClient {
     /**
      * 弹弹play搜索番剧
      */
-    DandanplaySearchVo searchAnimes(@NotNull @Size(min = 2, message = "keyword 长度不能小于 2") String keyword, Integer type);
+    DandanplaySearchVo searchAnimes(@NotNull @Size(min = 2, message = "keyword 长度不能小于 2") String keyword);
 
     /**
      * 获取番剧元素
