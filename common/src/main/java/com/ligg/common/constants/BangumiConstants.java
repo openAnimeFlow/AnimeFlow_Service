@@ -114,22 +114,7 @@ public class BangumiConstants {
     /**
      * Bangumi 条目评论列表缓存时长（秒）
      */
-    public static final long BANGUMI_SUBJECT_COMMENTS_CACHE_TTL_SECONDS = 900;
-
-    /**
-     * Bangumi 条目关联列表缓存键前缀
-     */
-    public static final String BANGUMI_SUBJECT_RELATIONS_CACHE_KEY_PREFIX = "bangumi:subject:relations";
-
-    /**
-     * Bangumi 条目关联列表最多缓存页数
-     */
-    public static final int BANGUMI_SUBJECT_RELATIONS_MAX_CACHE_PAGE = 1;
-
-    /**
-     * Bangumi 条目关联列表缓存时长（秒）
-     */
-    public static final long BANGUMI_SUBJECT_RELATIONS_CACHE_TTL_SECONDS = 60;
+    public static final long BANGUMI_SUBJECT_COMMENTS_CACHE_TTL_SECONDS = 3600;
 
     /**
      * Bangumi 角色详情缓存键前缀
@@ -205,34 +190,4 @@ public class BangumiConstants {
      * Bangumi 用户条目收藏缓存时长（秒）
      */
     public static final long BANGUMI_USER_COLLECTIONS_CACHE_TTL_SECONDS = 120;
-
-    /**
-     * Bangumi 条目搜索串行执行锁
-     */
-    public static final String BANGUMI_SEARCH_LOCK_KEY = "bangumi:search:lock";
-
-    /**
-     * Bangumi 条目搜索请求间隔冷却键（两次搜索之间至少间隔 1.5 秒）
-     */
-    public static final String BANGUMI_SEARCH_COOLDOWN_KEY = "bangumi:search:cooldown";
-
-    /**
-     * 两次搜索请求之间的最小间隔（毫秒）
-     */
-    public static final long BANGUMI_SEARCH_COOLDOWN_MILLIS = 1500;
-
-    /**
-     * 条目搜索串行锁时长（秒）
-     */
-    public static final long BANGUMI_SEARCH_LOCK_TTL_SECONDS = 60;
-
-    /**
-     * 条目搜索排队等待最长时间（毫秒）
-     */
-    public static final long BANGUMI_SEARCH_WAIT_MILLIS = 35_000;
-
-    /**
-     * 条目搜索排队轮询间隔（毫秒）
-     */
-    public static final long BANGUMI_SEARCH_POLL_INTERVAL_MILLIS = 100;
 }
