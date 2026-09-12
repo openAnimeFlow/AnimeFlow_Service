@@ -17,6 +17,7 @@ import com.ligg.flowclient.service.DanmakuService;
 import com.ligg.flowclient.service.JwtTokenService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.annotation.Validated;
@@ -49,12 +50,8 @@ public class DanmakuController {
      */
     @PostMapping
     @DanmakuSendRateLimit
-    public Result<String> addDanmaku(@Valid @RequestBody DanmakuDto danmakuDto,
-                                     @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken
-    ) {
-        BangumiUserinfoVO bgmUserInfo = bangumiOAuthExecutor.execute(
-                jwtTokenService.validateAccessToken(accessToken),
-                bangumiClient::getMe);
+    public Result<String> addDanmaku(@Valid @RequestBody DanmakuDto danmakuDto, @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken) {
+        BangumiUserinfoVO bgmUserInfo = bangumiOAuthExecutor.execute(jwtTokenService.validateAccessToken(accessToken), bangumiClient::getMe);
         danmakuService.saveDanmaku(danmakuDto, bgmUserInfo.id());
         return Result.success();
     }
@@ -63,16 +60,13 @@ public class DanmakuController {
      * 获取弹幕
      */
     @GetMapping("/{episodeId}")
-    public Result<DandanplayCommentVo> getDanmaku(@PathVariable @NotNull(message = "episodeId 不能为空") Integer episodeId,
-                                                  @RequestParam(defaultValue = "false") Boolean withRelated,
-                                                  @RequestParam(defaultValue = "0") int chConvert) {
+    public Result<DandanplayCommentVo> getDanmaku(@PathVariable @NotNull(message = "episodeId 不能为空") Integer episodeId, @RequestParam(defaultValue = "false") Boolean withRelated, @RequestParam(defaultValue = "0") int chConvert) {
 
         DandanplayCommentVo danmakuVoList = dandanplayClient.getDanmaku(episodeId, withRelated, chConvert);
         if (danmakuVoList == null) {
             danmakuVoList = new DandanplayCommentVo(0, List.of());
         }
-        List<DandanplayCommentVo.DanmakuVo> merged = new ArrayList<>(
-                danmakuVoList.comments() != null ? danmakuVoList.comments() : List.of());
+        List<DandanplayCommentVo.DanmakuVo> merged = new ArrayList<>(danmakuVoList.comments() != null ? danmakuVoList.comments() : List.of());
         for (DandanplayCommentVo.DanmakuVo item : danmakuService.queryDanmaku(episodeId)) {
             merged.add(new DandanplayCommentVo.DanmakuVo(item.cid(), item.p(), item.m()));
         }
@@ -84,8 +78,16 @@ public class DanmakuController {
      * 搜索番剧
      */
     @GetMapping("/search")
-    public Result<DandanplaySearchVo> searchAnimes(@RequestParam String keyword) {
-        return Result.success(ResponseCode.SUCCESS, dandanplayClient.searchAnimes(keyword));
+    public Result<DandanplaySearchVo> searchAnimes(@RequestParam String keyword,
+                                                   @RequestParam(defaultValue = "1") Integer type) {
+        return Result.success(ResponseCode.SUCCESS, dandanplayClient.searchAnimes(keyword, type));
+    }
+
+    @GetMapping("/search/episodes")
+    public Result<DandanplaySearchVo> searchEpisodes(
+            @RequestParam @NotNull @Size(min = 2, message = "anime 长度不能小于 2") String anime,
+            @RequestParam(defaultValue = "true") Boolean v2) {
+        return Result.success(ResponseCode.SUCCESS, dandanplayClient.searchEpisodes(anime, v2));
     }
 
     /**

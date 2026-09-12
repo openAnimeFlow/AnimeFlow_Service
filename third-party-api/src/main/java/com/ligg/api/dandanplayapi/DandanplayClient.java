@@ -29,7 +29,16 @@ public interface DandanplayClient {
     /**
      * 弹弹play搜索番剧
      */
-    DandanplaySearchVo searchAnimes(@NotNull @Size(min = 2, message = "keyword 长度不能小于 2") String keyword);
+    DandanplaySearchVo searchAnimes(@NotNull @Size(min = 2, message = "keyword 长度不能小于 2") String keyword, Integer type);
+
+    /**
+     * 调用弹弹play新版剧集搜索接口。
+     *
+     * @param anime 动漫搜索关键词
+     * @param v2    是否启用新版搜索引擎
+     */
+    DandanplaySearchVo searchEpisodes(@NotNull @Size(min = 2, message = "anime 长度不能小于 2") String anime,
+                                      Boolean v2);
 
     /**
      * 获取番剧元素
