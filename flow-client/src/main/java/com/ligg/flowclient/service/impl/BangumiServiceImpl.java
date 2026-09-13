@@ -11,6 +11,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ligg.common.constants.Constants;
+import com.ligg.common.constants.BangumiConstants;
 import com.ligg.common.entity.BangumiEpisodeEntity;
 import com.ligg.common.entity.BangumiSubjectEntity;
 import com.ligg.common.model.CoverImages;
@@ -18,6 +19,7 @@ import com.ligg.common.thirdparty.bangumi.model.BangumiRating;
 import com.ligg.common.thirdparty.bangumi.model.BangumiSubject;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsFilter;
+import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
 import com.ligg.common.thirdparty.bangumi.response.CalendarDto;
 import com.ligg.common.thirdparty.bangumi.response.CalendarDto.Entry.EpisodeSummary;
 import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
@@ -41,6 +43,7 @@ import com.ligg.flowclient.module.dto.SearchSuggestionRow;
 import com.ligg.flowclient.module.dto.SubjectRecommendationRow;
 import com.ligg.flowclient.module.dto.SubjectRelationRow;
 import com.ligg.flowclient.module.dto.SubjectSearchRow;
+import com.ligg.flowclient.module.dto.SubjectBrowseRow;
 import com.ligg.flowclient.module.dto.UserSubjectInterestRow;
 import com.ligg.flowclient.mybatis.LimitOffsetPage;
 import com.ligg.flowclient.service.*;
@@ -93,6 +96,62 @@ public class BangumiServiceImpl implements BangumiService {
     private final ImageBackfillService imageBackfillService;
     private final UserBgmCollectionMapper userBgmCollectionMapper;
     private final UserEpisodeWatchService userEpisodeWatchService;
+
+    @Override
+    public SubjectsVo getSubjects(SubjectBrowseSort sort, int page, int type, Integer year, Integer month) {
+        if (page > BangumiConstants.BANGUMI_SUBJECTS_MAX_PAGE) {
+            SubjectsVo empty = new SubjectsVo();
+            empty.setData(Collections.emptyList());
+            empty.setTotal(0);
+            return empty;
+        }
+        int totalRecords = subjectMapper.countBrowseSubjects(type, year, month);
+        int offset;
+        try {
+            offset = Math.multiplyExact(page - 1, BangumiConstants.BANGUMI_SUBJECTS_PAGE_SIZE);
+        } catch (ArithmeticException e) {
+            throw new IllegalArgumentException("参数不合法");
+        }
+
+        List<SubjectBrowseRow> rows = totalRecords == 0 || offset >= totalRecords
+                ? Collections.emptyList()
+                : subjectMapper.selectBrowseSubjects(sort.getValue(), type, year, month,
+                BangumiConstants.BANGUMI_SUBJECTS_PAGE_SIZE, offset);
+
+        SubjectsVo vo = new SubjectsVo();
+        vo.setData(rows == null ? Collections.emptyList() : rows.stream().map(this::toBrowseSubject).toList());
+        vo.setTotal((int) Math.min(BangumiConstants.BANGUMI_SUBJECTS_MAX_PAGE,
+                (totalRecords + (long) BangumiConstants.BANGUMI_SUBJECTS_PAGE_SIZE - 1)
+                        / BangumiConstants.BANGUMI_SUBJECTS_PAGE_SIZE));
+        log.info("获取条目浏览列表 sort={} page={} type={} year={} month={}",sort, page, type, year, month);
+        return vo;
+    }
+
+    private BangumiSubject toBrowseSubject(SubjectBrowseRow row) {
+        BangumiSubject subject = new BangumiSubject();
+        subject.setId(row.getId());
+        subject.setName(row.getName());
+        subject.setNameCN(row.getNameCn() != null ? row.getNameCn() : "");
+        subject.setType(row.getType());
+        subject.setInfo(InfoboxParser.toInfo(row.getInfobox()));
+        subject.setMetaTags(parseMetaTagNames(row.getMetaTags()));
+        subject.setLocked(false);
+        subject.setNsfw(Boolean.TRUE.equals(row.getNsfw()));
+
+        BangumiRating rating = new BangumiRating();
+        rating.setRank(row.getRank() != null ? row.getRank() : 0);
+        rating.setScore(row.getScore() != null ? row.getScore() : 0.0);
+        rating.setCount(parseScoreDetails(row.getScoreDetails()));
+        rating.setTotal(rating.getCount().stream().mapToInt(Integer::intValue).sum());
+        subject.setRating(rating);
+
+        CoverImages images = imageBackfillService.resolve(row.getImages(), row.getId(), null);
+        if (images != null) {
+            Utils.applyWsrvCdnInPlace(images);
+            subject.setImages(images);
+        }
+        return subject;
+    }
 
     /**
      * 条目详情
@@ -526,7 +585,7 @@ public class BangumiServiceImpl implements BangumiService {
             if (!StringUtils.hasText(value)) {
                 continue;
             }
-           Matcher matcher = Pattern.compile("\\d+").matcher(value);
+            Matcher matcher = Pattern.compile("\\d+").matcher(value);
             while (matcher.find()) {
                 try {
                     result.add(Integer.parseInt(matcher.group()));
@@ -547,7 +606,7 @@ public class BangumiServiceImpl implements BangumiService {
             if (!StringUtils.hasText(value)) {
                 continue;
             }
-           Matcher matcher = Pattern.compile("\\d+(?:\\.\\d+)?").matcher(value);
+            Matcher matcher = Pattern.compile("\\d+(?:\\.\\d+)?").matcher(value);
             while (matcher.find()) {
                 try {
                     result.add(Double.parseDouble(matcher.group()));

@@ -47,29 +47,14 @@ public class BangumiConstants {
     public static final long BANGUMI_TRENDING_CACHE_TTL_SECONDS = 86400;
 
     /**
-     * Bangumi 条目列表缓存键前缀
+     * 条目浏览列表每页条数
      */
-    public static final String BANGUMI_SUBJECTS_CACHE_KEY_PREFIX = "bangumi:subjects";
+    public static final int BANGUMI_SUBJECTS_PAGE_SIZE = 24;
 
     /**
-     * Bangumi 条目列表最多缓存页数
+     * 条目浏览列表允许访问的最大页码
      */
-    public static final int BANGUMI_SUBJECTS_MAX_CACHE_PAGE = 10;
-
-    /**
-     * Bangumi 条目列表缓存时长（秒）
-     */
-    public static final long BANGUMI_SUBJECTS_CACHE_TTL_SECONDS = 1800;
-
-    /**
-     * Bangumi 条目详情缓存键前缀
-     */
-    public static final String BANGUMI_SUBJECT_DETAIL_CACHE_KEY_PREFIX = "bangumi:subject:detail";
-
-    /**
-     * Bangumi 条目详情缓存时长（秒）
-     */
-    public static final long BANGUMI_SUBJECT_DETAIL_CACHE_TTL_SECONDS = 60;
+    public static final int BANGUMI_SUBJECTS_MAX_PAGE = 100;
 
     /**
      * Bangumi 条目角色列表缓存键前缀

@@ -2,6 +2,74 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ligg.flowclient.mapper.BangumiSubjectMapper">
 
+    <sql id="browseSubjectWhere">
+        where type = #{type}
+          and nsfw = 0
+        <if test="year != null">
+          and date like concat(#{year}, '%')
+        </if>
+        <if test="month != null">
+          and date regexp '^[0-9]{4}-[0-9]{2}'
+          and cast(substring(date, 6, 2) as unsigned) = #{month}
+        </if>
+    </sql>
+
+    <select id="countBrowseSubjects" resultType="int">
+        select count(*)
+        from bangumi_subject
+        <include refid="browseSubjectWhere"/>
+    </select>
+
+    <select id="selectBrowseSubjects" resultType="com.ligg.flowclient.module.dto.SubjectBrowseRow">
+        select id,
+               type,
+               name,
+               name_cn,
+               infobox,
+               nsfw,
+               meta_tags,
+               score,
+               score_details,
+               `rank`,
+               images
+        from bangumi_subject
+        <include refid="browseSubjectWhere"/>
+        order by
+        <choose>
+            <when test="sort == 'rank'">
+                case when `rank` is null or `rank` &lt;= 0 then 1 else 0 end,
+                case when `rank` is null or `rank` &lt;= 0 then null else `rank` end,
+                id
+            </when>
+            <when test="sort == 'trends'">
+                coalesce(cast(json_unquote(json_extract(favorite, '$.doing')) as unsigned), 0) desc,
+                coalesce(cast(json_unquote(json_extract(favorite, '$.done')) as unsigned), 0) desc,
+                id
+            </when>
+            <when test="sort == 'collects'">
+                (coalesce(cast(json_unquote(json_extract(favorite, '$.wish')) as unsigned), 0)
+                 + coalesce(cast(json_unquote(json_extract(favorite, '$.done')) as unsigned), 0)
+                 + coalesce(cast(json_unquote(json_extract(favorite, '$.doing')) as unsigned), 0)
+                 + coalesce(cast(json_unquote(json_extract(favorite, '$.on_hold')) as unsigned), 0)
+                 + coalesce(cast(json_unquote(json_extract(favorite, '$.dropped')) as unsigned), 0)) desc,
+                id
+            </when>
+            <when test="sort == 'date'">
+                date = '',
+                date desc,
+                id
+            </when>
+            <when test="sort == 'title'">
+                name asc,
+                id
+            </when>
+            <otherwise>
+                id
+            </otherwise>
+        </choose>
+        limit #{limit} offset #{offset}
+    </select>
+
     <select id="selectSeasonSubjects" resultType="com.ligg.flowclient.module.dto.SeasonSubjectRow">
         select id,
                type,

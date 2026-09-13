@@ -12,9 +12,12 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum SubjectBrowseSort {
 
+    // 按评分排序
     RANK("rank"),
     TRENDS("trends"),
+    // 按收藏数排序
     COLLECTS("collects"),
+    // 按日期排序
     DATE("date"),
     TITLE("title");
 

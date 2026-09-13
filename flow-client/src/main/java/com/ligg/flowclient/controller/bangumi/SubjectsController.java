@@ -16,6 +16,8 @@ import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.bangumi.*;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.service.*;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -281,51 +283,27 @@ public class SubjectsController {
 
     /**
      * 条目浏览列表。
-     * 对应 Bangumi {@code GET /p1/subjects}；前 10 页走缓存。
      *
      * @param sort  排序方式，默认 rank
-     * @param page  页码，从 1 开始
+     * @param page  页码，从 1 开始，超过 100 页返回空列表
      * @param type  条目类型，默认 2（动画）
      * @param year  放送年份，可选
      * @param month 放送月份，可选
      */
     @GetMapping
     public Result<SubjectsVo> subjects(
-            @RequestParam(defaultValue = "rank") SubjectBrowseSort sort,
-            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "rank") @NotNull(message = "参数不合法") SubjectBrowseSort sort,
+            @RequestParam(defaultValue = "1")
+            @Min(value = 1, message = "参数不合法") int page,
             @RequestParam(defaultValue = "2") int type,
-            @RequestParam(required = false) Integer year,
-            @RequestParam(required = false) Integer month) {
-        Supplier<SubjectsVo> loader = () -> {
-            SubjectsDto dto = bangumiClient.getSubjects(sort, page, type, year, month);
-            if (dto.getData() != null) {
-                for (var subject : dto.getData()) {
-                    if (subject == null) {
-                        continue;
-                    }
-                    Utils.applyWsrvCdnInPlace(subject.getImages());
-                }
-            }
-            SubjectsVo vo = new SubjectsVo();
-            BeanUtils.copyProperties(dto, vo);
-            return vo;
-        };
-        if (page >= 1 && page <= BangumiConstants.BANGUMI_SUBJECTS_MAX_CACHE_PAGE) {
-            String yearKey = year != null ? year.toString() : "none";
-            String monthKey = month != null ? month.toString() : "none";
-            String cacheKey = BangumiConstants.BANGUMI_SUBJECTS_CACHE_KEY_PREFIX + ':' + sort.getValue() + ':' + type + ':'
-                    + yearKey + ':' + monthKey + ":page:" + page;
-            SubjectsVo vo = bangumiCacheService.getOrLoad(
-                    cacheKey,
-                    SubjectsVo.class,
-                    BangumiConstants.BANGUMI_SUBJECTS_CACHE_TTL_SECONDS,
-                    "获取条目列表超时，请稍后重试",
-                    "获取条目列表被中断",
-                    loader,
-                    () -> log.info("条目列表(命中缓存), sort={}, page={}, type={}, year={}, month={}", sort, page, type, year, month));
-            return Result.success(ResponseCode.SUCCESS, vo);
-        }
-        return Result.success(ResponseCode.SUCCESS, loader.get());
+            @RequestParam(required = false)
+            @Min(value = 1, message = "参数不合法")
+            @Max(value = 9999, message = "参数不合法") Integer year,
+            @RequestParam(required = false)
+            @Min(value = 1, message = "参数不合法")
+            @Max(value = 12, message = "参数不合法") Integer month) {
+        return Result.success(ResponseCode.SUCCESS,
+                bangumiService.getSubjects(sort, page, type, year, month));
     }
 
     /**

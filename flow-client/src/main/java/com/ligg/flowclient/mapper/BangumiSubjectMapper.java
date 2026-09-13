@@ -9,6 +9,7 @@ import com.ligg.flowclient.module.dto.SearchSuggestionRow;
 import com.ligg.flowclient.module.dto.SubjectRecommendationRow;
 import com.ligg.flowclient.module.dto.SubjectRelationRow;
 import com.ligg.flowclient.module.dto.SubjectSearchRow;
+import com.ligg.flowclient.module.dto.SubjectBrowseRow;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -16,6 +17,17 @@ import java.util.List;
 
 @Mapper
 public interface BangumiSubjectMapper extends BaseMapper<BangumiSubjectEntity> {
+
+    int countBrowseSubjects(@Param("type") int type,
+                            @Param("year") Integer year,
+                            @Param("month") Integer month);
+
+    List<SubjectBrowseRow> selectBrowseSubjects(@Param("sort") String sort,
+                                                @Param("type") int type,
+                                                @Param("year") Integer year,
+                                                @Param("month") Integer month,
+                                                @Param("limit") int limit,
+                                                @Param("offset") int offset);
 
     List<SeasonSubjectRow> selectSeasonSubjects(@Param("monthPrefix") String monthPrefix,
                                                 @Param("type") int type,

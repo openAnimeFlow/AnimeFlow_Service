@@ -1,6 +1,7 @@
 package com.ligg.flowclient.service;
 
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
+import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
 import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
 import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
 import com.ligg.common.vo.bangumi.SearchSuggestionsVo;
@@ -10,6 +11,11 @@ import com.ligg.common.vo.bangumi.SubjectRelationsVo;
 import com.ligg.common.vo.bangumi.SubjectsVo;
 
 public interface BangumiService {
+
+    /**
+     * 获取条目浏览列表。
+     */
+    SubjectsVo getSubjects(SubjectBrowseSort sort, int page, int type, Integer year, Integer month);
 
     /**
      * 条目详情
