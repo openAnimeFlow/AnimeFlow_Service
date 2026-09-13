@@ -44,9 +44,25 @@ class AuthErrorContractTest {
     void signatureFailureHasIndependentReason() throws Exception {
         var mapper = new ObjectMapper();
         var interceptor = new ApiSignatureInterceptor(new ApiAuthProperties(), mapper);
+        var request = new MockHttpServletRequest();
+        request.addHeader("User-Agent", "AnimeFlow/1.0");
         var response = new MockHttpServletResponse();
-        assertFalse(interceptor.preHandle(new MockHttpServletRequest(), response, new Object()));
+        assertFalse(interceptor.preHandle(request, response, new Object()));
         assertEquals(401, response.getStatus());
         assertEquals("api_signature_invalid", mapper.readTree(response.getContentAsString()).get("authReason").asText());
+    }
+
+    @Test
+    void nonAnimeFlowUserAgentIsRejectedBeforeSignatureValidation() throws Exception {
+        var mapper = new ObjectMapper();
+        var interceptor = new ApiSignatureInterceptor(new ApiAuthProperties(), mapper);
+        var request = new MockHttpServletRequest();
+        request.addHeader("User-Agent", "curl/8.0");
+        var response = new MockHttpServletResponse();
+
+        assertFalse(interceptor.preHandle(request, response, new Object()));
+
+        assertEquals(401, response.getStatus());
+        assertEquals("invalid_user_agent", mapper.readTree(response.getContentAsString()).get("authReason").asText());
     }
 }

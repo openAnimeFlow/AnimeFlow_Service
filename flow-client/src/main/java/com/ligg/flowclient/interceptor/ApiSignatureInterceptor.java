@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -30,6 +31,7 @@ public class ApiSignatureInterceptor implements HandlerInterceptor {
     private static final String HEADER_X_APP_ID = "X-AppId";
     private static final String HEADER_X_TIMESTAMP = "X-Timestamp";
     private static final String HEADER_X_SIGNATURE = "X-Signature";
+    private static final String USER_AGENT_PREFIX = "AnimeFlow";
 
     private final ApiAuthProperties apiAuthProperties;
     private final ObjectMapper objectMapper;
@@ -39,6 +41,11 @@ public class ApiSignatureInterceptor implements HandlerInterceptor {
             throws Exception {
         if (!apiAuthProperties.isEnabled()) {
             return true;
+        }
+
+        String userAgent = request.getHeader(HttpHeaders.USER_AGENT);
+        if (!StringUtils.hasText(userAgent) || !userAgent.startsWith(USER_AGENT_PREFIX)) {
+            return unauthorized(response, "invalid_user_agent", "客户端标识无效");
         }
 
         String xAuth = request.getHeader(HEADER_X_AUTH);
@@ -51,27 +58,27 @@ public class ApiSignatureInterceptor implements HandlerInterceptor {
                 || !StringUtils.hasText(timestampHeader)
                 || !StringUtils.hasText(signature)
                 || !appId.equals(apiAuthProperties.getAppId())) {
-            return unauthorized(response);
+            return signatureUnauthorized(response);
         }
 
         long timestamp;
         try {
             timestamp = Long.parseLong(timestampHeader.trim());
         } catch (NumberFormatException e) {
-            return unauthorized(response);
+            return signatureUnauthorized(response);
         }
 
         long nowSeconds = System.currentTimeMillis() / 1000;
         long skew = apiAuthProperties.getTimestampSkewSeconds();
         if (Math.abs(nowSeconds - timestamp) > skew) {
-            return unauthorized(response);
+            return signatureUnauthorized(response);
         }
 
         String path = request.getRequestURI();
         String expectedSignature = generateSignature(appId, timestamp, path, apiAuthProperties.getSecret());
         if (!constantTimeEquals(expectedSignature, signature.trim())) {
             log.warn("API 签名校验失败: path={}, appId={}", path, appId);
-            return unauthorized(response);
+            return signatureUnauthorized(response);
         }
 
         return true;
@@ -97,11 +104,15 @@ public class ApiSignatureInterceptor implements HandlerInterceptor {
         return MessageDigest.isEqual(expectedBytes, actualBytes);
     }
 
-    private boolean unauthorized(HttpServletResponse response) throws Exception {
+    private boolean signatureUnauthorized(HttpServletResponse response) throws Exception {
+        return unauthorized(response, "api_signature_invalid", "API 请求签名无效或已过期");
+    }
+
+    private boolean unauthorized(HttpServletResponse response, String reason, String message) throws Exception {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        Result<Void> body = Result.authError("api_signature_invalid", "API 请求签名无效或已过期");
+        Result<Void> body = Result.authError(reason, message);
         response.getWriter().write(objectMapper.writeValueAsString(body));
         return false;
     }
