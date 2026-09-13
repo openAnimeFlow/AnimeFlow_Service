@@ -44,6 +44,7 @@ import java.util.concurrent.TimeUnit;
 public class UserServiceImpl implements UserService {
 
     private static final int DAILY_LIMIT_SECONDS = 86_400;
+    private static final int PASSWORD_CHANGE_COOLDOWN_SECONDS = 12 * 60 * 60;
     private static final int USER_INFO_UPDATE_INTERVAL_SECONDS = 180;
     private static final int AVATAR_UPLOAD_INTERVAL_SECONDS = 300;
     private static final long MAX_AVATAR_SIZE = 2 * 1024 * 1024;
@@ -248,6 +249,43 @@ public class UserServiceImpl implements UserService {
         user.setPassword(PasswordUtils.hash(forgotPasswordDto.getPassword()));
         userMapper.updateById(user);
         markPasswordResetDaily(email);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void changePassword(String accessToken, ChangePasswordDto changePasswordDto) {
+        Long userId = jwtTokenService.validateAccessToken(accessToken);
+        checkPasswordChangeCooldown(userId);
+        UserEntity user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new LoginExpiredException();
+        }
+        if (!PasswordUtils.verify(changePasswordDto.getOldPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("旧密码不正确");
+        }
+        user.setPassword(PasswordUtils.hash(changePasswordDto.getNewPassword()));
+        if (userMapper.updateById(user) != 1) {
+            throw new IllegalStateException("密码修改失败");
+        }
+        jwtTokenService.revokeAllUserSessions(userId);
+        markPasswordChangeCooldown(userId);
+    }
+
+    private void checkPasswordChangeCooldown(Long userId) {
+        String key = Constants.PASSWORD_CHANGE_COOLDOWN_KEY + ':' + userId;
+        long ttl = redisTemplate.getExpire(key, TimeUnit.SECONDS);
+        if (ttl > 0) {
+            long hours = ttl / 3600;
+            long minutes = (ttl % 3600) / 60;
+            throw new UpdateRateLimitException(
+                    "密码修改过于频繁，请 %d 小时 %d 分钟后再试".formatted(hours, minutes)
+            );
+        }
+    }
+
+    private void markPasswordChangeCooldown(Long userId) {
+        String key = Constants.PASSWORD_CHANGE_COOLDOWN_KEY + ':' + userId;
+        redisTemplate.opsForValue().set(key, "1", PASSWORD_CHANGE_COOLDOWN_SECONDS, TimeUnit.SECONDS);
     }
 
     private void checkPasswordResetDailyLimit(String email) {

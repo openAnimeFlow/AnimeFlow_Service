@@ -6,7 +6,9 @@ package com.ligg.flowclient.controller;
 
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
+import com.ligg.flowclient.annotation.IpEndpointRateLimit;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
+import com.ligg.flowclient.module.dto.ChangePasswordDto;
 import com.ligg.flowclient.module.dto.UpdateEpisodeWatchDto;
 import com.ligg.flowclient.module.dto.UpdateUserDto;
 import com.ligg.flowclient.module.vo.FlowUserVo;
@@ -96,5 +98,17 @@ public class FlowUserController {
         return Result.success(ResponseCode.SUCCESS,
                 userEpisodeWatchService.getSubjectWatchStatus(accessToken, subjectId)
         );
+    }
+
+    /**
+     * 修改密码。修改成功后会撤销该账号的全部登录会话.
+     */
+    @PutMapping("/password")
+    @IpEndpointRateLimit(keyPrefix = "animeflow:account:change-password:ip:", seconds = 60, maxRequests = 10)
+    public Result<Void> changePassword(
+            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
+            @Valid @RequestBody ChangePasswordDto body) {
+        userService.changePassword(accessToken, body);
+        return Result.success();
     }
 }

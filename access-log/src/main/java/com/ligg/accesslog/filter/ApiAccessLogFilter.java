@@ -31,7 +31,7 @@ import java.util.regex.Pattern;
 public class ApiAccessLogFilter extends OncePerRequestFilter {
 
     private static final Pattern SENSITIVE_QUERY_KEY = Pattern.compile(
-            "(?i)^(password|passwd|token|access_token|refresh_token|authorization|secret|code)$");
+            "(?i)^(?:.*(?:password|passwd)|(?:access|refresh)_?token|token|authorization|secret|code)$");
 
     private final ApiAccessLogRedisProducer apiAccessLogRedisProducer;
     private final AccessLogProperties accessLogProperties;

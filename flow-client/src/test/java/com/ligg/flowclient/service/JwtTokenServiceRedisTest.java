@@ -150,6 +150,19 @@ class JwtTokenServiceRedisTest {
     }
 
     @Test
+    void revokeAllUserSessionsInvalidatesEveryTokenPair() {
+        FlowTokenVo first = service.issueToken(42L, "test@example.test", Platform.WINDOWS);
+        FlowTokenVo second = service.issueToken(42L, "test@example.test", Platform.ANDROID);
+
+        service.revokeAllUserSessions(42L);
+
+        assertThrows(AccessTokenExpiredException.class, () -> service.validateAccessToken(first.getAccessToken()));
+        assertThrows(RefreshTokenInvalidException.class, () -> service.refreshToken(first.getRefreshToken()));
+        assertThrows(AccessTokenExpiredException.class, () -> service.validateAccessToken(second.getAccessToken()));
+        assertThrows(RefreshTokenInvalidException.class, () -> service.refreshToken(second.getRefreshToken()));
+    }
+
+    @Test
     void emailUpdatePreservesSessionTtlAndRefreshReplay() {
         FlowTokenVo original = login();
         FlowTokenVo rotated = service.refreshToken(original.getRefreshToken());

@@ -147,6 +147,29 @@ public class JwtTokenService {
     }
 
     /**
+     * 撤销指定用户的全部活跃会话。
+     */
+    public void revokeAllUserSessions(Long userId) {
+        String userSessionsKey = userSessionsRedisKey(userId);
+        Set<Object> sessionIds = redisTemplate.opsForSet().members(userSessionsKey);
+        if (sessionIds == null || sessionIds.isEmpty()) {
+            return;
+        }
+        for (Object sessionIdObj : sessionIds) {
+            if (sessionIdObj == null) {
+                continue;
+            }
+            String sessionId = sessionIdObj.toString();
+            AuthSessionDto session = loadSession(sessionId);
+            if (session == null || !userId.equals(session.getUserId())) {
+                redisTemplate.opsForSet().remove(userSessionsKey, sessionId);
+                continue;
+            }
+            revokeSession(session);
+        }
+    }
+
+    /**
      * 校验 AnimeFlow access_token：JWT 签名/过期 + Redis 缓存存在。
      *
      * @return 当前登录用户 ID

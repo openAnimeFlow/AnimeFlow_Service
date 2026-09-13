@@ -90,6 +90,11 @@ public class Constants {
     public static final String PASSWORD_RESET_DAILY_KEY = "animeflow:account:password-reset:daily";
 
     /**
+     * 密码修改成功后的冷却 Redis 键前缀，完整键为 animeflow:account:password-change:cooldown:{userId}
+     */
+    public static final String PASSWORD_CHANGE_COOLDOWN_KEY = "animeflow:account:password-change:cooldown";
+
+    /**
      * 用户资料每日更新限制 Redis 键前缀，完整键为 animeflow:account:user-info-update:daily:{userId}
      */
     public static final String USER_INFO_UPDATE_DAILY_KEY = "animeflow:account:user-info-update:daily";
