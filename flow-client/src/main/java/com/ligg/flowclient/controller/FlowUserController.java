@@ -19,10 +19,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Set;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/users")
 public class FlowUserController {
+
+    private static final long MAX_AVATAR_SIZE = 2 * 1024 * 1024;
+    private static final Set<String> ALLOWED_AVATAR_TYPES = Set.of("image/jpeg", "image/png", "image/webp", "image/gif");
 
     private final UserService userService;
 
@@ -59,11 +64,22 @@ public class FlowUserController {
     public Result<FlowUserVo> uploadAvatar(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
             @RequestParam("file") MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("头像文件不能为空");
+        }
+        if (file.getSize() > MAX_AVATAR_SIZE) {
+            throw new IllegalArgumentException("头像文件大小不能超过 2MB");
+        }
+        if (!ALLOWED_AVATAR_TYPES.contains(file.getContentType())) {
+            throw new IllegalArgumentException("仅支持 JPEG、PNG、WebP、GIF 格式的图片");
+        }
+        String avatarUrl = userService.uploadAvatar(file);
+        UpdateUserDto body = new UpdateUserDto();
+        body.setAvatar(avatarUrl);
         return Result.success(ResponseCode.SUCCESS,
-                userService.uploadAvatar(accessToken, file)
+                userService.updateUserInfo(accessToken, body)
         );
     }
-
 
     /**
      * 标记当前用户某一集已看/未看。

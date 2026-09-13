@@ -28,18 +28,17 @@ public interface UserService {
     FlowUserVo getUserInfo(String accessToken);
 
     /**
-     * 更新当前登录用户资料（昵称、头像）。
+     * 更新当前登录用户资料。
      */
     FlowUserVo updateUserInfo(String accessToken, UpdateUserDto updateUserDto);
 
     /**
-     * 上传用户头像，将图片存储到对象存储并更新用户头像 URL。
+     * 上传用户头像到对象存储。
      *
-     * @param accessToken 当前登录用户的 access_token
      * @param file        图片文件（支持 JPEG / PNG / WebP / GIF）
-     * @return 更新后的用户信息
+     * @return 上传后的头像 URL
      */
-    FlowUserVo uploadAvatar(String accessToken, MultipartFile file);
+    String uploadAvatar(MultipartFile file);
 
     /**
      * 为当前账号绑定邮箱并设置登录密码。

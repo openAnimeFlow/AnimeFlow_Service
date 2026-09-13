@@ -110,7 +110,12 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("至少需要更新一个用户信息字段");
         }
         Long userId = jwtTokenService.validateAccessToken(accessToken);
-        checkUserInfoUpdateDailyLimit(userId);
+        if (updateUserDto.hasBasicProfileUpdateField()) {
+            checkUserInfoUpdateDailyLimit(userId);
+        }
+        if (StringUtils.hasText(updateUserDto.getAvatar())) {
+            checkAvatarUploadLimit(userId);
+        }
         UserEntity user = userMapper.selectById(userId);
         if (user == null) {
             throw new LoginExpiredException();
@@ -121,27 +126,23 @@ public class UserServiceImpl implements UserService {
         if (updateUserDto.getBackgroundId() != null) {
             user.setBackgroundId(updateUserDto.getBackgroundId());
         }
+        String oldAvatarUrl = user.getAvatar();
+        if (StringUtils.hasText(updateUserDto.getAvatar())) {
+            user.setAvatar(updateUserDto.getAvatar());
+        }
         userMapper.updateById(user);
-        markUserInfoUpdateDaily(userId);
+        if (updateUserDto.hasBasicProfileUpdateField()) {
+            markUserInfoUpdateDaily(userId);
+        }
+        if (StringUtils.hasText(updateUserDto.getAvatar())) {
+            markAvatarUpload(userId);
+            deleteOldAvatar(oldAvatarUrl);
+        }
         return loadUserVo(userId);
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
-    public FlowUserVo uploadAvatar(String accessToken, MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("头像文件不能为空");
-        }
-        if (file.getSize() > MAX_AVATAR_SIZE) {
-            throw new IllegalArgumentException("头像文件大小不能超过 2MB");
-        }
-
-        // Content-Type 初筛（客户端可伪造，仅做快速拦截）
-        String contentType = file.getContentType();
-        if (contentType == null || !ALLOWED_AVATAR_TYPES.contains(contentType)) {
-            throw new IllegalArgumentException("仅支持 JPEG、PNG、WebP、GIF 格式的图片");
-        }
-
+    public String uploadAvatar(MultipartFile file) {
         // 文件扩展名白名单
         String ext = ImageValidator.validateExtension(file.getOriginalFilename());
         if (ext == null) {
@@ -160,28 +161,14 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("文件内容不是合法的图片格式");
         }
 
-        Long userId = jwtTokenService.validateAccessToken(accessToken);
-        checkAvatarUploadLimit(userId);
-        UserEntity user = userMapper.selectById(userId);
-        if (user == null) {
-            throw new LoginExpiredException();
-        }
-
         String key = "avatars/" + UUID.randomUUID() + "." + ext;
         byte[] cleanBytes = sanitized.bytes();
 
-        String avatarUrl = objectStorageService.upload(
+        return objectStorageService.upload(
                 key,
                 new ByteArrayInputStream(cleanBytes),
                 cleanBytes.length,
                 sanitized.mimeType());
-
-        deleteOldAvatar(user.getAvatar());
-
-        user.setAvatar(avatarUrl);
-        userMapper.updateById(user);
-        markAvatarUpload(userId);
-        return loadUserVo(userId);
     }
 
     private void deleteOldAvatar(String oldAvatarUrl) {
