@@ -19,7 +19,7 @@ import java.util.function.Supplier;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class BangumiCacheService {
+public class CacheService {
 
     /**
      * 脏缓存清理后的冷却时间：期间跳过对该键的 Redis 读取，避免轮询中反复 get/delete。

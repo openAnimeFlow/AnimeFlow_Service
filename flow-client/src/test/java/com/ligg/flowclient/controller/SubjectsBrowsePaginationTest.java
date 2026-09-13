@@ -5,6 +5,7 @@ import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.common.handler.GlobalExceptionHandler;
 import com.ligg.common.model.CoverImages;
 import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
+import com.ligg.common.vo.bangumi.SubjectsVo;
 import com.ligg.flowclient.controller.bangumi.SubjectsController;
 import com.ligg.flowclient.mapper.BangumiEpisodeMapper;
 import com.ligg.flowclient.mapper.BangumiSubjectMapper;
@@ -25,6 +26,7 @@ import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 import org.springframework.validation.beanvalidation.MethodValidationInterceptor;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -35,6 +37,7 @@ class SubjectsBrowsePaginationTest {
 
     private final BangumiSubjectMapper subjectMapper = mock(BangumiSubjectMapper.class);
     private final ImageBackfillService imageBackfillService = mock(ImageBackfillService.class);
+    private final CacheService cacheService = mock(CacheService.class);
     private LocalValidatorFactoryBean validator;
     private MockMvc mvc;
 
@@ -43,8 +46,12 @@ class SubjectsBrowsePaginationTest {
         BangumiServiceImpl service = new BangumiServiceImpl(
                 mock(BangumiEpisodeMapper.class), subjectMapper, new ObjectMapper(),
                 imageBackfillService, mock(UserBgmCollectionMapper.class), mock(UserEpisodeWatchService.class));
+        when(cacheService.getOrLoad(
+                anyString(), eq(SubjectsVo.class), anyLong(), anyString(), anyString(),
+                org.mockito.ArgumentMatchers.<Supplier<SubjectsVo>>any(), any(Runnable.class)))
+                .thenAnswer(invocation -> invocation.<Supplier<SubjectsVo>>getArgument(5).get());
         SubjectsController controller = new SubjectsController(
-                mock(BangumiClient.class), mock(BangumiCacheService.class), service,
+                mock(BangumiClient.class), cacheService, service,
                 mock(JwtTokenService.class), mock(BangumiOAuthTokenService.class), mock(BangumiOAuthExecutor.class));
 
         // Exercise the controller's @Validated constraints as in the running application.
@@ -99,6 +106,35 @@ class SubjectsBrowsePaginationTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.data[0].id").value(42))
                 .andExpect(jsonPath("$.data.total").value(100));
+    }
+
+    @Test
+    void firstThirtyPagesUseAParameterizedRedisCacheKeyWithTtlJitter() throws Exception {
+        when(subjectMapper.countBrowseSubjects(2, null, null)).thenReturn(0);
+
+        mvc.perform(get("/api/v1/bangumi/subjects").param("page", "30"))
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.total").value(0));
+
+        verify(cacheService).getOrLoad(
+                eq("bangumi:subjects:rank:2:none:none:page:30"),
+                eq(SubjectsVo.class),
+                longThat(ttl -> ttl >= 1800 && ttl <= 2100),
+                eq("获取条目列表超时，请稍后重试"),
+                eq("获取条目列表被中断"),
+                org.mockito.ArgumentMatchers.<Supplier<SubjectsVo>>any(),
+                any(Runnable.class));
+    }
+
+    @Test
+    void pageThirtyOneBypassesRedisCache() throws Exception {
+        when(subjectMapper.countBrowseSubjects(2, null, null)).thenReturn(0);
+
+        mvc.perform(get("/api/v1/bangumi/subjects").param("page", "31"))
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.total").value(0));
+
+        verifyNoInteractions(cacheService);
     }
 
     @ParameterizedTest

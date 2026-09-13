@@ -15,7 +15,7 @@ import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.bangumi.*;
 import com.ligg.flowclient.annotation.IpEndpointRateLimit;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
-import com.ligg.flowclient.service.BangumiCacheService;
+import com.ligg.flowclient.service.CacheService;
 import com.ligg.flowclient.service.BangumiService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -45,7 +45,7 @@ import java.util.function.Supplier;
 public class BangumiController {
 
     private final BangumiClient bangumiClient;
-    private final BangumiCacheService bangumiCacheService;
+    private final CacheService cacheService;
     private final BangumiService bangumiService;
 
     /**
@@ -58,7 +58,7 @@ public class BangumiController {
         String cacheKey = BangumiConstants.BANGUMI_SEASON_CALENDAR_CACHE_KEY_PREFIX + ':'
                 + BangumiSeasonUtils.currentSeasonMonthPrefix(LocalDate.now())
                 + ':' + includeNextSeason;
-        SeasonCalendarVo vo = bangumiCacheService.getOrLoad(
+        SeasonCalendarVo vo = cacheService.getOrLoad(
                 cacheKey,
                 SeasonCalendarVo.class,
                 BangumiConstants.BANGUMI_SEASON_CALENDAR_CACHE_TTL_SECONDS,
@@ -99,7 +99,7 @@ public class BangumiController {
         };
         if (limit > 0 && offset / limit + 1 <= BangumiConstants.BANGUMI_TRENDING_MAX_CACHE_PAGE) {
             String cacheKey = BangumiConstants.BANGUMI_TRENDING_CACHE_KEY_PREFIX + ':' + type + ':' + limit + ':' + offset;
-            TrendingSubjectsVo vo = bangumiCacheService.getOrLoad(
+            TrendingSubjectsVo vo = cacheService.getOrLoad(
                     cacheKey,
                     TrendingSubjectsVo.class,
                     BangumiConstants.BANGUMI_TRENDING_CACHE_TTL_SECONDS,
@@ -161,7 +161,7 @@ public class BangumiController {
     @GetMapping("/characters/{characterId}")
     public Result<CharacterDetailVo> characterDetail(@NotNull @PathVariable int characterId) {
         String cacheKey = BangumiConstants.BANGUMI_CHARACTER_DETAIL_CACHE_KEY_PREFIX + ':' + characterId;
-        CharacterDetailVo vo = bangumiCacheService.getOrLoad(
+        CharacterDetailVo vo = cacheService.getOrLoad(
                 cacheKey,
                 CharacterDetailVo.class,
                 BangumiConstants.BANGUMI_CHARACTER_DETAIL_CACHE_TTL_SECONDS,
@@ -201,7 +201,7 @@ public class BangumiController {
         if (limit > 0 && offset / limit + 1 <= BangumiConstants.BANGUMI_CHARACTER_COMMENTS_MAX_CACHE_PAGE) {
             String cacheKey = BangumiConstants.BANGUMI_CHARACTER_COMMENTS_CACHE_KEY_PREFIX + ':' + characterId
                     + ':' + limit + ':' + offset;
-            CharacterCommentsVo vo = bangumiCacheService.getOrLoad(
+            CharacterCommentsVo vo = cacheService.getOrLoad(
                     cacheKey,
                     CharacterCommentsVo.class,
                     BangumiConstants.BANGUMI_CHARACTER_COMMENTS_CACHE_TTL_SECONDS,
@@ -256,7 +256,7 @@ public class BangumiController {
         if (limit > 0 && offset / limit + 1 <= BangumiConstants.BANGUMI_CHARACTER_CASTS_MAX_CACHE_PAGE) {
             String cacheKey = BangumiConstants.BANGUMI_CHARACTER_CASTS_CACHE_KEY_PREFIX + ':' + characterId
                     + ':' + subjectType + ':' + limit + ':' + offset;
-            CharacterCastsVo vo = bangumiCacheService.getOrLoad(
+            CharacterCastsVo vo = cacheService.getOrLoad(
                     cacheKey,
                     CharacterCastsVo.class,
                     BangumiConstants.BANGUMI_CHARACTER_CASTS_CACHE_TTL_SECONDS,

@@ -52,6 +52,26 @@ public class BangumiConstants {
     public static final int BANGUMI_SUBJECTS_PAGE_SIZE = 24;
 
     /**
+     * 条目浏览列表最多缓存页数
+     */
+    public static final int BANGUMI_SUBJECTS_MAX_CACHE_PAGE = 30;
+
+    /**
+     * 条目浏览列表缓存基础时长（秒）
+     */
+    public static final long BANGUMI_SUBJECTS_CACHE_TTL_SECONDS = 1800;
+
+    /**
+     * 条目浏览列表缓存过期时间随机抖动范围（秒）
+     */
+    public static final long BANGUMI_SUBJECTS_CACHE_TTL_JITTER_SECONDS = 300;
+
+    /**
+     * Bangumi 条目浏览列表缓存键前缀
+     */
+    public static final String BANGUMI_SUBJECTS_CACHE_KEY_PREFIX = "bangumi:subjects";
+
+    /**
      * 条目浏览列表允许访问的最大页码
      */
     public static final int BANGUMI_SUBJECTS_MAX_PAGE = 100;

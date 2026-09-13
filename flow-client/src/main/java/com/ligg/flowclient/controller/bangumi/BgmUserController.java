@@ -15,7 +15,7 @@ import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.bangumi.BgmUserStatisticsVo;
 import com.ligg.common.vo.bangumi.UserCollectionsVo;
 import com.ligg.common.vo.bangumi.UserProfileVo;
-import com.ligg.flowclient.service.BangumiCacheService;
+import com.ligg.flowclient.service.CacheService;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +35,7 @@ public class BgmUserController {
     private final BangumiClient bangumiClient;
     private final BgmTvClient bgmTvClient;
     private final BgmUserPageHtmlParser bgmUserPageHtmlParser;
-    private final BangumiCacheService bangumiCacheService;
+    private final CacheService cacheService;
 
     /**
      * 用户资料。
@@ -46,7 +46,7 @@ public class BgmUserController {
     @GetMapping("/{username}")
     public Result<UserProfileVo> userProfile(@NotBlank @PathVariable String username) {
         String cacheKey = BangumiConstants.BANGUMI_USER_PROFILE_CACHE_KEY_PREFIX + ':' + username;
-        UserProfileVo vo = bangumiCacheService.getOrLoad(
+        UserProfileVo vo = cacheService.getOrLoad(
                 cacheKey,
                 UserProfileVo.class,
                 BangumiConstants.BANGUMI_USER_PROFILE_CACHE_TTL_SECONDS,
@@ -72,7 +72,7 @@ public class BgmUserController {
     @GetMapping("/{username}/statistics")
     public Result<BgmUserStatisticsVo> userStatistics(@NotBlank @PathVariable String username) {
         String cacheKey = BangumiConstants.BANGUMI_USER_STATISTICS_CACHE_KEY_PREFIX + ':' + username;
-        BgmUserStatisticsVo vo = bangumiCacheService.getOrLoad(
+        BgmUserStatisticsVo vo = cacheService.getOrLoad(
                 cacheKey,
                 BgmUserStatisticsVo.class,
                 BangumiConstants.BANGUMI_USER_STATISTICS_CACHE_TTL_SECONDS,
@@ -116,7 +116,7 @@ public class BgmUserController {
         if (limit > 0 && offset / limit + 1 <= BangumiConstants.BANGUMI_USER_COLLECTIONS_MAX_CACHE_PAGE) {
             String cacheKey = BangumiConstants.BANGUMI_USER_COLLECTIONS_CACHE_KEY_PREFIX + ':' + username
                     + ':' + subjectType + ':' + type + ':' + limit + ':' + offset;
-            UserCollectionsVo vo = bangumiCacheService.getOrLoad(
+            UserCollectionsVo vo = cacheService.getOrLoad(
                     cacheKey,
                     UserCollectionsVo.class,
                     BangumiConstants.BANGUMI_USER_COLLECTIONS_CACHE_TTL_SECONDS,

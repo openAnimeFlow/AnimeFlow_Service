@@ -26,6 +26,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
 @Slf4j
@@ -36,7 +37,7 @@ import java.util.function.Supplier;
 public class SubjectsController {
 
     private final BangumiClient bangumiClient;
-    private final BangumiCacheService bangumiCacheService;
+    private final CacheService cacheService;
     private final BangumiService bangumiService;
     private final JwtTokenService jwtTokenService;
     private final BangumiOAuthTokenService bangumiOAuthTokenService;
@@ -121,7 +122,7 @@ public class SubjectsController {
             String typeKey = type != null ? type.toString() : "none";
             String cacheKey = BangumiConstants.BANGUMI_SUBJECT_CHARACTERS_CACHE_KEY_PREFIX + ':' + subjectId
                     + ':' + typeKey + ':' + limit + ':' + offset;
-            SubjectCharactersVo vo = bangumiCacheService.getOrLoad(
+            SubjectCharactersVo vo = cacheService.getOrLoad(
                     cacheKey,
                     SubjectCharactersVo.class,
                     BangumiConstants.BANGUMI_SUBJECT_CHARACTERS_CACHE_TTL_SECONDS,
@@ -172,7 +173,7 @@ public class SubjectsController {
         if (limit > 0 && offset / limit + 1 <= BangumiConstants.BANGUMI_SUBJECT_STAFF_PERSONS_MAX_CACHE_PAGE) {
             String cacheKey = BangumiConstants.BANGUMI_SUBJECT_STAFF_PERSONS_CACHE_KEY_PREFIX + ':' + subjectId
                     + ':' + limit + ':' + offset;
-            SubjectStaffPersonsVo vo = bangumiCacheService.getOrLoad(
+            SubjectStaffPersonsVo vo = cacheService.getOrLoad(
                     cacheKey,
                     SubjectStaffPersonsVo.class,
                     BangumiConstants.BANGUMI_SUBJECT_STAFF_PERSONS_CACHE_TTL_SECONDS,
@@ -224,7 +225,7 @@ public class SubjectsController {
         if (limit > 0 && offset / limit + 1 <= BangumiConstants.BANGUMI_SUBJECT_COMMENTS_MAX_CACHE_PAGE) {
             String cacheKey = BangumiConstants.BANGUMI_SUBJECT_COMMENTS_CACHE_KEY_PREFIX + ':' + subjectId
                     + ':' + limit + ':' + offset;
-            SubjectCommentsVo vo = bangumiCacheService.getOrLoad(
+            SubjectCommentsVo vo = cacheService.getOrLoad(
                     cacheKey,
                     SubjectCommentsVo.class,
                     BangumiConstants.BANGUMI_SUBJECT_COMMENTS_CACHE_TTL_SECONDS,
@@ -283,6 +284,8 @@ public class SubjectsController {
 
     /**
      * 条目浏览列表。
+     * 前 30 页使用 Redis 缓存，缓存键包含全部筛选条件；缓存未命中时由 CacheService
+     * 负责分布式互斥和空结果缓存，过期时间加入随机抖动以降低缓存雪崩风险。
      *
      * @param sort  排序方式，默认 rank
      * @param page  页码，从 1 开始，超过 100 页返回空列表
@@ -302,8 +305,28 @@ public class SubjectsController {
             @RequestParam(required = false)
             @Min(value = 1, message = "参数不合法")
             @Max(value = 12, message = "参数不合法") Integer month) {
+        Supplier<SubjectsVo> loader = () -> bangumiService.getSubjects(sort, page, type, year, month);
+        if (page <= BangumiConstants.BANGUMI_SUBJECTS_MAX_CACHE_PAGE) {
+            String yearKey = year != null ? year.toString() : "none";
+            String monthKey = month != null ? month.toString() : "none";
+            String cacheKey = BangumiConstants.BANGUMI_SUBJECTS_CACHE_KEY_PREFIX + ':' + sort.getValue() + ':' + type + ':'
+                    + yearKey + ':' + monthKey + ":page:" + page;
+            long ttlSeconds = BangumiConstants.BANGUMI_SUBJECTS_CACHE_TTL_SECONDS
+                    + ThreadLocalRandom.current().nextLong(
+                    BangumiConstants.BANGUMI_SUBJECTS_CACHE_TTL_JITTER_SECONDS + 1);
+            SubjectsVo vo = cacheService.getOrLoad(
+                    cacheKey,
+                    SubjectsVo.class,
+                    ttlSeconds,
+                    "获取条目列表超时，请稍后重试",
+                    "获取条目列表被中断",
+                    loader,
+                    () -> log.info("条目列表(命中缓存), sort={}, page={}, type={}, year={}, month={}",
+                            sort, page, type, year, month));
+            return Result.success(ResponseCode.SUCCESS, vo);
+        }
         return Result.success(ResponseCode.SUCCESS,
-                bangumiService.getSubjects(sort, page, type, year, month));
+                loader.get());
     }
 
     /**
