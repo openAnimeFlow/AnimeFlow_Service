@@ -25,8 +25,6 @@ public class UserBgmCollectionEntity {
      */
     private Integer subjectType;
 
-    private String images;
-
     private Long bgmInterestId;
 
     private Integer rate;

@@ -126,7 +126,6 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
             applyInterest(row, interest);
         }
         applyDtoFields(row, dto);
-        fillImagesIfMissing(row, existing, detail);
         ensureRequiredFields(row);
 
         if (existing == null) {
@@ -170,19 +169,6 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
         }
         if (interest.getUpdatedAt() != null) {
             row.setBgmUpdatedAt(interest.getUpdatedAt());
-        }
-    }
-
-    private void fillImagesIfMissing(
-            UserBgmCollectionEntity row,
-            UserBgmCollectionEntity existing,
-            SubjectDetailDto detail) {
-        if (existing != null && StringUtils.hasText(existing.getImages())) {
-            return;
-        }
-        CoverImages images = detail != null ? detail.getImages() : null;
-        if (images != null) {
-            row.setImages(toJson(images));
         }
     }
 
