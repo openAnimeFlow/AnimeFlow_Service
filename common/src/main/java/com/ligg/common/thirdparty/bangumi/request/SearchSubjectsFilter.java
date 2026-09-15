@@ -18,7 +18,6 @@ public class SearchSubjectsFilter {
     private List<String> date;
     private List<String> rating;
     private List<String> rank;
-    private Boolean nsfw;
 
     /**
      * 所有字段均为空时返回 {@code null}。
@@ -43,16 +42,12 @@ public class SearchSubjectsFilter {
         if (rank != null && !rank.isEmpty()) {
             upstream.rank = rank;
         }
-        if (nsfw != null) {
-            upstream.nsfw = nsfw;
-        }
         if (upstream.type == null
                 && upstream.tags == null
                 && upstream.metaTags == null
                 && upstream.date == null
                 && upstream.rating == null
-                && upstream.rank == null
-                && upstream.nsfw == null) {
+                && upstream.rank == null) {
             return null;
         }
         return upstream;

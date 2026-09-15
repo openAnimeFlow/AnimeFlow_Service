@@ -35,9 +35,8 @@ public interface BangumiService {
     /**
      * 搜索条目。请求参数兼容 Bangumi 搜索 API，实际读取本地搜索索引。
      *
-     * @param flowAccessToken 可选 Flow JWT
      */
-    SubjectsDto searchSubjects(SearchSubjectsBody body, int limit, int offset, String flowAccessToken);
+    SubjectsDto searchSubjects(SearchSubjectsBody body, int limit, int offset, Long userId);
 
     /**
      * 获取关联条目

@@ -149,9 +149,10 @@
                 idx.type = 2
             </otherwise>
         </choose>
-        <if test="!includeNsfw">
-            and idx.nsfw = 0
-        </if>
+        and (idx.nsfw = 0 or exists (select 1 from user_oauth uo
+                                     where uo.user_id = #{userId}
+                                       and uo.platform = 'bangumi'
+                                       and uo.status = 1))
         <if test="minYear != null">
             and idx.year &gt;= #{minYear}
         </if>
@@ -215,6 +216,11 @@
                bs.score_details,
                bs.`rank`,
                bs.images,
+               (select uo.access_token from user_oauth uo
+                where uo.user_id = #{userId}
+                  and uo.platform = 'bangumi'
+                  and uo.status = 1
+                limit 1) as accessToken,
                (
                    case when idx.subject_id = #{exactSubjectId} then 2000 else 0 end
                    + case when idx.name_cn = #{keyword} then 1200 else 0 end

@@ -18,4 +18,5 @@ public class SubjectSearchRow {
     private String scoreDetails;
     private Integer rank;
     private String images;
+    private String accessToken;
 }

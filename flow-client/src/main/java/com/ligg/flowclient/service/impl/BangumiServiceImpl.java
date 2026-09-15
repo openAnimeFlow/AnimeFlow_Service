@@ -399,7 +399,7 @@ public class BangumiServiceImpl implements BangumiService {
     }
 
     @Override
-    public SubjectsDto searchSubjects(SearchSubjectsBody body, int limit, int offset, String flowAccessToken) {
+    public SubjectsDto searchSubjects(SearchSubjectsBody body, int limit, int offset, Long userId) {
         SubjectsDto dto = new SubjectsDto();
         if (body == null || !StringUtils.hasText(body.getKeyword()) || limit <= 0) {
             dto.setData(Collections.emptyList());
@@ -419,7 +419,7 @@ public class BangumiServiceImpl implements BangumiService {
                 keyword.anchored(),
                 criteria.exactSubjectId(),
                 criteria.types(),
-                criteria.includeNsfw(),
+                userId,
                 criteria.tags(),
                 criteria.metaTags(),
                 criteria.minYear(),
@@ -441,7 +441,7 @@ public class BangumiServiceImpl implements BangumiService {
                 keyword.anchored(),
                 criteria.exactSubjectId(),
                 criteria.types(),
-                criteria.includeNsfw(),
+                userId,
                 criteria.tags(),
                 criteria.metaTags(),
                 criteria.minYear(),
@@ -465,7 +465,6 @@ public class BangumiServiceImpl implements BangumiService {
                 : List.of(2);
         List<String> tags = normalizeTextList(filter != null ? filter.getTags() : null);
         List<String> metaTags = normalizeTextList(filter != null ? filter.getMetaTags() : null);
-        boolean includeNsfw = filter != null && Boolean.TRUE.equals(filter.getNsfw());
         Integer exactSubjectId = parseExactSubjectId(body.getKeyword());
 
         IntRange yearRange = parseYearRange(filter != null ? filter.getDate() : null);
@@ -475,7 +474,6 @@ public class BangumiServiceImpl implements BangumiService {
 
         return new LocalSearchCriteria(
                 types,
-                includeNsfw,
                 tags,
                 metaTags,
                 yearRange.min(),
@@ -505,7 +503,7 @@ public class BangumiServiceImpl implements BangumiService {
         rating.setTotal(rating.getCount().stream().mapToInt(Integer::intValue).sum());
         subject.setRating(rating);
 
-        CoverImages images = imageBackfillService.resolve(row.getImages(), row.getId(), null);
+        CoverImages images = imageBackfillService.resolve(row.getImages(), row.getId(), row.getAccessToken());
         Utils.applyWsrvCdnInPlace(images);
         subject.setImages(images);
         return subject;
@@ -620,7 +618,6 @@ public class BangumiServiceImpl implements BangumiService {
 
     private record LocalSearchCriteria(
             List<Integer> types,
-            boolean includeNsfw,
             List<String> tags,
             List<String> metaTags,
             Integer minYear,

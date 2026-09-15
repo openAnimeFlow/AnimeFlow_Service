@@ -17,6 +17,7 @@ import com.ligg.flowclient.annotation.IpEndpointRateLimit;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.service.CacheService;
 import com.ligg.flowclient.service.BangumiService;
+import com.ligg.flowclient.service.JwtTokenService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -26,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -47,6 +49,7 @@ public class BangumiController {
     private final BangumiClient bangumiClient;
     private final CacheService cacheService;
     private final BangumiService bangumiService;
+    private final JwtTokenService jwtTokenService;
 
     /**
      * 获取季番新番周表。
@@ -118,7 +121,7 @@ public class BangumiController {
      * @param limit       每页条数，1–100
      * @param offset      偏移量
      * @param body        搜索关键词与筛选条件
-     * @param accessToken 可选 Bearer，当前本地搜索不依赖该值
+     * @param accessToken 从 Authorization 请求头解析的可选令牌
      */
     @PostMapping("/search/subjects")
     public Result<SubjectsVo> searchSubjects(
@@ -127,7 +130,8 @@ public class BangumiController {
             @RequestBody @Valid SearchSubjectsBody body,
             @RequestAttribute(name = AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, required = false)
             String accessToken) {
-        SubjectsDto dto = bangumiService.searchSubjects(body, limit, offset, accessToken);
+        Long userId = StringUtils.hasText(accessToken) ? jwtTokenService.validateAccessToken(accessToken) : null;
+        SubjectsDto dto = bangumiService.searchSubjects(body, limit, offset, userId);
         SubjectsVo vo = new SubjectsVo();
         BeanUtils.copyProperties(dto, vo);
         log.info("搜索条目 keyword={}, limit={}, offset={}, total={}",
