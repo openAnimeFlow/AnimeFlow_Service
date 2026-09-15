@@ -224,24 +224,16 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
 
     private UserCollectionsDto.Item toItem(UserBgmCollectionRow row, String accessToken) {
         UserCollectionsDto.Item item = new UserCollectionsDto.Item();
-        item.setId(row.getSubjectId());
-        item.setInterest(toInterest(row));
-
-        if (StringUtils.hasText(row.getName())) {
-            item.setName(row.getName());
-            item.setNameCN(row.getNameCn());
-            item.setType(row.getSubjectType());
-            item.setNsfw(Boolean.TRUE.equals(row.getNsfw()));
-            item.setRating(toRating(row));
-        } else {
-            item.setName("");
-            item.setType(row.getSubjectType() != null ? row.getSubjectType() : 2);
-            item.setNsfw(false);
-            item.setRating(emptyRating());
-        }
-
         CoverImages images = imageBackfillService.resolve(row.getImages(), row.getSubjectId(), accessToken);
         Utils.applyWsrvCdnInPlace(images);
+
+        item.setId(row.getSubjectId());
+        item.setInterest(toInterest(row));
+        item.setName(StringUtils.hasText(row.getName()) ? row.getName() : "");
+        item.setNameCN(StringUtils.hasText(row.getNameCn()) ? row.getNameCn() : "");
+        item.setType(row.getSubjectType() != null ? row.getSubjectType() : 2);
+        item.setNsfw(Boolean.TRUE.equals(row.getNsfw()));
+        item.setRating(toRating(row));
         item.setImages(images);
         item.setInfo(InfoboxParser.toInfo(row.getInfobox()));
         item.setLocked(false);
@@ -269,15 +261,6 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
         List<Integer> counts = parseScoreDetails(row.getScoreDetails());
         rating.setCount(counts);
         rating.setTotal(counts.stream().mapToInt(Integer::intValue).sum());
-        return rating;
-    }
-
-    private BangumiRating emptyRating() {
-        BangumiRating rating = new BangumiRating();
-        rating.setRank(0);
-        rating.setScore(0.0);
-        rating.setCount(Collections.nCopies(10, 0));
-        rating.setTotal(0);
         return rating;
     }
 
