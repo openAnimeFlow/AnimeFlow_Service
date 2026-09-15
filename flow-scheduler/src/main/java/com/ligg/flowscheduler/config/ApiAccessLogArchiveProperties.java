@@ -10,7 +10,10 @@ public class ApiAccessLogArchiveProperties {
 
     private boolean enabled = true;
 
-    /** 每月 1 日凌晨 02:00 归档上月日志。 */
+    /** 是否将上月日志持久化为服务器上的 JSON Lines 文件；关闭时仅清理数据库记录。 */
+    private boolean persistFile = true;
+
+    /** 默认每月 1 日凌晨 02:00 归档上月日志。 */
     private String cron = "0 0 2 1 * *";
 
     /** 定时任务使用的时区。 */

@@ -27,6 +27,9 @@ mybatis-plus:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 anime-flow:
+  access-log:
+    enabled: true
+
   api-auth:
     enabled: true
     app_id: ${ANIME_FLOW_APP_ID}
@@ -76,6 +79,7 @@ anime-flow:
     access-log:
       archive:
         enabled: true
+        persist-file: true
         cron: "0 0 2 1 * *"
         zone: Asia/Shanghai
         directory: ${ANIME_FLOW_ACCESS_LOG_ARCHIVE_DIR:${user.home}/anime-flow/api-access-log}

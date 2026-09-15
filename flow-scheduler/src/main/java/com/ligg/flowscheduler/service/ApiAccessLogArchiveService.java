@@ -24,7 +24,7 @@ import java.util.ArrayList;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-/** 将上月接口访问日志导出为 JSON Lines 日志文件。 */
+/** 归档或清理上月接口访问日志。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -57,6 +57,11 @@ public class ApiAccessLogArchiveService {
             YearMonth month = YearMonth.now().minusMonths(1);
             LocalDateTime from = month.atDay(1).atStartOfDay();
             LocalDateTime to = month.plusMonths(1).atDay(1).atStartOfDay();
+            if (!properties.isPersistFile()) {
+                long count = deletePreviousMonthRows(from, to);
+                log.info("接口访问日志月度清理完成（未持久化文件）: month={}, rows={}", month, count);
+                return;
+            }
             Path directory = Path.of(properties.getDirectory());
             Files.createDirectories(directory);
             Path target = directory.resolve("api-access-log-" + month + ".log");
@@ -101,6 +106,26 @@ public class ApiAccessLogArchiveService {
         } finally {
             stringRedisTemplate.execute(RELEASE_LOCK_SCRIPT,
                     List.of(Constants.API_ACCESS_LOG_ARCHIVE_LOCK_KEY), lockToken);
+        }
+    }
+
+    /** 未启用文件归档时，按游标分页删除上月数据，避免一次性加载全部记录。 */
+    private long deletePreviousMonthRows(LocalDateTime from, LocalDateTime to) {
+        long count = 0;
+        LocalDateTime cursorTime = from;
+        long cursorId = 0;
+        while (true) {
+            List<ApiAccessLogEntity> batch = apiAccessLogMapper.selectArchiveBatch(
+                    from, to, cursorTime, cursorId, Math.max(1, properties.getBatchSize()));
+            if (batch == null || batch.isEmpty()) {
+                return count;
+            }
+            List<Long> ids = batch.stream().map(ApiAccessLogEntity::getId).toList();
+            deleteArchivedRows(ids);
+            ApiAccessLogEntity last = batch.get(batch.size() - 1);
+            cursorTime = last.getRequestTime();
+            cursorId = last.getId();
+            count += batch.size();
         }
     }
 
