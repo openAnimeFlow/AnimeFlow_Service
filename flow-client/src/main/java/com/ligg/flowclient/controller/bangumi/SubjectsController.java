@@ -273,7 +273,6 @@ public class SubjectsController {
 
     /**
      * 条目推荐列表。
-     * 基于本地 Bangumi 归档数据，按同类型、标签相似度、年份接近度、评分和排名推荐相似条目。
      *
      * @param subjectId 条目 ID
      */
