@@ -1,6 +1,7 @@
 package com.ligg.api.githubapi;
 
 import com.ligg.api.config.WebClientConfig;
+import com.ligg.common.apipath.ApiPath;
 import com.ligg.common.response.GithubRelease;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
@@ -30,7 +31,7 @@ public class GithubReleaseClientImpl implements GithubReleaseClient {
     @Override
     public GithubRelease getLatestRelease() {
         GithubRelease release = githubClient.get()
-                .uri("/repos/openAnimeFlow/AnimeFlow/releases/latest")
+                .uri(ApiPath.GITHUB_LATEST_RELEASE)
                 .retrieve()
                 .bodyToMono(GithubRelease.class)
                 .block(REQUEST_TIMEOUT);
@@ -45,7 +46,7 @@ public class GithubReleaseClientImpl implements GithubReleaseClient {
     public List<GithubRelease> getReleases(long page) {
         List<GithubRelease> releases = githubClient.get()
                 .uri(uriBuilder -> uriBuilder
-                        .path("/repos/openAnimeFlow/AnimeFlow/releases")
+                        .path(ApiPath.GITHUB_RELEASES)
                         .queryParam("page", page)
                         .build())
                 .retrieve()

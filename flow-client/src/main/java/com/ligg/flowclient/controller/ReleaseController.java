@@ -38,7 +38,7 @@ public class ReleaseController {
         }
     }
     @DeleteMapping("/latest")
-    public ResponseEntity<Result<Boolean>> clearLatestReleaseCache() {
+    public ResponseEntity<Result<Boolean>> clearLatestRelease() {
         try {
             releaseService.clearLatestReleaseCache();
             return ResponseEntity.ok()
