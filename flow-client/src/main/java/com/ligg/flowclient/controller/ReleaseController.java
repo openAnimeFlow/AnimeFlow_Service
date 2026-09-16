@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,6 +25,29 @@ import java.util.List;
 public class ReleaseController {
 
     private final ReleaseService releaseService;
+
+    @GetMapping("/latest")
+    public ResponseEntity<Result<ProjectReleaseVo>> getLatestRelease() {
+        try {
+            return ResponseEntity.ok()
+                    .header("Cache-Control", "public, max-age=3600")
+                    .body(Result.success(ResponseCode.SUCCESS, releaseService.getLatestRelease()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .body(Result.error(ResponseCode.ERROR, "Unable to fetch latest project release"));
+        }
+    }
+    @DeleteMapping("/latest")
+    public ResponseEntity<Result<Boolean>> clearLatestReleaseCache() {
+        try {
+            releaseService.clearLatestReleaseCache();
+            return ResponseEntity.ok()
+                    .body(Result.success(ResponseCode.SUCCESS, true));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                    .body(Result.error(ResponseCode.ERROR, "Unable to clear latest release cache"));
+        }
+    }
 
     @GetMapping
     public ResponseEntity<Result<List<ProjectReleaseVo>>> getReleases(

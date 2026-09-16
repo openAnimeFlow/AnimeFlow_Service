@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.List;
+
 /**
  * AnimeFlow GitHub Release 的客户端公开字段。
  */
@@ -19,4 +21,5 @@ public class ProjectReleaseVo {
     private String created_at;
     private String body;
     private String html_url;
+    private List<ProjectReleaseAssetVo> assets;
 }

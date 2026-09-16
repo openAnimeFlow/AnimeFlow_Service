@@ -28,6 +28,20 @@ public class GithubReleaseClientImpl implements GithubReleaseClient {
     }
 
     @Override
+    public GithubRelease getLatestRelease() {
+        GithubRelease release = githubClient.get()
+                .uri("/repos/openAnimeFlow/AnimeFlow/releases/latest")
+                .retrieve()
+                .bodyToMono(GithubRelease.class)
+                .block(REQUEST_TIMEOUT);
+        if (release == null) {
+            throw new IllegalStateException("GitHub latest release 响应为空");
+        }
+        validateRelease(release);
+        return release;
+    }
+
+    @Override
     public List<GithubRelease> getReleases(long page) {
         List<GithubRelease> releases = githubClient.get()
                 .uri(uriBuilder -> uriBuilder
@@ -46,12 +60,16 @@ public class GithubReleaseClientImpl implements GithubReleaseClient {
 
     private static void validateReleases(List<GithubRelease> releases) {
         for (GithubRelease release : releases) {
-            if (release == null
-                    || release.tag_name() == null
-                    || release.created_at() == null
-                    || release.html_url() == null) {
-                throw new IllegalStateException("GitHub release 缺少必要字段");
-            }
+            validateRelease(release);
+        }
+    }
+
+    private static void validateRelease(GithubRelease release) {
+        if (release == null
+                || release.tag_name() == null
+                || release.created_at() == null
+                || release.html_url() == null) {
+            throw new IllegalStateException("GitHub release 缺少必要字段");
         }
     }
 }

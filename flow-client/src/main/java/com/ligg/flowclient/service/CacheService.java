@@ -38,6 +38,12 @@ public class CacheService {
         return cacheKey + ":lock";
     }
 
+    /** 清理指定缓存，并移除该键的脏缓存冷却状态。 */
+    public void evict(String cacheKey) {
+        safeDelete(cacheKey);
+        clearCorruptCooldown(cacheKey);
+    }
+
     /**
      * 读缓存或回源加载，锁键使用 {@link #lockKey(String)}。
      *

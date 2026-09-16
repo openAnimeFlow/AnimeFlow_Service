@@ -10,6 +10,8 @@ import java.util.List;
 @Validated
 public interface GithubReleaseClient {
 
+    GithubRelease getLatestRelease();
+
     List<GithubRelease> getReleases(
             @Min(value = 1, message = "参数异常")
             @Max(value = 100, message = "参数异常")
