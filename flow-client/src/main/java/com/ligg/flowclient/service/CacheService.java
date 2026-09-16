@@ -14,7 +14,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
- * Bangumi 接口共用的 Redis 缓存击穿保护（读缓存 → 分布式锁 → 回源 → 写缓存）。
+ * Redis 缓存击穿保护（读缓存 → 分布式锁 → 回源 → 写缓存）。
  */
 @Slf4j
 @Service

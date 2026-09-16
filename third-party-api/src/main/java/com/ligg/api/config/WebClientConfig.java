@@ -4,10 +4,7 @@
  */
 package com.ligg.api.config;
 
-import com.ligg.common.apipath.BangumiApiPath;
-import com.ligg.common.apipath.BangumiNextApiPath;
-import com.ligg.common.apipath.BgmTvApiPath;
-import com.ligg.common.apipath.DandanPlayApiPath;
+import com.ligg.common.apipath.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -31,6 +28,8 @@ public class WebClientConfig {
     public static final String DANDANPLAY_WEB_CLIENT = "dandanplayWebClient";
 
     public static final String BGM_TV_WEB_CLIENT = "bgmTvWebClient";
+
+    public static final String GITHUB_WEB_CLIENT = "githubWebClient";
 
     private static final int MAX_IN_MEMORY_BODY_BYTES = 10 * 1024 * 1024;
 
@@ -88,6 +87,20 @@ public class WebClientConfig {
                 .clientConnector(new ReactorClientHttpConnector(HttpClient.create().followRedirect(true)))
                 .defaultHeader("X-AppId", dandanPlayAppId)
                 .defaultHeader("X-AppSecret", dandanPlaySecret)
+                .build();
+    }
+
+    @Bean(name = GITHUB_WEB_CLIENT)
+    public WebClient githubWebClient() {
+        HttpClient reactorHttpClient = HttpClient.create()
+                .responseTimeout(Duration.ofSeconds(15));
+        return WebClient.builder()
+                .exchangeStrategies(BANGUMI_EXCHANGE_STRATEGIES)
+                .clientConnector(new ReactorClientHttpConnector(reactorHttpClient))
+                .baseUrl(ApiPath.GITHUB_API)
+                .defaultHeader(HttpHeaders.ACCEPT, "application/vnd.github+json")
+                .defaultHeader(HttpHeaders.USER_AGENT, "AnimeFlow-Service")
+                .defaultHeader("X-GitHub-Api-Version", "2022-11-28")
                 .build();
     }
 }
