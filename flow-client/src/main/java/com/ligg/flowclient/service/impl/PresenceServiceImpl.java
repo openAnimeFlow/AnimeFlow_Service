@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class PresenceServiceImpl implements PresenceService {
 
-    private static final long TTL_SECONDS = 90L;
+    private static final long TTL_SECONDS = 180L;
     private static final long EXPIRED_BEFORE_SECONDS = TTL_SECONDS;
 
     private final RedisTemplate<String, Object> redisTemplate;
