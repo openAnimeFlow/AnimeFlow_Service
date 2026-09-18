@@ -79,7 +79,7 @@ public class PresenceServiceImpl implements PresenceService {
         PresenceContext previous = readPreviousContext(key);
         redisTemplate.delete(key);
         stringRedisTemplate.opsForZSet().remove(Constants.PRESENCE_DEVICES_KEY, presenceId);
-        if (previous != null && isWatching(previous)) {
+        if (previous != null && hasPlaybackContext(previous)) {
             stringRedisTemplate.opsForZSet().remove(
                     subjectDevicesKey(previous.getSubjectId()), presenceId);
             removeSubjectFromGlobalIndexIfOffline(previous.getSubjectId());
@@ -144,12 +144,12 @@ public class PresenceServiceImpl implements PresenceService {
     }
 
     private void updateSubjectIndexes(PresenceContext previous, PresenceContext current, long now) {
-        if (previous != null && isWatching(previous)
-                && (!isWatching(current) || !sameSubject(previous, current))) {
+        if (previous != null && hasPlaybackContext(previous)
+                && (!hasPlaybackContext(current) || !sameSubject(previous, current))) {
             stringRedisTemplate.opsForZSet().remove(
                     subjectDevicesKey(previous.getSubjectId()), current.getPresenceId());
         }
-        if (isWatching(current)) {
+        if (hasPlaybackContext(current)) {
             String devicesKey = subjectDevicesKey(current.getSubjectId());
             String usersKey = subjectUsersKey(current.getSubjectId());
             stringRedisTemplate.opsForZSet().add(devicesKey, current.getPresenceId(), now);
@@ -158,8 +158,8 @@ public class PresenceServiceImpl implements PresenceService {
                     Constants.PRESENCE_WATCHING_SUBJECTS_KEY,
                     String.valueOf(current.getSubjectId()), now);
         }
-        if (previous != null && isWatching(previous)
-                && (!isWatching(current) || !sameSubject(previous, current))) {
+        if (previous != null && hasPlaybackContext(previous)
+                && (!hasPlaybackContext(current) || !sameSubject(previous, current))) {
             removeSubjectFromGlobalIndexIfOffline(previous.getSubjectId());
         }
     }
@@ -172,7 +172,8 @@ public class PresenceServiceImpl implements PresenceService {
         stringRedisTemplate.opsForZSet().removeRangeByScore(
                 indexKey, Double.NEGATIVE_INFINITY, expiredBefore);
         Set<String> subjectIds = stringRedisTemplate.opsForZSet()
-                .reverseRangeByScore(indexKey, now, expiredBefore + 1);
+                // Spring Data 的倒序查询仍然使用 min、max 参数顺序。
+                .reverseRangeByScore(indexKey, expiredBefore + 1, now);
         if (subjectIds == null || subjectIds.isEmpty()) {
             return List.of();
         }
@@ -208,10 +209,13 @@ public class PresenceServiceImpl implements PresenceService {
         }
     }
 
-    private static boolean isWatching(PresenceContext context) {
-        return "watching".equals(context.getStatus())
+    /** 播放页仍打开时，短暂暂停也属于有人正在观看该番剧。 */
+    private static boolean hasPlaybackContext(PresenceContext context) {
+        return ("watching".equals(context.getStatus()) || "paused".equals(context.getStatus()))
                 && context.getSubjectId() != null
-                && context.getSubjectId() > 0;
+                && context.getSubjectId() > 0
+                && context.getEpisodeId() != null
+                && context.getEpisodeId() > 0;
     }
 
     private static boolean sameSubject(PresenceContext first, PresenceContext second) {
