@@ -124,6 +124,18 @@ public class Constants {
      */
     public static final String AUTH_USER_SESSIONS_KEY = "animeflow:auth:user:sessions";
 
+    /** 在线状态单设备记录，完整键为 animeflow:presence:{presenceId}。 */
+    public static final String PRESENCE_KEY = "animeflow:presence";
+
+    /** 在线设备索引，成员为 presenceId，score 为最近心跳时间戳。 */
+    public static final String PRESENCE_DEVICES_KEY = "animeflow:presence:devices";
+
+    /** 在线用户去重索引，成员为 user:{id} 或 visitor:{visitorId}。 */
+    public static final String PRESENCE_USERS_KEY = "animeflow:presence:users";
+
+    /** 番剧在线设备索引，完整键为 animeflow:presence:subject:{subjectId}:devices。 */
+    public static final String PRESENCE_SUBJECT_KEY = "animeflow:presence:subject";
+
     /**
      * user_oauth.platform 字段：Bangumi 第三方登录
      */
