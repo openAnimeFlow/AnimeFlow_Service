@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -78,8 +79,8 @@ public class ApiAccessLogFilter extends OncePerRequestFilter {
             entity.setRoute(resolveRoute(request));
             entity.setQueryString(sanitizeQuery(request.getQueryString()));
             entity.setClientIp(ClientIpResolver.resolve(request));
-            entity.setUserAgent(limit(request.getHeader("User-Agent"), 512));
-            entity.setReferer(limit(request.getHeader("Referer"), 512));
+            entity.setUserAgent(limit(request.getHeader(HttpHeaders.USER_AGENT), 512));
+            entity.setReferer(limit(request.getHeader(HttpHeaders.REFERER), 512));
             entity.setHttpStatus(response.getStatus());
             entity.setSuccess(failure == null && response.getStatus() < 400);
             entity.setCostMs((int) Math.min(Integer.MAX_VALUE,
