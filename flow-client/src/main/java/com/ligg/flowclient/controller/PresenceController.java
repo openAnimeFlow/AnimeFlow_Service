@@ -7,6 +7,7 @@ import com.ligg.flowclient.annotation.IpEndpointRateLimit;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.module.dto.PresenceHeartbeatDto;
 import com.ligg.flowclient.module.vo.OnlineCountVo;
+import com.ligg.flowclient.module.vo.WatchingSubjectVo;
 import com.ligg.flowclient.service.PresenceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -63,5 +64,10 @@ public class PresenceController {
     @GetMapping("/subjects/{subjectId}/online-count")
     public Result<OnlineCountVo> subjectOnlineCount(@PathVariable int subjectId) {
         return Result.success(ResponseCode.SUCCESS, presenceService.subjectOnlineCount(subjectId));
+    }
+
+    @GetMapping("/watching-subjects")
+    public Result<java.util.List<WatchingSubjectVo>> watchingSubjects() {
+        return Result.success(ResponseCode.SUCCESS, presenceService.watchingSubjects());
     }
 }

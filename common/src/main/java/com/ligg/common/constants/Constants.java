@@ -136,6 +136,9 @@ public class Constants {
     /** 番剧在线设备索引，完整键为 animeflow:presence:subject:{subjectId}:devices。 */
     public static final String PRESENCE_SUBJECT_KEY = "animeflow:presence:subject";
 
+    /** 正在播放番剧索引，成员为 subjectId，score 为最近观看时间戳。 */
+    public static final String PRESENCE_WATCHING_SUBJECTS_KEY = "animeflow:presence:watching-subjects";
+
     /**
      * user_oauth.platform 字段：Bangumi 第三方登录
      */

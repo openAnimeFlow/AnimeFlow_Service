@@ -2,6 +2,9 @@ package com.ligg.flowclient.service;
 
 import com.ligg.flowclient.module.dto.PresenceHeartbeatDto;
 import com.ligg.flowclient.module.vo.OnlineCountVo;
+import com.ligg.flowclient.module.vo.WatchingSubjectVo;
+
+import java.util.List;
 
 public interface PresenceService {
 
@@ -13,4 +16,6 @@ public interface PresenceService {
     OnlineCountVo onlineCount();
 
     OnlineCountVo subjectOnlineCount(int subjectId);
+
+    List<WatchingSubjectVo> watchingSubjects();
 }
