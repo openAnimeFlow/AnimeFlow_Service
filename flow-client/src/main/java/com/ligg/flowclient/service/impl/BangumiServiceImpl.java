@@ -313,6 +313,7 @@ public class BangumiServiceImpl implements BangumiService {
         if (userInterest.getVolStatus() != null) interest.setVolStatus(userInterest.getVolStatus());
         if (userInterest.getPrivately() != null) interest.setPrivately(userInterest.getPrivately());
         interest.setUpdatedAt(userInterest.getBgmUpdatedAt());
+        interest.setRemoteSyncStatus(userInterest.getRemoteSyncStatus());
         return interest;
     }
 

@@ -25,6 +25,24 @@ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standal
 @ExtendWith(MockitoExtension.class)
 class CollectionControllerTest {
 
+    @Test
+    void updateReturnsLocalSaveAndRemoteOutcomeWithoutRequiringBangumi() throws Exception {
+        when(jwtTokenService.validateAccessToken("flow-token")).thenReturn(10L);
+        when(userBgmCollectionService.updateCollection(eq(10L), eq(42), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new com.ligg.flowclient.module.vo.CollectionUpdateVo(true,
+                        com.ligg.common.statuenum.CollectionRemoteSyncStatus.LOCAL_ONLY, 1));
+        mockMvc().perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .put("/api/v1/users/collections/42")
+                        .requestAttr(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, "flow-token")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"type\":3,\"tags\":[]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.localSaved").value(true))
+                .andExpect(jsonPath("$.data.remoteSyncStatus").value("LOCAL_ONLY"))
+                .andExpect(jsonPath("$.data.localVersion").value(1));
+        org.mockito.Mockito.verifyNoInteractions(bangumiOAuthTokenService);
+    }
+
     @org.mockito.Mock
     private UserBgmCollectionService userBgmCollectionService;
 

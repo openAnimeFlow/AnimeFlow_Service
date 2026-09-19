@@ -45,9 +45,13 @@ class UserBgmCollectionSyncRunnerTest {
     @Mock
     private UserBgmCollectionSyncStatusStore statusStore;
 
-    @Test
+    @Mock
+    private CollectionWriteLock collectionWriteLock;
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(longs = {0, 1})
     @SuppressWarnings("unchecked")
-    void runSync_updatesExistingSubjectWhenBangumiInterestIdChanges() {
+    void runSync_updatesRemoteImportsButPreservesLocalEdits(long version) {
         long userId = 10L;
         UserOauthEntity oauth = new UserOauthEntity();
         UserBgmCollectionEntity existing = new UserBgmCollectionEntity();
@@ -55,6 +59,7 @@ class UserBgmCollectionSyncRunnerTest {
         existing.setUserId(userId);
         existing.setSubjectId(569671);
         existing.setBgmInterestId(111L);
+        existing.setVersion(version);
 
         UserCollectionsDto page = new UserCollectionsDto();
         page.setTotal(1);
@@ -92,7 +97,9 @@ class UserBgmCollectionSyncRunnerTest {
                 bangumiClient,
                 userBgmCollectionMapper,
                 statusStore,
-                new ObjectMapper());
+                new ObjectMapper(), collectionWriteLock);
+        when(collectionWriteLock.execute(eq(userId), eq(569671), any()))
+                .thenAnswer(invocation -> ((java.util.function.Supplier<?>) invocation.getArgument(2)).get());
 
         // Lambda wrappers need MyBatis-Plus table metadata when their SQL is inspected.
         TableInfoHelper.initTableInfo(
@@ -108,7 +115,8 @@ class UserBgmCollectionSyncRunnerTest {
         String query = queryCaptor.getValue().getSqlSegment();
         assertTrue(query.contains("user_id"));
         assertTrue(query.contains("subject_id"));
-        verify(userBgmCollectionMapper).updateById(existing);
+        verify(userBgmCollectionMapper, org.mockito.Mockito.times(version == 0 ? 1 : 0)).updateById(existing);
+        verify(userBgmCollectionMapper, never()).delete(any(LambdaQueryWrapper.class));
         verify(userBgmCollectionMapper, never()).insert(any(UserBgmCollectionEntity.class));
     }
 

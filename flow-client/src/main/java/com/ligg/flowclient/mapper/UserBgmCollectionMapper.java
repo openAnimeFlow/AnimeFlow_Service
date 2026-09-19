@@ -12,6 +12,12 @@ import java.util.List;
 @Mapper
 public interface UserBgmCollectionMapper extends BaseMapper<UserBgmCollectionEntity> {
 
+    int updateLocal(@Param("row") UserBgmCollectionEntity row);
+
+    int updateRemoteState(@Param("row") UserBgmCollectionEntity row);
+
+    List<UserBgmCollectionEntity> selectPendingUploads();
+
     long countByUserFilter(@Param("userId") Long userId,
                            @Param("type") int type,
                            @Param("subjectType") int subjectType,

@@ -28,7 +28,7 @@ public class UpdateUserCollectionDto {
     private List<String> tags;
 
     /**
-     * 条目大类（1漫画 2动画 3音乐 4游戏 6三次元），写入本地收藏表时使用，默认 2。
+     * 条目大类（1漫画 2动画 3音乐 4游戏 6三次元），优先使用本地条目元数据。
      */
     @Min(1)
     @Max(6)
@@ -40,6 +40,6 @@ public class UpdateUserCollectionDto {
                 || private_ != null
                 || progress != null
                 || comment != null
-                || (tags != null && !tags.isEmpty());
+                || tags != null;
     }
 }

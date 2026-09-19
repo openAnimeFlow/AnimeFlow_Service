@@ -97,5 +97,7 @@ public class SubjectDetailDto {
         @JsonProperty("private")
         private Boolean privately = false;
         private Long updatedAt;
+
+        private String remoteSyncStatus;
     }
 }

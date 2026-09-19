@@ -1,12 +1,13 @@
 package com.ligg.flowclient.service;
 
+import com.ligg.flowclient.module.vo.CollectionUpdateVo;
 import com.ligg.common.vo.bangumi.UserCollectionsVo;
 import com.ligg.flowclient.module.dto.UpdateUserCollectionDto;
 
 public interface UserBgmCollectionService {
 
     /**
-     * 查询当前登录用户已同步到本地的 Bangumi 收藏列表。
+     * 查询当前登录用户的本地收藏列表。
      * accessToken 可能为null
      */
     UserCollectionsVo listMyCollections(
@@ -19,7 +20,7 @@ public interface UserBgmCollectionService {
             int offset);
 
     /**
-     * 更新当前用户对条目的 Bangumi 收藏，并同步写入本地 {@code user_bgm_collection}。
+     * 保存本地收藏；已绑定时尝试上传，返回独立的远端同步状态。
      */
-    void updateCollection(Long userId, int subjectId, UpdateUserCollectionDto dto);
+    CollectionUpdateVo updateCollection(Long userId, int subjectId, UpdateUserCollectionDto dto);
 }

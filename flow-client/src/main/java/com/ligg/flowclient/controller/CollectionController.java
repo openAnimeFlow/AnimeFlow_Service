@@ -4,6 +4,7 @@
  */
 package com.ligg.flowclient.controller;
 
+import com.ligg.flowclient.module.vo.CollectionUpdateVo;
 import com.ligg.common.entity.UserOauthEntity;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
@@ -57,16 +58,15 @@ public class CollectionController {
     }
 
     /**
-     * 更新当前用户对条目的 Bangumi 收藏（需登录且已绑定 Bangumi）。
+     * 更新当前用户收藏（需登录；未绑定仅保存本地，绑定后尝试上传）。
      */
     @PutMapping("/{subjectId}")
-    public Result<Void> updateCollection(
+    public Result<CollectionUpdateVo> updateCollection(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
             @PathVariable int subjectId,
             @Valid @RequestBody UpdateUserCollectionDto body) {
         Long userId = jwtTokenService.validateAccessToken(accessToken);
-        userBgmCollectionService.updateCollection(userId, subjectId, body);
-        return Result.success();
+        return Result.success(ResponseCode.SUCCESS, userBgmCollectionService.updateCollection(userId, subjectId, body));
     }
 
     /**

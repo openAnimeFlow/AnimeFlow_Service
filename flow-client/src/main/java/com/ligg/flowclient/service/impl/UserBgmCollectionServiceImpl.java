@@ -1,16 +1,16 @@
 package com.ligg.flowclient.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.ligg.flowclient.service.CollectionWriteLock;
+import com.ligg.flowclient.service.LocalCollectionWriter;
+import com.ligg.flowclient.service.CollectionUploadService;
+import com.ligg.flowclient.service.BangumiOAuthTokenService;
+import com.ligg.flowclient.module.vo.CollectionUpdateVo;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.ligg.api.bangumiapi.BangumiClient;
-import com.ligg.common.entity.UserBgmCollectionEntity;
 import com.ligg.common.model.CoverImages;
 import com.ligg.common.thirdparty.bangumi.model.BangumiRating;
-import com.ligg.common.thirdparty.bangumi.request.UpdateCollectionBody;
-import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
 import com.ligg.common.thirdparty.bangumi.response.UserCollectionsDto;
 import com.ligg.common.utils.InfoboxParser;
 import com.ligg.common.utils.Utils;
@@ -18,16 +18,13 @@ import com.ligg.common.vo.bangumi.UserCollectionsVo;
 import com.ligg.flowclient.mapper.UserBgmCollectionMapper;
 import com.ligg.flowclient.module.dto.UpdateUserCollectionDto;
 import com.ligg.flowclient.module.dto.UserBgmCollectionRow;
-import com.ligg.flowclient.service.BangumiOAuthExecutor;
 import com.ligg.flowclient.service.ImageBackfillService;
-import com.ligg.flowclient.service.JwtTokenService;
 import com.ligg.flowclient.service.UserBgmCollectionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -40,11 +37,12 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
     private static final TypeReference<List<String>> TAG_LIST_TYPE = new TypeReference<>() {
     };
 
-    private final JwtTokenService jwtTokenService;
     private final UserBgmCollectionMapper userBgmCollectionMapper;
     private final ObjectMapper objectMapper;
-    private final BangumiOAuthExecutor bangumiOAuthExecutor;
-    private final BangumiClient bangumiClient;
+    private final CollectionWriteLock collectionWriteLock;
+    private final LocalCollectionWriter localCollectionWriter;
+    private final CollectionUploadService collectionUploadService;
+    private final BangumiOAuthTokenService bangumiOAuthTokenService;
     private final ImageBackfillService imageBackfillService;
 
     @Override
@@ -84,141 +82,13 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
     }
 
     @Override
-    public void updateCollection(Long userId, int subjectId, UpdateUserCollectionDto dto) {
-        if (!dto.hasUpdateField()) {
-            throw new IllegalArgumentException("至少需要更新一个收藏字段");
-        }
-        UpdateCollectionBody body = toUpstreamBody(dto);
-        SubjectDetailDto detail = bangumiOAuthExecutor.execute(userId, token -> {
-            bangumiClient.updateCollection(token, subjectId, body);
-            return bangumiClient.getSubject(subjectId, token);
+    public CollectionUpdateVo updateCollection(
+            Long userId, int subjectId, UpdateUserCollectionDto dto) {
+        return collectionWriteLock.execute(userId, subjectId, () -> {
+            var oauth = bangumiOAuthTokenService.findBangumiOauth(userId);
+            var row = localCollectionWriter.save(userId, subjectId, dto, oauth);
+            return collectionUploadService.upload(row);
         });
-        upsertLocalCollection(userId, subjectId, dto, detail);
-    }
-
-    private static UpdateCollectionBody toUpstreamBody(UpdateUserCollectionDto dto) {
-        UpdateCollectionBody body = new UpdateCollectionBody();
-        body.setType(dto.getType());
-        body.setRate(dto.getRate());
-        body.setPrivate_(dto.getPrivate_());
-        body.setProgress(dto.getProgress());
-        body.setComment(dto.getComment());
-        body.setTags(dto.getTags());
-        return body;
-    }
-
-    private void upsertLocalCollection(
-            Long userId, int subjectId, UpdateUserCollectionDto dto, SubjectDetailDto detail) {
-        UserBgmCollectionEntity existing = userBgmCollectionMapper.selectOne(
-                new LambdaQueryWrapper<UserBgmCollectionEntity>()
-                        .eq(UserBgmCollectionEntity::getUserId, userId)
-                        .eq(UserBgmCollectionEntity::getSubjectId, subjectId));
-
-        UserBgmCollectionEntity row = existing != null ? existing : new UserBgmCollectionEntity();
-        row.setUserId(userId);
-        row.setSubjectId(subjectId);
-        row.setSubjectType(2);
-        row.setSyncTime(LocalDateTime.now());
-
-        SubjectDetailDto.SubjectInterest interest = detail != null ? detail.getInterest() : null;
-        if (interest != null) {
-            applyInterest(row, interest);
-        }
-        applyDtoFields(row, dto);
-        ensureRequiredFields(row);
-
-        if (existing == null) {
-            if (row.getBgmInterestId() == null) {
-                throw new IllegalStateException("Bangumi 未返回收藏 ID，无法写入收藏");
-            }
-            if (row.getType() == null) {
-                throw new IllegalStateException("缺少收藏类型，无法写入收藏");
-            }
-            row.setCreateTime(LocalDateTime.now());
-            userBgmCollectionMapper.insert(row);
-        } else {
-            userBgmCollectionMapper.updateById(row);
-        }
-    }
-
-    private void applyInterest(UserBgmCollectionEntity row, SubjectDetailDto.SubjectInterest interest) {
-        if (interest.getId() != null) {
-            row.setBgmInterestId(interest.getId());
-        }
-        if (interest.getRate() != null) {
-            row.setRate(interest.getRate());
-        }
-        if (interest.getType() != null) {
-            row.setType(interest.getType());
-        }
-        if (interest.getComment() != null) {
-            row.setComment(interest.getComment());
-        }
-        if (interest.getTags() != null) {
-            row.setTags(toJson(interest.getTags()));
-        }
-        if (interest.getEpStatus() != null) {
-            row.setEpStatus(interest.getEpStatus());
-        }
-        if (interest.getVolStatus() != null) {
-            row.setVolStatus(interest.getVolStatus());
-        }
-        if (interest.getPrivately() != null) {
-            row.setIsPrivate(interest.getPrivately());
-        }
-        if (interest.getUpdatedAt() != null) {
-            row.setBgmUpdatedAt(interest.getUpdatedAt());
-        }
-    }
-
-    private void ensureRequiredFields(UserBgmCollectionEntity row) {
-        if (row.getRate() == null) {
-            row.setRate(0);
-        }
-        if (row.getComment() == null) {
-            row.setComment("");
-        }
-        if (row.getEpStatus() == null) {
-            row.setEpStatus(0);
-        }
-        if (row.getVolStatus() == null) {
-            row.setVolStatus(0);
-        }
-        if (row.getIsPrivate() == null) {
-            row.setIsPrivate(false);
-        }
-        if (row.getBgmUpdatedAt() == null) {
-            row.setBgmUpdatedAt(System.currentTimeMillis() / 1000);
-        }
-    }
-
-    private void applyDtoFields(UserBgmCollectionEntity row, UpdateUserCollectionDto dto) {
-        if (dto.getType() != null) {
-            row.setType(dto.getType());
-        }
-        if (dto.getRate() != null) {
-            row.setRate(dto.getRate());
-        }
-        if (dto.getPrivate_() != null) {
-            row.setIsPrivate(dto.getPrivate_());
-        }
-        if (dto.getComment() != null) {
-            row.setComment(dto.getComment());
-        }
-        if (dto.getTags() != null) {
-            row.setTags(toJson(dto.getTags()));
-        }
-    }
-
-    private String toJson(Object value) {
-        if (value == null) {
-            return null;
-        }
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("序列化 JSON 失败", e);
-        }
     }
 
     private UserCollectionsDto.Item toItem(UserBgmCollectionRow row, String accessToken) {
@@ -249,7 +119,10 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
         interest.setEpStatus(row.getEpStatus() != null ? row.getEpStatus() : 0);
         interest.setVolStatus(row.getVolStatus() != null ? row.getVolStatus() : 0);
         interest.setPrivate_(Boolean.TRUE.equals(row.getIsPrivate()));
-        interest.setUpdatedAt(row.getBgmUpdatedAt() != null ? row.getBgmUpdatedAt() : 0L);
+        interest.setUpdatedAt(row.getLocalUpdatedAt() != null
+                ? row.getLocalUpdatedAt().atZone(java.time.ZoneId.systemDefault()).toEpochSecond()
+                : row.getBgmUpdatedAt() != null ? row.getBgmUpdatedAt() : 0L);
+        interest.setRemoteSyncStatus(row.getRemoteSyncStatus());
         return interest;
     }
 

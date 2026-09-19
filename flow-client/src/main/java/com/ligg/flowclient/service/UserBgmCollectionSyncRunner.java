@@ -34,6 +34,7 @@ public class UserBgmCollectionSyncRunner {
     private final UserBgmCollectionMapper userBgmCollectionMapper;
     private final UserBgmCollectionSyncStatusStore statusStore;
     private final ObjectMapper objectMapper;
+    private final CollectionWriteLock collectionWriteLock;
 
     @Async("bgmCollectionSyncExecutor")
     public void runSync(Long userId, int subjectType) {
@@ -52,7 +53,6 @@ public class UserBgmCollectionSyncRunner {
 
     private void executeSync(Long userId, int subjectType) {
         UserOauthEntity oauth = bangumiOAuthTokenService.requireBangumiOauth(userId);
-        LocalDateTime syncStartTime = LocalDateTime.now();
         int syncedCount = 0;
         int totalCount = 0;
 
@@ -74,7 +74,10 @@ public class UserBgmCollectionSyncRunner {
                     if (item == null || item.getInterest() == null || item.getInterest().getId() == null) {
                         continue;
                     }
-                    upsertCollection(userId, item);
+                    collectionWriteLock.execute(userId, item.getId(), () -> {
+                        upsertCollection(userId, item);
+                        return null;
+                    });
                     syncedCount++;
                 }
                 if (page.getTotal() != null) {
@@ -92,9 +95,8 @@ public class UserBgmCollectionSyncRunner {
             }
         }
 
-        userBgmCollectionMapper.delete(new LambdaQueryWrapper<UserBgmCollectionEntity>()
-                .eq(UserBgmCollectionEntity::getUserId, userId)
-                .lt(UserBgmCollectionEntity::getSyncTime, syncStartTime));
+        // Phase 1: never delete local-only collections or overwrite locally edited rows.
+        // Full reconciliation and manual conflict resolution follow in phases 2/3.
 
         UserBgmCollectionSyncStatusVo status = statusStore.getStatus(userId);
         status.setStatus(BgmCollectionSyncStatus.SUCCESS);
@@ -102,7 +104,7 @@ public class UserBgmCollectionSyncRunner {
         status.setSyncedCount(syncedCount);
         status.setTotalCount(totalCount);
         status.setFinishedAt(System.currentTimeMillis());
-        status.setMessage("同步完成，共同步 " + syncedCount + " 条收藏");
+        status.setMessage("已扫描 " + syncedCount + " 条 Bangumi 收藏；本地修改已保留");
         statusStore.saveStatus(userId, status);
         log.info("Bangumi 收藏同步完成 userId={} syncedCount={}", userId, syncedCount);
     }
@@ -139,6 +141,9 @@ public class UserBgmCollectionSyncRunner {
                         .eq(UserBgmCollectionEntity::getUserId, userId)
                         .eq(UserBgmCollectionEntity::getSubjectId, item.getId()));
 
+        if (existing != null && existing.getVersion() != null && existing.getVersion() > 0) {
+            return;
+        }
         UserBgmCollectionEntity row = existing != null ? existing : new UserBgmCollectionEntity();
         row.setUserId(userId);
         row.setSubjectId(item.getId());
@@ -153,6 +158,8 @@ public class UserBgmCollectionSyncRunner {
         row.setIsPrivate(Boolean.TRUE.equals(interest.getPrivate_()));
         row.setBgmUpdatedAt(interest.getUpdatedAt() != null ? interest.getUpdatedAt() : 0L);
         row.setSyncTime(LocalDateTime.now());
+        row.setLocalUpdatedAt(LocalDateTime.now());
+        row.setRemoteSyncStatus("SYNCED");
 
         if (existing == null) {
             row.setCreateTime(LocalDateTime.now());
