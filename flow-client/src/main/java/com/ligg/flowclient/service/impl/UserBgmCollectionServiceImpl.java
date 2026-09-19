@@ -84,11 +84,10 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
     }
 
     @Override
-    public void updateCollection(String accessToken, int subjectId, UpdateUserCollectionDto dto) {
+    public void updateCollection(Long userId, int subjectId, UpdateUserCollectionDto dto) {
         if (!dto.hasUpdateField()) {
             throw new IllegalArgumentException("至少需要更新一个收藏字段");
         }
-        Long userId = jwtTokenService.validateAccessToken(accessToken);
         UpdateCollectionBody body = toUpstreamBody(dto);
         SubjectDetailDto detail = bangumiOAuthExecutor.execute(userId, token -> {
             bangumiClient.updateCollection(token, subjectId, body);

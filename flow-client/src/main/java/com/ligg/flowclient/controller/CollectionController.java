@@ -64,7 +64,8 @@ public class CollectionController {
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
             @PathVariable int subjectId,
             @Valid @RequestBody UpdateUserCollectionDto body) {
-        userBgmCollectionService.updateCollection(accessToken, subjectId, body);
+        Long userId = jwtTokenService.validateAccessToken(accessToken);
+        userBgmCollectionService.updateCollection(userId, subjectId, body);
         return Result.success();
     }
 

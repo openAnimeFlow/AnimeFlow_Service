@@ -21,5 +21,5 @@ public interface UserBgmCollectionService {
     /**
      * 更新当前用户对条目的 Bangumi 收藏，并同步写入本地 {@code user_bgm_collection}。
      */
-    void updateCollection(String accessToken, int subjectId, UpdateUserCollectionDto dto);
+    void updateCollection(Long userId, int subjectId, UpdateUserCollectionDto dto);
 }
