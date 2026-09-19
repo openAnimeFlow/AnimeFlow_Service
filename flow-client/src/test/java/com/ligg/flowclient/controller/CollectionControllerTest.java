@@ -97,6 +97,7 @@ class CollectionControllerTest {
 
     private MockMvc mockMvc() {
         return standaloneSetup(new CollectionController(
+                org.mockito.Mockito.mock(com.ligg.flowclient.service.CollectionSyncSseService.class),
                 jwtTokenService,
                 bangumiOAuthTokenService,
                 userBgmCollectionService,

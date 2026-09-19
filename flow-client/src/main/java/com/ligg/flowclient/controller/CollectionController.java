@@ -17,6 +17,10 @@ import com.ligg.flowclient.module.vo.CollectionConflictVo;
 import com.ligg.flowclient.module.dto.CollectionConflictResolveDto;
 import com.ligg.flowclient.service.BangumiOAuthTokenService;
 import com.ligg.flowclient.service.JwtTokenService;
+import com.ligg.flowclient.service.CollectionSyncSseService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.ligg.flowclient.service.UserBgmCollectionService;
 import com.ligg.flowclient.service.UserBgmCollectionSyncService;
 import jakarta.validation.Valid;
@@ -28,6 +32,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/users/collections")
 public class CollectionController {
 
+    private final CollectionSyncSseService syncStreams;
     private final JwtTokenService jwtTokenService;
     private final BangumiOAuthTokenService bangumiOAuthTokenService;
     private final UserBgmCollectionService userBgmCollectionService;
@@ -95,6 +100,18 @@ public class CollectionController {
         Long userId = jwtTokenService.validateAccessToken(accessToken);
         UserBgmCollectionSyncStatusVo status = userBgmCollectionSyncService.getSyncStatus(userId);
         return Result.success(ResponseCode.SUCCESS, status);
+    }
+
+    /** Account-page status stream; disconnecting does not cancel the durable task. */
+    @GetMapping("/sync/events")
+    public ResponseEntity<SseEmitter> collectionSyncEvents(
+            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken) {
+        Long userId = jwtTokenService.validateAccessToken(accessToken);
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_EVENT_STREAM)
+                .header("Cache-Control", "no-cache, no-transform")
+                .header("X-Accel-Buffering", "no")
+                .body(syncStreams.subscribe(userId, accessToken));
     }
 
     @GetMapping("/sync/{taskId}/conflicts")

@@ -25,6 +25,9 @@ public class CollectionSyncTaskService {
     private final CollectionSyncConflictMapper items;
     private final CollectionWriteLock locks;
     private final BangumiOAuthTokenService tokens;
+    private final CollectionSyncEvents events;
+
+    public void changed(Long userId) { events.changed(userId); }
 
     // Reserved negative subject IDs serialize task registration; no HTTP under this lock.
     public CollectionSyncTaskEntity createOrGet(Long userId, int subjectType, String requestId) {
@@ -47,6 +50,7 @@ public class CollectionSyncTaskService {
             task.setTotalCount(0); task.setImportedCount(0); task.setUploadedCount(0);
             task.setUnchangedCount(0); task.setConflictCount(0); task.setResolvedCount(0); task.setFailedCount(0);
             tasks.insert(task); // Autocommit completes before any async dispatch.
+            changed(userId);
             return task;
         });
     }
@@ -73,6 +77,9 @@ public class CollectionSyncTaskService {
                 .set(CollectionSyncTaskEntity::getFinishedAt,  LocalDateTime.now())
                 .setSql("status_version=status_version+1"));
         task.setStatus("CANCELLED");
+        task.setStatusVersion(task.getStatusVersion() == null ? 1L : task.getStatusVersion() + 1);
+        task.setErrorCode("SYNC_BINDING_CHANGED");
+        changed(task.getUserId());
     }
 
     public CollectionSyncTaskEntity owned(Long userId, Long taskId) {
@@ -135,6 +142,7 @@ public class CollectionSyncTaskService {
                 .set(CollectionSyncTaskEntity::getHeartbeatAt, LocalDateTime.now())
                 .set(CollectionSyncTaskEntity::getFinishedAt, "SUCCESS".equals(status) ? LocalDateTime.now() : null)
                 .setSql("status_version=status_version+1"));
+        changed(task.getUserId());
     }
 
     public UserBgmCollectionSyncStatusVo status(Long userId) {

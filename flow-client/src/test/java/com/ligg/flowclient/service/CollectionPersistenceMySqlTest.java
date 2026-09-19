@@ -98,7 +98,7 @@ class CollectionPersistenceMySqlTest {
         org.mockito.Mockito.when(tokens.requireBangumiOauth(10L)).thenReturn(oauth);
         org.mockito.Mockito.when(tokens.findBangumiOauth(10L)).thenReturn(oauth);
         var lock = new CollectionWriteLock(dataSource);
-        var tasks = new CollectionSyncTaskService(syncTasks,syncItems,lock,tokens);
+        var tasks = new CollectionSyncTaskService(syncTasks,syncItems,lock,tokens, org.mockito.Mockito.mock(CollectionSyncEvents.class));
         var task = tasks.createOrGet(10L,2,"request-1");
         assertEquals(task.getId(),tasks.createOrGet(10L,2,"request-2").getId());
         var jdbc = new JdbcTemplate(dataSource);

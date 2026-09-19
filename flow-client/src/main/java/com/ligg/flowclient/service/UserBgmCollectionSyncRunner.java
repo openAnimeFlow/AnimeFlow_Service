@@ -54,6 +54,7 @@ public class UserBgmCollectionSyncRunner {
                 try {
                     tasks.requireBinding(task);
                     if ("SCANNING".equals(task.getPhase())) scan(task);
+                    long lastProgress = System.nanoTime();
                     for (var item : tasks.allItems(taskId)) {
                         if (List.of("CONFLICT", "DONE").contains(item.getStatus())) continue;
                         tasks.requireBinding(task);
@@ -71,6 +72,10 @@ public class UserBgmCollectionSyncRunner {
                             log.warn("收藏同步明细待重试 taskId={} itemId={} error={}", taskId, item.getId(), e.getClass().getSimpleName());
                         }
                         heartbeat(task);
+                        if (System.nanoTime() - lastProgress >= 1_000_000_000L) {
+                            tasks.summarize(task);
+                            lastProgress = System.nanoTime();
+                        }
                     }
                     tasks.summarize(task);
                 } catch (Exception e) {
@@ -81,6 +86,7 @@ public class UserBgmCollectionSyncRunner {
                             .set(CollectionSyncTaskEntity::getErrorCode, "SYNC_RETRY_REQUIRED")
                             .set(CollectionSyncTaskEntity::getHeartbeatAt, LocalDateTime.now())
                             .setSql("status_version=status_version+1"));
+                    tasks.changed(task.getUserId());
                     log.warn("收藏同步任务待恢复 taskId={} error={}", taskId, e.getClass().getSimpleName());
                 }
                 return null;
@@ -96,7 +102,9 @@ public class UserBgmCollectionSyncRunner {
                 .eq(CollectionSyncTaskEntity::getId, task.getId())
                 .ne(CollectionSyncTaskEntity::getStatus, "CANCELLED")
                 .set(CollectionSyncTaskEntity::getStatus, "RUNNING")
-                .set(CollectionSyncTaskEntity::getStartedAt, LocalDateTime.now()));
+                .set(CollectionSyncTaskEntity::getStartedAt, LocalDateTime.now())
+                .setSql("status_version=status_version+1"));
+        tasks.changed(task.getUserId());
         // No formal collection changes until all five categories have been read successfully.
         for (int type = 1; type <= 5; type++) {
             int offset = 0;
@@ -140,7 +148,9 @@ public class UserBgmCollectionSyncRunner {
                 .eq(CollectionSyncTaskEntity::getId, task.getId())
                 .ne(CollectionSyncTaskEntity::getStatus, "CANCELLED")
                 .set(CollectionSyncTaskEntity::getPhase, "APPLYING")
-                .set(CollectionSyncTaskEntity::getErrorCode, null));
+                .set(CollectionSyncTaskEntity::getErrorCode, null)
+                .setSql("status_version=status_version+1"));
+        tasks.changed(task.getUserId());
         task.setPhase("APPLYING");
     }
 
