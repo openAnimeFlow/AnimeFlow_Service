@@ -19,4 +19,13 @@ public class UserBgmCollectionSyncStatusVo {
     private Long startedAt;
 
     private Long finishedAt;
+
+    private Long taskId;
+    private String phase;
+    private Integer importedCount;
+    private Integer uploadedCount;
+    private Integer unchangedCount;
+    private Integer pendingConflictCount;
+    private Integer failedCount;
+    private Long statusVersion;
 }

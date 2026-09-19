@@ -2,6 +2,36 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.ligg.flowclient.mapper.UserBgmCollectionMapper">
 
+    <resultMap id="subjectInterest" type="com.ligg.flowclient.module.dto.UserSubjectInterestRow" autoMapping="true">
+        <result column="tags" property="tags" javaType="java.util.List"
+                typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+    </resultMap>
+
+    <update id="updateLocal">
+        UPDATE user_bgm_collection SET subject_type=#{row.subjectType}, type=#{row.type}, rate=#{row.rate}, comment=#{row.comment},
+            tags=#{row.tags}, is_private=#{row.isPrivate}, local_updated_at=#{row.localUpdatedAt},
+            version=#{row.version}, pending_payload=#{row.pendingPayload}, remote_baseline=NULL,
+            remote_sync_status=#{row.remoteSyncStatus}, sync_oauth_id=#{row.syncOauthId},
+            bgm_account_uid=#{row.bgmAccountUid}, retry_count=0, next_retry_at=#{row.nextRetryAt}
+        WHERE id=#{row.id}
+    </update>
+
+    <update id="updateRemoteState">
+        UPDATE user_bgm_collection SET bgm_interest_id=#{row.bgmInterestId},
+            bgm_updated_at=#{row.bgmUpdatedAt}, sync_time=#{row.syncTime},
+            pending_payload=#{row.pendingPayload}, remote_baseline=#{row.remoteBaseline},
+            remote_sync_status=#{row.remoteSyncStatus}, retry_count=#{row.retryCount},
+            next_retry_at=#{row.nextRetryAt}
+        WHERE id=#{row.id} AND version=#{row.version}
+    </update>
+
+    <select id="selectPendingUploads" resultType="com.ligg.common.entity.UserBgmCollectionEntity">
+        SELECT * FROM user_bgm_collection
+        WHERE remote_sync_status='PENDING' AND pending_payload IS NOT NULL
+          AND next_retry_at &lt;= CURRENT_TIMESTAMP
+        ORDER BY next_retry_at, id LIMIT 20
+    </select>
+
     <sql id="userFilterWhere">
         WHERE c.user_id = #{userId}
           AND c.type = #{type}
@@ -39,6 +69,8 @@
                c.bgm_updated_at,
                c.sync_time,
                c.create_time,
+               c.local_updated_at,
+               c.remote_sync_status,
                s.name,
                s.name_cn,
                s.nsfw,
@@ -50,11 +82,11 @@
         FROM user_bgm_collection c
                  LEFT JOIN bangumi_subject s ON s.id = c.subject_id
         <include refid="userFilterWhere"/>
-        ORDER BY c.bgm_updated_at DESC
+        ORDER BY c.local_updated_at DESC, c.id DESC
         LIMIT #{limit} OFFSET #{offset}
     </select>
 
-    <select id="selectUserSubjectInterest" resultType="com.ligg.flowclient.module.dto.UserSubjectInterestRow">
+    <select id="selectUserSubjectInterest" resultMap="subjectInterest">
       select bgm_interest_id as id,
            rate,
            type,
@@ -62,8 +94,9 @@
            tags,
            ep_status,
            vol_status,
-           `private` as "privately",
-           bgm_updated_at
+           is_private as "privately",
+           COALESCE(UNIX_TIMESTAMP(local_updated_at), bgm_updated_at, 0) as bgm_updated_at,
+           remote_sync_status
       from user_bgm_collection
       where user_id = #{userId}
         and subject_id = #{subjectId}

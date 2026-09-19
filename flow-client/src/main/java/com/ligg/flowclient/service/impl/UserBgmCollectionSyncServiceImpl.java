@@ -1,63 +1,64 @@
 package com.ligg.flowclient.service.impl;
 
-import com.ligg.common.statuenum.BgmCollectionSyncStatus;
-import com.ligg.flowclient.module.vo.UserBgmCollectionSyncStatusVo;
-import com.ligg.flowclient.service.BangumiOAuthTokenService;
-import com.ligg.flowclient.service.UserBgmCollectionSyncRunner;
-import com.ligg.flowclient.service.UserBgmCollectionSyncService;
-import com.ligg.flowclient.service.UserBgmCollectionSyncStatusStore;
+import com.ligg.flowclient.module.vo.*;
+import com.ligg.flowclient.service.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserBgmCollectionSyncServiceImpl implements UserBgmCollectionSyncService {
-
-    private static final long COOLDOWN_SECONDS = 10 * 60;
-
-    private final BangumiOAuthTokenService bangumiOAuthTokenService;
-    private final UserBgmCollectionSyncStatusStore statusStore;
-    private final UserBgmCollectionSyncRunner syncRunner;
+    private final CollectionSyncTaskService tasks;
+    private final UserBgmCollectionSyncRunner runner;
+    private final CollectionSyncItemExecutor executor;
 
     @Override
-    public UserBgmCollectionSyncStatusVo triggerSync(Long userId, int subjectType) {
-        bangumiOAuthTokenService.requireBangumiOauth(userId);
-
-        UserBgmCollectionSyncStatusVo current = statusStore.getStatus(userId);
-        if (current.getStatus() == BgmCollectionSyncStatus.RUNNING) {
-            return current;
-        }
-        if (current.getStatus() == BgmCollectionSyncStatus.SUCCESS
-                && current.getFinishedAt() != null
-                && System.currentTimeMillis() - current.getFinishedAt() < COOLDOWN_SECONDS * 1000) {
-            current.setMessage("同步过于频繁，请稍后再试");
-            return current;
-        }
-
-        if (!statusStore.tryAcquireLock(userId)) {
-            UserBgmCollectionSyncStatusVo running = statusStore.getStatus(userId);
-            if (running.getStatus() != BgmCollectionSyncStatus.RUNNING) {
-                running.setStatus(BgmCollectionSyncStatus.RUNNING);
-                running.setMessage("同步任务进行中");
-            }
-            return running;
-        }
-
-        UserBgmCollectionSyncStatusVo status = new UserBgmCollectionSyncStatusVo();
-        status.setStatus(BgmCollectionSyncStatus.RUNNING);
-        status.setUserId(userId);
-        status.setSyncedCount(0);
-        status.setTotalCount(0);
-        status.setStartedAt(System.currentTimeMillis());
-        status.setMessage("同步已开始");
-        statusStore.saveStatus(userId, status);
-
-        syncRunner.runSync(userId, subjectType);
-        return status;
+    public UserBgmCollectionSyncStatusVo triggerSync(Long userId, int subjectType, String requestId) {
+        var task = tasks.createOrGet(userId, subjectType,
+                requestId == null || requestId.isBlank() ? UUID.randomUUID().toString() : requestId);
+        runner.runTask(task.getId());
+        return tasks.toStatus(task);
+    }
+    @Override
+    public UserBgmCollectionSyncStatusVo getSyncStatus(Long userId) { return tasks.status(userId); }
+    @Override
+    public List<CollectionConflictVo> getConflicts(Long userId, Long taskId, int offset, int limit) {
+        return tasks.conflicts(userId, taskId, offset, limit);
+    }
+    @Override
+    public UserBgmCollectionSyncStatusVo resolveConflict(Long userId, Long taskId, long conflictId,
+                                                       long conflictVersion, int selectedType) {
+        executor.resolve(userId, taskId, conflictId, conflictVersion, selectedType);
+        // Batch entry point dispatches once after all decisions have released their locks.
+        return tasks.toStatus(tasks.owned(userId,taskId));
     }
 
     @Override
-    public UserBgmCollectionSyncStatusVo getSyncStatus(Long userId) {
-        return statusStore.getStatus(userId);
+    public UserBgmCollectionSyncStatusVo resolveConflicts(Long userId, Long taskId,
+            List<com.ligg.flowclient.module.dto.CollectionConflictResolveDto.Item> decisions) {
+        boolean accepted = false;
+        try {
+            for (var decision : decisions) {
+                executor.resolve(userId, taskId, decision.getConflictId(),
+                        decision.getConflictVersion(), decision.getSelectedType());
+                accepted = true;
+            }
+            return tasks.toStatus(tasks.owned(userId, taskId));
+        } finally {
+            // Also dispatch accepted entries when a later decision is stale.
+            // No task/subject lock or transaction is held at this point.
+            if (accepted) {
+                try {
+                    runner.runTask(taskId);
+                } catch (java.util.concurrent.RejectedExecutionException rejected) {
+                    // Persisted decisions remain recoverable by the scheduler.
+                    log.warn("收藏冲突决议已保存，异步队列繁忙，等待定时恢复 taskId={}", taskId);
+                }
+            }
+        }
     }
 }
