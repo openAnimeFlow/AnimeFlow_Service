@@ -58,10 +58,17 @@ class CollectionPersistenceMySqlTest {
         Path migration = Path.of("../db/migrations/20260919_collection_local_first.sql");
         if (!migration.toFile().exists()) migration = Path.of("db/migrations/20260919_collection_local_first.sql");
         new ResourceDatabasePopulator(new FileSystemResource(migration)).execute(dataSource);
+        Path migrations = migration.getParent();
+        new ResourceDatabasePopulator(
+                new FileSystemResource(migrations.resolve("20260919_collection_sync_tasks.sql")),
+                new FileSystemResource(migrations.resolve("20260920_collection_sync_recovery.sql")),
+                new FileSystemResource(migrations.resolve("20260921_collection_sync_scan_snapshot.sql"))).execute(dataSource);
         var config = new MybatisConfiguration();
         config.setMapUnderscoreToCamelCase(true);
         config.addMapper(UserBgmCollectionMapper.class);
         config.addMapper(BangumiSubjectMapper.class);
+        config.addMapper(com.ligg.flowclient.mapper.CollectionSyncTaskMapper.class);
+        config.addMapper(com.ligg.flowclient.mapper.CollectionSyncConflictMapper.class);
         var factory = new MybatisSqlSessionFactoryBean();
         factory.setDataSource(dataSource);
         factory.setConfiguration(config);
@@ -77,6 +84,103 @@ class CollectionPersistenceMySqlTest {
         context.registerBean(LocalCollectionWriter.class);
         context.refresh();
         writer = context.getBean(LocalCollectionWriter.class);
+        syncTasks = template.getMapper(com.ligg.flowclient.mapper.CollectionSyncTaskMapper.class);
+        syncItems = template.getMapper(com.ligg.flowclient.mapper.CollectionSyncConflictMapper.class);
+    }
+
+    private com.ligg.flowclient.mapper.CollectionSyncTaskMapper syncTasks;
+    private com.ligg.flowclient.mapper.CollectionSyncConflictMapper syncItems;
+
+    @Test
+    void durableTasksEnforceUniquenessAndResolveAfterWorkerRestart() {
+        var oauth = new UserOauthEntity(); oauth.setId(50L); oauth.setPlatformUid(60L);
+        var tokens = org.mockito.Mockito.mock(BangumiOAuthTokenService.class);
+        org.mockito.Mockito.when(tokens.requireBangumiOauth(10L)).thenReturn(oauth);
+        org.mockito.Mockito.when(tokens.findBangumiOauth(10L)).thenReturn(oauth);
+        var lock = new CollectionWriteLock(dataSource);
+        var tasks = new CollectionSyncTaskService(syncTasks,syncItems,lock,tokens);
+        var task = tasks.createOrGet(10L,2,"request-1");
+        assertEquals(task.getId(),tasks.createOrGet(10L,2,"request-2").getId());
+        var jdbc = new JdbcTemplate(dataSource);
+        assertThrows(org.springframework.dao.DuplicateKeyException.class,() ->
+                jdbc.update("INSERT INTO user_bgm_collection_sync_task(user_id,subject_type,request_id,status,phase) VALUES(10,2,'other','QUEUED','SCANNING')"));
+        var dto = new UpdateUserCollectionDto(); dto.setSubjectType(2); dto.setType(3);
+        dto.setComment("pending comment");
+        lock.execute(10L,42,() -> writer.save(10L,42,dto,null));
+        var item = new com.ligg.flowclient.module.entity.CollectionSyncConflictEntity();
+        item.setUserId(10L); item.setTaskId(task.getId()); item.setSubjectId(42); item.setSubjectType(2);
+        item.setStatus("PLANNED"); item.setConflictVersion(0L);
+        var remote = new com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto();
+        remote.setId(42); remote.setType(2);
+        remote.setInterest(new com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto.SubjectInterest());
+        remote.getInterest().setId(12345L); remote.getInterest().setType(2);
+        item.setScanSnapshot(writer.writeJson(remote));
+        syncItems.insert(item);
+        item = syncItems.selectById(item.getId()); // A fresh worker reads the persisted pagination snapshot.
+        assertNotNull(item.getScanSnapshot());
+        var client = org.mockito.Mockito.mock(com.ligg.api.bangumiapi.BangumiClient.class);
+        org.mockito.Mockito.when(client.getSubject(42,"test")).thenAnswer(i -> remote);
+        var oauthExecutor = org.mockito.Mockito.mock(BangumiOAuthExecutor.class);
+        org.mockito.Mockito.when(oauthExecutor.execute(org.mockito.ArgumentMatchers.any(UserOauthEntity.class),
+                org.mockito.ArgumentMatchers.<java.util.function.Function<String,Object>>any()))
+                .thenAnswer(i -> ((java.util.function.Function<String,?>)i.getArgument(1)).apply("test"));
+        var transaction = new org.springframework.transaction.support.TransactionTemplate(
+                new DataSourceTransactionManager(dataSource));
+        var worker = new CollectionSyncItemExecutor(tasks,syncTasks,syncItems,mapper,writer,lock,
+                oauthExecutor,client,new ObjectMapper(),transaction);
+        worker.execute(task,item);
+        org.mockito.Mockito.verifyNoInteractions(client);
+        item = syncItems.selectById(item.getId());
+        assertEquals("CONFLICT",item.getStatus());
+        assertEquals("CONFLICT",writer.find(10L,42).getRemoteSyncStatus());
+        // Ordinary edits retain the guard and their dirty fields.
+        dto.setRate(8);
+        lock.execute(10L,42,() -> writer.save(10L,42,dto,oauth));
+        assertEquals("CONFLICT",writer.find(10L,42).getRemoteSyncStatus());
+        final long conflictId=item.getId(), oldVersion=item.getConflictVersion();
+        assertThrows(IllegalArgumentException.class,() -> worker.resolve(10L,task.getId(),conflictId,oldVersion,5));
+        item=syncItems.selectById(conflictId);
+        assertTrue(item.getConflictVersion()>oldVersion);
+        long acceptedVersion=item.getConflictVersion();
+        worker.resolve(10L,task.getId(),conflictId,acceptedVersion,5);
+        assertEquals(3,writer.find(10L,42).getType());
+        // Simulate a fresh process using only persisted task/item state.
+        var restarted = new CollectionSyncItemExecutor(tasks,syncTasks,syncItems,mapper,writer,lock,
+                oauthExecutor,client,new ObjectMapper(),transaction);
+        org.mockito.Mockito.doAnswer(i -> {
+            var payload=(com.ligg.common.thirdparty.bangumi.request.UpdateCollectionBody)i.getArgument(2);
+            remote.getInterest().setType(payload.getType()); remote.getInterest().setRate(payload.getRate());
+            remote.getInterest().setComment(payload.getComment()); remote.getInterest().setTags(payload.getTags());
+            return null;
+        }).when(client).updateCollection(org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.eq(42),
+                org.mockito.ArgumentMatchers.any());
+        var failingItems = org.mockito.Mockito.spy(syncItems);
+        org.mockito.Mockito.doAnswer(invocation -> {
+            var update = (com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<?>) invocation.getArgument(1);
+            if (update.getParamNameValuePairs().containsValue("DONE"))
+                throw new IllegalStateException("simulated crash before item confirmation");
+            return syncItems.update(null, invocation.getArgument(1));
+        }).when(failingItems).update(org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.any(com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper.class));
+        var interrupted = new CollectionSyncItemExecutor(tasks,syncTasks,failingItems,mapper,writer,lock,
+                oauthExecutor,client,new ObjectMapper(),transaction);
+        assertThrows(IllegalStateException.class,() -> interrupted.execute(task,syncItems.selectById(conflictId)));
+        assertEquals(3,writer.find(10L,42).getType()); // local completion rolls back with item completion
+        assertEquals("APPLY_PENDING",syncItems.selectById(conflictId).getStatus());
+        assertEquals(5,remote.getInterest().getType()); // external write already happened
+        restarted.execute(task,syncItems.selectById(conflictId)); // confirm, do not repeat PUT
+        assertEquals("DONE",syncItems.selectById(conflictId).getStatus());
+        assertEquals(5,writer.find(10L,42).getType());
+        assertEquals(8,writer.find(10L,42).getRate());
+        assertEquals("pending comment",writer.find(10L,42).getComment());
+        assertNull(writer.find(10L,42).getPendingPayload());
+        tasks.summarize(task);
+        assertEquals("SUCCESS",syncTasks.selectById(task.getId()).getStatus());
+        assertEquals(1,syncTasks.selectById(task.getId()).getResolvedCount());
+        assertEquals(task.getId(),tasks.createOrGet(10L,2,"request-1").getId());
+        restarted.resolve(10L,task.getId(),conflictId,acceptedVersion,5);
+        org.mockito.Mockito.verify(client,org.mockito.Mockito.times(1)).updateCollection(
+                org.mockito.ArgumentMatchers.anyString(),org.mockito.ArgumentMatchers.anyInt(),org.mockito.ArgumentMatchers.any());
     }
 
     @AfterEach

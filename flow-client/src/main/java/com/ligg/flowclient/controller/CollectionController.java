@@ -13,6 +13,8 @@ import com.ligg.flowclient.annotation.IpEndpointRateLimit;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.module.dto.UpdateUserCollectionDto;
 import com.ligg.flowclient.module.vo.UserBgmCollectionSyncStatusVo;
+import com.ligg.flowclient.module.vo.CollectionConflictVo;
+import com.ligg.flowclient.module.dto.CollectionConflictResolveDto;
 import com.ligg.flowclient.service.BangumiOAuthTokenService;
 import com.ligg.flowclient.service.JwtTokenService;
 import com.ligg.flowclient.service.UserBgmCollectionService;
@@ -21,9 +23,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-@RequestMapping("/api/v1/users/collections")
 @RequiredArgsConstructor
 @RestController
+@RequestMapping("/api/v1/users/collections")
 public class CollectionController {
 
     private final JwtTokenService jwtTokenService;
@@ -77,9 +79,10 @@ public class CollectionController {
     @IpEndpointRateLimit(keyPrefix = "animeflow:account:sync-bgm-collection:ip:", seconds = 60, maxRequests = 5)
     public Result<UserBgmCollectionSyncStatusVo> syncCollections(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
-            @RequestParam(defaultValue = "2") int subjectType) {
+            @RequestParam(defaultValue = "2") int subjectType,
+            @RequestParam(required = false) String requestId) {
         Long userId = jwtTokenService.validateAccessToken(accessToken);
-        UserBgmCollectionSyncStatusVo status = userBgmCollectionSyncService.triggerSync(userId, subjectType);
+        UserBgmCollectionSyncStatusVo status = userBgmCollectionSyncService.triggerSync(userId, subjectType, requestId);
         return Result.success(ResponseCode.SUCCESS, status);
     }
 
@@ -91,6 +94,24 @@ public class CollectionController {
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken) {
         Long userId = jwtTokenService.validateAccessToken(accessToken);
         UserBgmCollectionSyncStatusVo status = userBgmCollectionSyncService.getSyncStatus(userId);
+        return Result.success(ResponseCode.SUCCESS, status);
+    }
+
+    @GetMapping("/sync/{taskId}/conflicts")
+    public Result<java.util.List<CollectionConflictVo>> getConflicts(
+            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
+            @PathVariable Long taskId, @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "20") int limit) {
+        Long userId = jwtTokenService.validateAccessToken(accessToken);
+        return Result.success(ResponseCode.SUCCESS, userBgmCollectionSyncService.getConflicts(userId, taskId, offset, limit));
+    }
+
+    @PostMapping("/sync/{taskId}/conflicts/resolve")
+    public Result<UserBgmCollectionSyncStatusVo> resolveConflicts(
+            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
+            @PathVariable Long taskId, @Valid @RequestBody CollectionConflictResolveDto body) {
+        Long userId = jwtTokenService.validateAccessToken(accessToken);
+        UserBgmCollectionSyncStatusVo status = userBgmCollectionSyncService.resolveConflicts(userId, taskId, body.getItems());
         return Result.success(ResponseCode.SUCCESS, status);
     }
 }

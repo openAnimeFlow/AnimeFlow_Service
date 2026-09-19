@@ -34,6 +34,7 @@ class CollectionUploadServiceTest {
     void init() {
         row = new UserBgmCollectionEntity();
         row.setId(1L); row.setUserId(10L); row.setSubjectId(42); row.setType(3);
+        row.setSubjectType(2);
         row.setVersion(1L); row.setRemoteSyncStatus("PENDING");
         row.setPendingPayload("{\"type\":3}"); row.setSyncOauthId(20L); row.setBgmAccountUid(30L);
         var oauth = new UserOauthEntity();
@@ -52,6 +53,22 @@ class CollectionUploadServiceTest {
     }
 
     @Test
+    void unresolvedTaskConflictBlocksAutomaticAndExplicitUpload() {
+        when(mapper.countBlockedSyncItems(10L,42)).thenReturn(1L);
+        assertEquals(CollectionRemoteSyncStatus.CONFLICT,service.upload(row).remoteSyncStatus());
+        assertEquals("{\"type\":3}",row.getPendingPayload());
+        verifyNoInteractions(client);
+    }
+
+    @Test
+    void activeFullScanDefersSingleUploadWithoutLosingIntent() {
+        when(mapper.countActiveSyncTasks(10L,2)).thenReturn(1L);
+        assertEquals(CollectionRemoteSyncStatus.PENDING,service.upload(row).remoteSyncStatus());
+        assertNotNull(row.getPendingPayload());
+        verifyNoInteractions(client);
+    }
+
+    @Test
     void successfulWriteConfirmsRemoteAndClearsOnlyPendingIntent() {
         when(client.getSubject(42, "test-token")).thenReturn(detail(1), detail(3));
         assertEquals(CollectionRemoteSyncStatus.SYNCED, service.upload(row).remoteSyncStatus());
@@ -59,6 +76,16 @@ class CollectionUploadServiceTest {
         assertNull(row.getPendingPayload());
         assertNotNull(row.getSyncTime());
         assertEquals(1L, row.getVersion());
+    }
+
+    @Test
+    void reorderedTagsDoNotCauseConflictAfterUpload() {
+        row.setPendingPayload("{\"type\":3,\"tags\":[\"B\",\"A\"]}");
+        var confirmed = detail(3);
+        confirmed.getInterest().setTags(java.util.List.of("A", "B"));
+        when(client.getSubject(42, "test-token")).thenReturn(detail(1), confirmed);
+        assertEquals(CollectionRemoteSyncStatus.SYNCED, service.upload(row).remoteSyncStatus());
+        assertNull(row.getPendingPayload());
     }
 
     @Test

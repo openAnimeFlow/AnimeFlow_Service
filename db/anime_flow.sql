@@ -387,4 +387,62 @@ CREATE TABLE `api_access_log`  (
   INDEX `idx_status_time`(`http_status` ASC, `request_time` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '接口访问日志' ROW_FORMAT = Dynamic;
 
+-- 用户 Bangumi 收藏双向同步任务（生产环境请使用独立迁移脚本）
+DROP TABLE IF EXISTS `user_bgm_collection_sync_item`;
+DROP TABLE IF EXISTS `user_bgm_collection_sync_task`;
+CREATE TABLE `user_bgm_collection_sync_task` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '同步任务主键',
+  `user_id` bigint NOT NULL COMMENT 'AnimeFlow 用户 ID',
+  `subject_type` tinyint NOT NULL COMMENT '条目大类：1漫画、2动画、3音乐、4游戏、6三次元',
+  `bgm_account_uid` bigint NULL COMMENT '本次任务目标 Bangumi 用户 UID，换绑后不可复用',
+  `oauth_id` bigint NULL COMMENT '本次任务使用的 OAuth 绑定记录 ID',
+  `request_id` varchar(80) NOT NULL COMMENT '客户端幂等请求 ID',
+  `status` varchar(32) NOT NULL COMMENT '任务状态：QUEUED/RUNNING/WAITING_CONFLICT/PARTIAL_FAILED/SUCCESS/FAILED/CANCELLED',
+  `phase` varchar(32) NOT NULL COMMENT '执行阶段：SCANNING/APPLYING/RESOLVING',
+  `total_count` int NOT NULL DEFAULT 0 COMMENT '本次任务去重后的条目总数',
+  `imported_count` int NOT NULL DEFAULT 0 COMMENT '从 Bangumi 导入到本地的条目数',
+  `uploaded_count` int NOT NULL DEFAULT 0 COMMENT '从本地上传到 Bangumi 的条目数',
+  `unchanged_count` int NOT NULL DEFAULT 0 COMMENT '双方数据一致、无需更新的条目数',
+  `conflict_count` int NOT NULL DEFAULT 0 COMMENT '等待用户处理的冲突数',
+  `resolved_count` int NOT NULL DEFAULT 0 COMMENT '已完成决议并确认同步的冲突数',
+  `failed_count` int NOT NULL DEFAULT 0 COMMENT '处理失败、可重试的条目数',
+  `status_version` bigint NOT NULL DEFAULT 0 COMMENT '任务状态版本',
+  `error_code` varchar(64) NULL COMMENT '任务级错误码',
+  `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '任务入库时间',
+  `started_at` datetime(3) NULL COMMENT '任务首次开始执行时间',
+  `finished_at` datetime(3) NULL COMMENT '任务进入终态的时间',
+  `heartbeat_at` datetime(3) NULL COMMENT '后台执行器最近一次心跳时间',
+  `active_user_id` bigint GENERATED ALWAYS AS (CASE WHEN status IN ('QUEUED','RUNNING','WAITING_CONFLICT','PARTIAL_FAILED') THEN user_id ELSE NULL END) STORED COMMENT '每用户仅一个活动任务',
+  UNIQUE KEY `uk_collection_sync_active_user` (`active_user_id`),
+  PRIMARY KEY (`id`), UNIQUE KEY `uk_collection_sync_request` (`user_id`,`request_id`),
+  KEY `idx_collection_sync_active` (`user_id`,`status`,`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户 Bangumi 收藏双向同步任务';
+
+CREATE TABLE `user_bgm_collection_sync_item` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '同步明细主键，同时作为客户端冲突 ID',
+  `task_id` bigint NOT NULL COMMENT '所属同步任务 ID',
+  `user_id` bigint NOT NULL COMMENT 'AnimeFlow 用户 ID，用于归属校验',
+  `subject_id` int NOT NULL COMMENT 'Bangumi 条目 ID',
+  `subject_type` tinyint NOT NULL COMMENT '条目大类',
+  `subject_name` varchar(512) NULL COMMENT '冲突发生时的条目名称快照',
+  `subject_image` varchar(1024) NULL COMMENT '冲突发生时的条目封面快照',
+  `local_type` tinyint NULL COMMENT '冲突发生时本地收藏分类',
+  `remote_type` tinyint NULL COMMENT '冲突发生时 Bangumi 收藏分类',
+  `local_version` bigint NULL COMMENT '冲突发生时本地收藏版本',
+  `conflict_version` bigint NOT NULL DEFAULT 1 COMMENT '提交决议时必须匹配的冲突版本',
+  `selected_type` tinyint NULL COMMENT '用户选择的最终收藏分类',
+  `local_snapshot` json NULL COMMENT '本地收藏字段快照，不包含凭据',
+  `remote_snapshot` json NULL COMMENT 'Bangumi 收藏字段快照，不包含凭据',
+  `scan_snapshot` json DEFAULT NULL COMMENT '收藏分页条目及interest快照，首次比较与导入复用；NULL兼容旧任务',
+  `desired_payload` json NULL COMMENT '远端写入前持久化的目标字段',
+  `operation` varchar(16) NULL COMMENT 'IMPORT/UPLOAD/UNCHANGED/RESOLVE',
+  `status` varchar(32) NOT NULL COMMENT 'PLANNED/CONFLICT/RESOLUTION_PENDING/APPLY_PENDING/DONE/FAILED',
+  `error_code` varchar(64) NULL COMMENT '明细错误码',
+  `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '明细创建时间',
+  `resolved_at` datetime(3) NULL COMMENT '远端确认完成时间',
+  PRIMARY KEY (`id`), UNIQUE KEY `uk_collection_sync_item` (`task_id`,`subject_id`),
+  KEY `idx_collection_sync_conflict` (`user_id`,`status`,`id`),
+  CONSTRAINT `fk_collection_sync_item_task` FOREIGN KEY (`task_id`) REFERENCES `user_bgm_collection_sync_task` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户 Bangumi 收藏同步明细与冲突快照';
+
 SET FOREIGN_KEY_CHECKS = 1;

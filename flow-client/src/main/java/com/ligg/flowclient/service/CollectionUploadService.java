@@ -39,6 +39,10 @@ public class CollectionUploadService {
 
     private CollectionUpdateVo upload(UserBgmCollectionEntity row, boolean recovered) {
         if (!"PENDING".equals(row.getRemoteSyncStatus())) return result(row);
+        // A full task owns reconciliation; ordinary saves remain local until it finishes.
+        if (mapper.countBlockedSyncItems(row.getUserId(), row.getSubjectId()) > 0)
+            return mark(row, "CONFLICT");
+        if (mapper.countActiveSyncTasks(row.getUserId(), row.getSubjectType()) > 0) return result(row);
         String savedPayload = row.getPendingPayload();
         String savedBaseline = row.getRemoteBaseline();
         try {
@@ -164,7 +168,7 @@ public class CollectionUploadService {
         var fields = expectedJson.fields();
         while (fields.hasNext()) {
             var field = fields.next();
-            if (!Objects.equals(field.getValue(), actualJson.get(field.getKey()))) return false;
+            if (!CollectionFieldComparison.same(field.getKey(), field.getValue(), actualJson.get(field.getKey()))) return false;
         }
         return true;
     }
@@ -174,7 +178,7 @@ public class CollectionUploadService {
         var fields = editJson.fieldNames();
         while (fields.hasNext()) {
             String name = fields.next();
-            if (!Objects.equals(beforeJson.get(name), nowJson.get(name))) return false;
+            if (!CollectionFieldComparison.same(name, beforeJson.get(name), nowJson.get(name))) return false;
         }
         return true;
     }

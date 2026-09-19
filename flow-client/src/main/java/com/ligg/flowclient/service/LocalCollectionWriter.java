@@ -80,6 +80,7 @@ public class LocalCollectionWriter {
         row.setLocalUpdatedAt(LocalDateTime.now());
         row.setPendingPayload(writeJson(pending));
         row.setRemoteSyncStatus(oauth == null ? "LOCAL_ONLY" : "PENDING");
+        if (mapper.countBlockedSyncItems(userId, subjectId) > 0) row.setRemoteSyncStatus("CONFLICT");
         row.setSyncOauthId(oauth == null ? null : oauth.getId());
         row.setBgmAccountUid(oauth == null ? null : oauth.getPlatformUid());
         row.setRemoteBaseline(null);

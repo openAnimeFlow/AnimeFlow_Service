@@ -38,7 +38,7 @@
 ### 2.1 提交同步任务
 
 ```
-POST /api/v1/account/oauth/bangumi/collections/sync?subjectType=2
+POST /api/v1/users/collections/sync?subjectType=2
 Authorization: Bearer {Flow access_token}
 ```
 
@@ -46,7 +46,7 @@ Authorization: Bearer {Flow access_token}
 |------|------|------|
 | `subjectType` | `2` | Bangumi 条目大类，2 表示动画 |
 
-**鉴权**：`AuthorizationInterceptor` 拦截 `/api/v1/account/oauth/**`（登录接口除外），Controller 内 `jwtTokenService.validateAccessToken` 解析 `userId`。
+**鉴权**：`AuthorizationInterceptor` 校验 Flow Token，`CollectionController` 内 `jwtTokenService.validateAccessToken` 解析 `userId`。
 
 **限流**：`@IpEndpointRateLimit`，60 秒内同一 IP 最多 5 次。
 
@@ -55,7 +55,7 @@ Authorization: Bearer {Flow access_token}
 ### 2.2 查询同步状态
 
 ```
-GET /api/v1/account/oauth/bangumi/collections/sync
+GET /api/v1/users/collections/sync
 Authorization: Bearer {Flow access_token}
 ```
 
