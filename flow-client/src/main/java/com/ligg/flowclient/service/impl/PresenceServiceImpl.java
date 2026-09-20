@@ -21,6 +21,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Set;
@@ -181,18 +183,18 @@ public class PresenceServiceImpl implements PresenceService {
         String indexKey = Constants.PRESENCE_WATCHING_SUBJECTS_KEY;
         stringRedisTemplate.opsForZSet().removeRangeByScore(
                 indexKey, Double.NEGATIVE_INFINITY, expiredBefore);
-        Comparator<WatchingSubjectVo> bestFirst = Comparator.comparingLong(
-                        (WatchingSubjectVo item) -> item.getOnline().getOnlineUsers())
+        Comparator<SubjectPresence> bestFirst = Comparator.comparingLong(
+                        (SubjectPresence item) -> item.online().getOnlineUsers())
                 .reversed()
-                .thenComparingInt(WatchingSubjectVo::getSubjectId);
-        Comparator<WatchingSubjectVo> worstFirst = (left, right) -> {
+                .thenComparingInt(SubjectPresence::subjectId);
+        Comparator<SubjectPresence> worstFirst = (left, right) -> {
             int onlineUsers = Long.compare(
-                    left.getOnline().getOnlineUsers(), right.getOnline().getOnlineUsers());
+                    left.online().getOnlineUsers(), right.online().getOnlineUsers());
             return onlineUsers != 0
                     ? onlineUsers
-                    : Integer.compare(right.getSubjectId(), left.getSubjectId());
+                    : Integer.compare(right.subjectId(), left.subjectId());
         };
-        PriorityQueue<WatchingSubjectVo> topSubjects =
+        PriorityQueue<SubjectPresence> topSubjects =
                 new PriorityQueue<>(MAX_WATCHING_SUBJECTS + 1, worstFirst);
 
         long offset = 0;
@@ -210,20 +212,12 @@ public class PresenceServiceImpl implements PresenceService {
                     .filter(id -> id != null && id > 0)
                     .toList();
             if (!ids.isEmpty()) {
-                List<BangumiSubjectEntity> subjects = bangumiSubjectMapper.selectByIds(ids);
-                for (BangumiSubjectEntity subject : subjects) {
-                    CoverImages images = parseImages(subject.getImages());
-                    Utils.applyWsrvCdnInPlace(images);
-                    WatchingSubjectVo item = new WatchingSubjectVo(
-                            subject.getId(),
-                            subject.getName(),
-                            subject.getNameCn(),
-                            images,
-                            subjectOnlineCount(subject.getId()));
-                    if (item.getOnline().getOnlineDevices() <= 0) {
+                for (Integer subjectId : ids) {
+                    OnlineCountVo online = subjectOnlineCount(subjectId);
+                    if (online.getOnlineDevices() <= 0) {
                         continue;
                     }
-                    topSubjects.offer(item);
+                    topSubjects.offer(new SubjectPresence(subjectId, online));
                     if (topSubjects.size() > MAX_WATCHING_SUBJECTS) {
                         topSubjects.poll();
                     }
@@ -234,7 +228,38 @@ public class PresenceServiceImpl implements PresenceService {
             }
             offset += subjectIds.size();
         }
-        return topSubjects.stream().sorted(bestFirst).toList();
+        List<SubjectPresence> rankedSubjects = topSubjects.stream().sorted(bestFirst).toList();
+        if (rankedSubjects.isEmpty()) {
+            return List.of();
+        }
+
+        List<Integer> topSubjectIds = rankedSubjects.stream()
+                .map(SubjectPresence::subjectId)
+                .toList();
+        Map<Integer, BangumiSubjectEntity> subjectsById = new HashMap<>();
+        for (BangumiSubjectEntity subject : bangumiSubjectMapper.selectByIds(topSubjectIds)) {
+            subjectsById.put(subject.getId(), subject);
+        }
+        return rankedSubjects.stream()
+                .map(item -> {
+                    BangumiSubjectEntity subject = subjectsById.get(item.subjectId());
+                    if (subject == null) {
+                        return null;
+                    }
+                    CoverImages images = parseImages(subject.getImages());
+                    Utils.applyWsrvCdnInPlace(images);
+                    return new WatchingSubjectVo(
+                            subject.getId(),
+                            subject.getName(),
+                            subject.getNameCn(),
+                            images,
+                            item.online());
+                })
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    private record SubjectPresence(int subjectId, OnlineCountVo online) {
     }
 
     private PresenceContext readPreviousContext(String recordKey) {

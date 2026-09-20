@@ -11,6 +11,7 @@ import com.ligg.flowclient.service.JwtTokenService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -30,6 +31,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -54,7 +56,7 @@ class PresenceServiceImplTest {
     void setUp() {
         service = new PresenceServiceImpl(redisTemplate, stringRedisTemplate,
                 jwtTokenService, bangumiSubjectMapper, new ObjectMapper());
-        when(redisTemplate.opsForValue()).thenReturn(values);
+        lenient().when(redisTemplate.opsForValue()).thenReturn(values);
         when(stringRedisTemplate.opsForZSet()).thenReturn(zset);
     }
 
@@ -138,7 +140,8 @@ class PresenceServiceImplTest {
         when(bangumiSubjectMapper.selectByIds(anyList())).thenReturn(subjects);
         when(zset.rangeByScore(anyString(), anyDouble(), anyDouble())).thenAnswer(invocation -> {
             String key = invocation.getArgument(0);
-            int subjectId = Integer.parseInt(key.substring(key.lastIndexOf(':') + 1));
+            String[] keyParts = key.split(":");
+            int subjectId = Integer.parseInt(keyParts[keyParts.length - 2]);
             Set<String> users = new HashSet<>();
             for (int index = 0; index < 102 - subjectId; index++) {
                 users.add("visitor:" + subjectId + ":" + index);
@@ -152,6 +155,12 @@ class PresenceServiceImplTest {
         assertEquals(100, result.size());
         assertEquals(1, result.get(0).getSubjectId());
         assertEquals(100, result.get(99).getSubjectId());
+
+        ArgumentCaptor<List<Integer>> idsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(bangumiSubjectMapper).selectByIds(idsCaptor.capture());
+        assertEquals(100, idsCaptor.getValue().size());
+        assertEquals(1, idsCaptor.getValue().get(0));
+        assertEquals(100, idsCaptor.getValue().get(99));
     }
 
     @Test
