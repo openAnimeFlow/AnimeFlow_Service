@@ -342,7 +342,7 @@ public class CollectionSyncItemExecutor {
         result.setPrivate_(row.getIsPrivate());
         try {
             result.setTags(row.getTags() == null ? List.of() : json.readValue(row.getTags(),
-                    new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {
+                    new com.fasterxml.jackson.core.type.TypeReference<>() {
                     }));
         } catch (Exception e) {
             throw new IllegalStateException("本地标签无效", e);
@@ -353,9 +353,7 @@ public class CollectionSyncItemExecutor {
     boolean matches(UpdateCollectionBody target, UpdateCollectionBody current) {
         var expected = json.valueToTree(target);
         var actual = json.valueToTree(current);
-        var fields = expected.fields();
-        while (fields.hasNext()) {
-            var field = fields.next();
+        for (var field : expected.properties()) {
             if (!CollectionFieldComparison.same(field.getKey(), field.getValue(), actual.get(field.getKey())))
                 return false;
         }

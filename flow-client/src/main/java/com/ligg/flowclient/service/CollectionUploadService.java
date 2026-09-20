@@ -167,9 +167,7 @@ public class CollectionUploadService {
 
     private boolean matches(UpdateCollectionBody expected, UpdateCollectionBody actual) {
         JsonNode expectedJson = json.valueToTree(expected), actualJson = json.valueToTree(actual);
-        var fields = expectedJson.fields();
-        while (fields.hasNext()) {
-            var field = fields.next();
+        for (var field : expectedJson.properties()) {
             if (!CollectionFieldComparison.same(field.getKey(), field.getValue(), actualJson.get(field.getKey()))) return false;
         }
         return true;

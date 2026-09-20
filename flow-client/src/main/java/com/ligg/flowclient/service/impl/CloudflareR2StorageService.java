@@ -13,11 +13,8 @@ import java.io.InputStream;
  * 基于 Cloudflare R2（S3 兼容 API）的对象存储实现。
  */
 @Slf4j
-public class CloudflareR2StorageService implements ObjectStorageService {
-
-    private final S3Client s3Client;
-    private final String bucket;
-    private final String publicUrl;
+public record CloudflareR2StorageService(S3Client s3Client, String bucket,
+                                         String publicUrl) implements ObjectStorageService {
 
     public CloudflareR2StorageService(S3Client s3Client, String bucket, String publicUrl) {
         this.s3Client = s3Client;

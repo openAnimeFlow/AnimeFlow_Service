@@ -94,7 +94,7 @@ public final class ImageValidator {
         if (startsWith(data, len, JPEG_MAGIC)) return "image/jpeg";
         if (startsWith(data, len, PNG_MAGIC)) return "image/png";
         if (startsWith(data, len, GIF87_MAGIC) || startsWith(data, len, GIF89_MAGIC)) return "image/gif";
-        if (len >= 12
+        if (len == 12
                 && startsWith(data, len, RIFF_MAGIC)
                 && Arrays.equals(Arrays.copyOfRange(data, 8, 12), WEBP_MAGIC)) {
             return "image/webp";

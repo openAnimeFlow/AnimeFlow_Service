@@ -38,7 +38,7 @@ public class LocalCollectionWriter {
             throw new IllegalArgumentException("条目 ID 无效或没有需要更新的收藏字段");
         }
         if (dto.getProgress() != null) {
-            throw new IllegalArgumentException("收藏接口暂不支持 progress，请使用剧集观看状态接口");
+            throw new IllegalArgumentException("收藏接口暂不支持 progress.");
         }
         if (dto.getType() != null && (dto.getType() < 1 || dto.getType() > 5)
                 || dto.getRate() != null && (dto.getRate() < 0 || dto.getRate() > 10)) {
