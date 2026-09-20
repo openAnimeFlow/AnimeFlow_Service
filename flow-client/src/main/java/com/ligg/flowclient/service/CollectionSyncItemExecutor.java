@@ -102,12 +102,11 @@ public class CollectionSyncItemExecutor {
                     save(item);
                     // Accepted decisions are no longer unresolved conflicts in the UI.
                     tasks.summarize(task);
-                    taskMapper.update(null, new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
+                    taskMapper.updateWithStatusVersion(new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
                             .eq(CollectionSyncTaskEntity::getId, taskId)
                             .ne(CollectionSyncTaskEntity::getStatus, BgmCollectionSyncStatus.CANCELLED)
                             .set(CollectionSyncTaskEntity::getStatus, BgmCollectionSyncStatus.RUNNING)
-                            .set(CollectionSyncTaskEntity::getPhase, CollectionSyncPhase.RESOLVING)
-                            .setSql("status_version=status_version+1"));
+                            .set(CollectionSyncTaskEntity::getPhase, CollectionSyncPhase.RESOLVING));
                 });
                 return null;
             });

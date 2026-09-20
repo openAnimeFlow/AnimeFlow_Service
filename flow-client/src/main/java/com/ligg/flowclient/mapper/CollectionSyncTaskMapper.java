@@ -1,6 +1,7 @@
 package com.ligg.flowclient.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.ligg.common.entity.CollectionSyncTaskEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
@@ -8,6 +9,13 @@ import org.apache.ibatis.annotations.Param;
 
 @Mapper
 public interface CollectionSyncTaskMapper extends BaseMapper<CollectionSyncTaskEntity> {
+    /**
+     * 更新同步任务并原子递增状态版本，避免业务服务重复拼接版本更新表达式。
+     */
+    default int updateWithStatusVersion(LambdaUpdateWrapper<CollectionSyncTaskEntity> wrapper) {
+        return update(null, wrapper.setIncrBy(true, CollectionSyncTaskEntity::getStatusVersion, 1));
+    }
+
     @Select("SELECT * FROM user_bgm_collection_sync_task WHERE user_id=#{userId} AND status IN ('QUEUED','RUNNING','WAITING_CONFLICT','PARTIAL_FAILED') ORDER BY id DESC LIMIT 1")
     CollectionSyncTaskEntity selectActive(@Param("userId") Long userId);
     @Select("SELECT * FROM user_bgm_collection_sync_task WHERE id=#{taskId} AND user_id=#{userId}")

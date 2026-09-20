@@ -83,12 +83,11 @@ public class CollectionSyncTaskService {
     }
 
     public void cancel(CollectionSyncTaskEntity task) {
-        tasks.update(null, new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
+        tasks.updateWithStatusVersion(new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
                 .eq(CollectionSyncTaskEntity::getId,  task.getId())
                 .set(CollectionSyncTaskEntity::getStatus,  BgmCollectionSyncStatus.CANCELLED)
                 .set(CollectionSyncTaskEntity::getErrorCode,  CollectionSyncTaskErrorCode.SYNC_BINDING_CHANGED)
-                .set(CollectionSyncTaskEntity::getFinishedAt,  LocalDateTime.now())
-                .setSql("status_version=status_version+1"));
+                .set(CollectionSyncTaskEntity::getFinishedAt,  LocalDateTime.now()));
         task.setStatus(BgmCollectionSyncStatus.CANCELLED);
         task.setStatusVersion(task.getStatusVersion() == null ? 1L : task.getStatusVersion() + 1);
         task.setErrorCode(CollectionSyncTaskErrorCode.SYNC_BINDING_CHANGED);
@@ -143,7 +142,7 @@ public class CollectionSyncTaskService {
         BgmCollectionSyncStatus status = pending > 0 ? BgmCollectionSyncStatus.RUNNING
                 : conflicts > 0 ? BgmCollectionSyncStatus.WAITING_CONFLICT
                 : failed > 0 ? BgmCollectionSyncStatus.PARTIAL_FAILED : BgmCollectionSyncStatus.SUCCESS;
-        tasks.update(null, new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
+        tasks.updateWithStatusVersion(new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
                 .eq(CollectionSyncTaskEntity::getId, task.getId())
                 .ne(CollectionSyncTaskEntity::getStatus, BgmCollectionSyncStatus.CANCELLED)
                 .set(CollectionSyncTaskEntity::getStatus, status)
@@ -156,8 +155,7 @@ public class CollectionSyncTaskService {
                 .set(CollectionSyncTaskEntity::getFailedCount, failed)
                 .set(CollectionSyncTaskEntity::getHeartbeatAt, LocalDateTime.now())
                 .set(CollectionSyncTaskEntity::getFinishedAt,
-                        BgmCollectionSyncStatus.SUCCESS == status ? LocalDateTime.now() : null)
-                .setSql("status_version=status_version+1"));
+                        BgmCollectionSyncStatus.SUCCESS == status ? LocalDateTime.now() : null));
         changed(task.getUserId());
     }
 

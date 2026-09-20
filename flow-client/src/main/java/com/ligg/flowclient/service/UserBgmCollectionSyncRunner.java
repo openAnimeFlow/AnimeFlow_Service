@@ -85,13 +85,12 @@ public class UserBgmCollectionSyncRunner {
                     }
                     tasks.summarize(task);
                 } catch (Exception e) {
-                    taskMapper.update(null, new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
+                    taskMapper.updateWithStatusVersion(new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
                             .eq(CollectionSyncTaskEntity::getId, taskId)
                             .ne(CollectionSyncTaskEntity::getStatus, BgmCollectionSyncStatus.CANCELLED)
                             .set(CollectionSyncTaskEntity::getStatus, BgmCollectionSyncStatus.PARTIAL_FAILED)
                             .set(CollectionSyncTaskEntity::getErrorCode, CollectionSyncTaskErrorCode.SYNC_RETRY_REQUIRED)
-                            .set(CollectionSyncTaskEntity::getHeartbeatAt, LocalDateTime.now())
-                            .setSql("status_version=status_version+1"));
+                            .set(CollectionSyncTaskEntity::getHeartbeatAt, LocalDateTime.now()));
                     tasks.changed(task.getUserId());
                     log.warn("收藏同步任务待恢复 taskId={} error={}", taskId, e.getClass().getSimpleName());
                 }
@@ -104,12 +103,11 @@ public class UserBgmCollectionSyncRunner {
     }
 
     private void scan(CollectionSyncTaskEntity task) {
-        taskMapper.update(null, new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
+        taskMapper.updateWithStatusVersion(new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
                 .eq(CollectionSyncTaskEntity::getId, task.getId())
                 .ne(CollectionSyncTaskEntity::getStatus, BgmCollectionSyncStatus.CANCELLED)
                 .set(CollectionSyncTaskEntity::getStatus, BgmCollectionSyncStatus.RUNNING)
-                .set(CollectionSyncTaskEntity::getStartedAt, LocalDateTime.now())
-                .setSql("status_version=status_version+1"));
+                .set(CollectionSyncTaskEntity::getStartedAt, LocalDateTime.now()));
         tasks.changed(task.getUserId());
         // No formal collection changes until all five categories have been read successfully.
         for (int type = 1; type <= 5; type++) {
@@ -152,12 +150,11 @@ public class UserBgmCollectionSyncRunner {
             stage(task, row.getSubjectId(), null, null, null);
         }
         tasks.requireBinding(task);
-        taskMapper.update(null, new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
+        taskMapper.updateWithStatusVersion(new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
                 .eq(CollectionSyncTaskEntity::getId, task.getId())
                 .ne(CollectionSyncTaskEntity::getStatus, BgmCollectionSyncStatus.CANCELLED)
                 .set(CollectionSyncTaskEntity::getPhase, CollectionSyncPhase.APPLYING)
-                .set(CollectionSyncTaskEntity::getErrorCode, null)
-                .setSql("status_version=status_version+1"));
+                .set(CollectionSyncTaskEntity::getErrorCode, null));
         tasks.changed(task.getUserId());
         task.setPhase(CollectionSyncPhase.APPLYING);
     }
@@ -190,10 +187,9 @@ public class UserBgmCollectionSyncRunner {
     }
 
     private void heartbeat(CollectionSyncTaskEntity task) {
-        taskMapper.update(null, new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
+        taskMapper.updateWithStatusVersion(new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
                 .eq(CollectionSyncTaskEntity::getId, task.getId())
                 .ne(CollectionSyncTaskEntity::getStatus, BgmCollectionSyncStatus.CANCELLED)
-                .set(CollectionSyncTaskEntity::getHeartbeatAt, LocalDateTime.now())
-                .setSql("status_version=status_version+1"));
+                .set(CollectionSyncTaskEntity::getHeartbeatAt, LocalDateTime.now()));
     }
 }
