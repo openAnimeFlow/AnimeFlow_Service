@@ -171,6 +171,22 @@ public class CollectionSyncTaskService {
         return vo;
     }
 
+    /**
+     * 为旧版客户端生成兼容状态快照。
+     * 旧版客户端只识别 IDLE、RUNNING、SUCCESS、FAILED，并通过 GET /sync 轮询；
+     * SSE 接口继续返回完整的任务状态机。
+     */
+    public UserBgmCollectionSyncStatusVo legacyStatus(Long userId) {
+        UserBgmCollectionSyncStatusVo vo = status(userId);
+        if (vo.getStatus() == null) return vo;
+        switch (vo.getStatus()) {
+            case QUEUED, RUNNING -> vo.setStatus(BgmCollectionSyncStatus.RUNNING);
+            case WAITING_CONFLICT, PARTIAL_FAILED, CANCELLED -> vo.setStatus(BgmCollectionSyncStatus.FAILED);
+            default -> { }
+        }
+        return vo;
+    }
+
     public UserBgmCollectionSyncStatusVo toStatus(CollectionSyncTaskEntity task) {
         var vo = new UserBgmCollectionSyncStatusVo();
         vo.setTaskId(task.getId()); vo.setUserId(task.getUserId());

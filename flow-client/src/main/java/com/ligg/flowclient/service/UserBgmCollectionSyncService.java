@@ -12,14 +12,9 @@ public interface UserBgmCollectionSyncService {
      */
     UserBgmCollectionSyncStatusVo triggerSync(Long userId, int subjectType, String requestId);
 
-    /**
-     * 查询当前用户最近一次同步任务状态。
-     */
-    UserBgmCollectionSyncStatusVo getSyncStatus(Long userId);
+    UserBgmCollectionSyncStatusVo getLegacySyncStatus(Long userId);
 
     List<CollectionConflictVo> getConflicts(Long userId, Long taskId, int offset, int limit);
-
-    UserBgmCollectionSyncStatusVo resolveConflict(Long userId, Long taskId, long conflictId, long conflictVersion, int selectedType);
 
     UserBgmCollectionSyncStatusVo resolveConflicts(Long userId, Long taskId,
             List<com.ligg.flowclient.module.dto.CollectionConflictResolveDto.Item> decisions);

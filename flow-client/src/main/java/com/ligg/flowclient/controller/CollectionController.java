@@ -99,7 +99,8 @@ public class CollectionController {
     public Result<UserBgmCollectionSyncStatusVo> getCollectionSyncStatus(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken) {
         Long userId = jwtTokenService.validateAccessToken(accessToken);
-        UserBgmCollectionSyncStatusVo status = userBgmCollectionSyncService.getSyncStatus(userId);
+        // 旧版客户端通过此接口轮询，只识别原有四种状态；SSE 客户端获取完整任务状态机。
+        UserBgmCollectionSyncStatusVo status = userBgmCollectionSyncService.getLegacySyncStatus(userId);
         return Result.success(ResponseCode.SUCCESS, status);
     }
 

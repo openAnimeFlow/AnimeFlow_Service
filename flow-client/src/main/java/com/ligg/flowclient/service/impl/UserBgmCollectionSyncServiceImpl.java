@@ -26,22 +26,16 @@ public class UserBgmCollectionSyncServiceImpl implements UserBgmCollectionSyncSe
             return status;
         }
         runner.runTask(task.getId());
-        return tasks.toStatus(task);
+        // 旧客户端会直接使用 POST 响应更新界面；将排队状态转换为运行中，
+        // 避免旧客户端因无法识别 QUEUED 而误显示为未同步。
+        return tasks.legacyStatus(userId);
     }
     @Override
-    public UserBgmCollectionSyncStatusVo getSyncStatus(Long userId) { return tasks.status(userId); }
+    public UserBgmCollectionSyncStatusVo getLegacySyncStatus(Long userId) { return tasks.legacyStatus(userId); }
     @Override
     public List<CollectionConflictVo> getConflicts(Long userId, Long taskId, int offset, int limit) {
         return tasks.conflicts(userId, taskId, offset, limit);
     }
-    @Override
-    public UserBgmCollectionSyncStatusVo resolveConflict(Long userId, Long taskId, long conflictId,
-                                                       long conflictVersion, int selectedType) {
-        executor.resolve(userId, taskId, conflictId, conflictVersion, selectedType);
-        // Batch entry point dispatches once after all decisions have released their locks.
-        return tasks.toStatus(tasks.owned(userId,taskId));
-    }
-
     @Override
     public UserBgmCollectionSyncStatusVo resolveConflicts(Long userId, Long taskId,
             List<com.ligg.flowclient.module.dto.CollectionConflictResolveDto.Item> decisions) {

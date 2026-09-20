@@ -49,12 +49,12 @@ class UserBgmCollectionSyncServiceImplTest {
 
         when(tasks.createOrGet(7L, 2, "request-2")).thenReturn(task);
         when(tasks.isWithinCooldown(task)).thenReturn(false);
-        when(tasks.toStatus(task)).thenReturn(status);
+        when(tasks.legacyStatus(7L)).thenReturn(status);
 
         assertEquals(status, service.triggerSync(7L, 2, "request-2"));
 
         verify(runner).runTask(42L);
-        verify(tasks).toStatus(task);
+        verify(tasks).legacyStatus(7L);
     }
 
     @Test
