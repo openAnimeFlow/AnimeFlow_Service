@@ -166,6 +166,12 @@ public class CollectionSyncTaskService {
         vo.setStatusVersion(task.getStatusVersion());
         vo.setSyncedCount(zero(task.getImportedCount())+zero(task.getUploadedCount())
                 +zero(task.getUnchangedCount())+zero(task.getResolvedCount()));
+        if ("SCANNING".equals(task.getPhase())) {
+            // Keep the pre-refactor progress visible while the five remote lists are scanned.
+            vo.setScannedCount(allItems(task.getId()).size());
+        } else {
+            vo.setScannedCount(0);
+        }
         vo.setMessage(task.getErrorCode());
         if (task.getStartedAt()!=null) vo.setStartedAt(task.getStartedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli());
         if (task.getFinishedAt()!=null) vo.setFinishedAt(task.getFinishedAt().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli());

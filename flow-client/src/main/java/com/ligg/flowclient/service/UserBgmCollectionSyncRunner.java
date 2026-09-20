@@ -133,6 +133,8 @@ public class UserBgmCollectionSyncRunner {
                 if (added == 0) throw new IllegalStateException("收藏分页未前进");
                 offset += page.getData().size();
                 heartbeat(task);
+                // Preserve the pre-refactor visible progress boundary for SSE clients.
+                tasks.changed(task.getUserId());
                 if (page.getTotal() != null && offset >= page.getTotal()) break;
                 if (page.getTotal() == null && page.getData().size() < 50) break;
             }
@@ -185,6 +187,7 @@ public class UserBgmCollectionSyncRunner {
         taskMapper.update(null, new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
                 .eq(CollectionSyncTaskEntity::getId, task.getId())
                 .ne(CollectionSyncTaskEntity::getStatus, "CANCELLED")
-                .set(CollectionSyncTaskEntity::getHeartbeatAt, LocalDateTime.now()));
+                .set(CollectionSyncTaskEntity::getHeartbeatAt, LocalDateTime.now())
+                .setSql("status_version=status_version+1"));
     }
 }
