@@ -1,6 +1,7 @@
 package com.ligg.flowclient.service;
 
 import com.ligg.common.constants.Constants;
+import com.ligg.flowclient.module.vo.OnlineCountVo;
 import com.ligg.flowclient.module.vo.WatchingSubjectVo;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -29,11 +30,20 @@ public class PresenceSseService implements MessageListener {
     private static final long FLUSH_INTERVAL_MILLIS = 250L;
     private static final long FALLBACK_REFRESH_SECONDS = 30L;
     private static final long HEARTBEAT_SECONDS = 20L;
+    private static final long SNAPSHOT_CACHE_MILLIS = 1_000L;
 
     private final PresenceService presenceService;
     private final Set<SseEmitter> onlineCountEmitters = ConcurrentHashMap.newKeySet();
     private final Set<SseEmitter> watchingSubjectEmitters = ConcurrentHashMap.newKeySet();
     private final AtomicBoolean snapshotDirty = new AtomicBoolean();
+    private final AtomicBoolean onlineCountSnapshotDirty = new AtomicBoolean(true);
+    private final AtomicBoolean watchingSubjectsSnapshotDirty = new AtomicBoolean(true);
+    private final Object onlineCountSnapshotLock = new Object();
+    private final Object watchingSubjectsSnapshotLock = new Object();
+    private volatile OnlineCountVo onlineCountSnapshot;
+    private volatile long onlineCountSnapshotAt;
+    private volatile List<WatchingSubjectVo> watchingSubjectsSnapshot;
+    private volatile long watchingSubjectsSnapshotAt;
     private final ScheduledExecutorService scheduler =
             Executors.newSingleThreadScheduledExecutor(runnable -> {
                 Thread thread = new Thread(runnable, "presence-sse-publisher");
@@ -74,7 +84,7 @@ public class PresenceSseService implements MessageListener {
 
     @Override
     public void onMessage(Message message, byte[] pattern) {
-        snapshotDirty.set(true);
+        invalidateSnapshots();
     }
 
     private SseEmitter register(Set<SseEmitter> emitters) {
@@ -89,7 +99,7 @@ public class PresenceSseService implements MessageListener {
 
     private void markSnapshotDirty() {
         if (!onlineCountEmitters.isEmpty() || !watchingSubjectEmitters.isEmpty()) {
-            snapshotDirty.set(true);
+            invalidateSnapshots();
         }
     }
 
@@ -98,11 +108,33 @@ public class PresenceSseService implements MessageListener {
             return;
         }
         if (!onlineCountEmitters.isEmpty()) {
-            onlineCountEmitters.forEach(this::sendOnlineCount);
+            sendOnlineCountSnapshot();
         }
         if (!watchingSubjectEmitters.isEmpty()) {
-            watchingSubjectEmitters.forEach(this::sendWatchingSubjects);
+            sendWatchingSubjectsSnapshot();
         }
+    }
+
+    private void sendOnlineCountSnapshot() {
+        final OnlineCountVo snapshot;
+        try {
+            snapshot = getOnlineCountSnapshot();
+        } catch (Exception error) {
+            snapshotDirty.set(true);
+            return;
+        }
+        onlineCountEmitters.forEach(emitter -> sendOnlineCount(emitter, snapshot));
+    }
+
+    private void sendWatchingSubjectsSnapshot() {
+        final List<WatchingSubjectVo> snapshot;
+        try {
+            snapshot = getWatchingSubjectsSnapshot();
+        } catch (Exception error) {
+            snapshotDirty.set(true);
+            return;
+        }
+        watchingSubjectEmitters.forEach(emitter -> sendWatchingSubjects(emitter, snapshot));
     }
 
     private void sendHeartbeats() {
@@ -112,9 +144,17 @@ public class PresenceSseService implements MessageListener {
 
     private void sendOnlineCount(SseEmitter emitter) {
         try {
+            sendOnlineCount(emitter, getOnlineCountSnapshot());
+        } catch (Exception error) {
+            close(onlineCountEmitters, emitter);
+        }
+    }
+
+    private void sendOnlineCount(SseEmitter emitter, OnlineCountVo snapshot) {
+        try {
             emitter.send(SseEmitter.event()
                     .name("online-count")
-                    .data(presenceService.onlineCount()));
+                    .data(snapshot));
         } catch (Exception error) {
             close(onlineCountEmitters, emitter);
         }
@@ -122,10 +162,17 @@ public class PresenceSseService implements MessageListener {
 
     private void sendWatchingSubjects(SseEmitter emitter) {
         try {
-            List<WatchingSubjectVo> subjects = presenceService.watchingSubjects();
+            sendWatchingSubjects(emitter, getWatchingSubjectsSnapshot());
+        } catch (Exception error) {
+            close(watchingSubjectEmitters, emitter);
+        }
+    }
+
+    private void sendWatchingSubjects(SseEmitter emitter, List<WatchingSubjectVo> snapshot) {
+        try {
             emitter.send(SseEmitter.event()
                     .name("watching-subjects")
-                    .data(subjects));
+                    .data(snapshot));
         } catch (Exception error) {
             close(watchingSubjectEmitters, emitter);
         }
@@ -142,6 +189,59 @@ public class PresenceSseService implements MessageListener {
     private void close(Set<SseEmitter> emitters, SseEmitter emitter) {
         emitters.remove(emitter);
         emitter.completeWithError(new IllegalStateException("presence SSE closed"));
+    }
+
+    private void invalidateSnapshots() {
+        snapshotDirty.set(true);
+        onlineCountSnapshotDirty.set(true);
+        watchingSubjectsSnapshotDirty.set(true);
+    }
+
+    private OnlineCountVo getOnlineCountSnapshot() {
+        long now = System.currentTimeMillis();
+        if (isFresh(onlineCountSnapshot, onlineCountSnapshotAt,
+                onlineCountSnapshotDirty.get(), now)) {
+            return onlineCountSnapshot;
+        }
+        synchronized (onlineCountSnapshotLock) {
+            now = System.currentTimeMillis();
+            if (isFresh(onlineCountSnapshot, onlineCountSnapshotAt,
+                    onlineCountSnapshotDirty.get(), now)) {
+                return onlineCountSnapshot;
+            }
+            OnlineCountVo snapshot = presenceService.onlineCount();
+            onlineCountSnapshot = snapshot;
+            onlineCountSnapshotAt = now;
+            onlineCountSnapshotDirty.set(false);
+            return snapshot;
+        }
+    }
+
+    private List<WatchingSubjectVo> getWatchingSubjectsSnapshot() {
+        long now = System.currentTimeMillis();
+        if (isFresh(watchingSubjectsSnapshot, watchingSubjectsSnapshotAt,
+                watchingSubjectsSnapshotDirty.get(), now)) {
+            return watchingSubjectsSnapshot;
+        }
+        synchronized (watchingSubjectsSnapshotLock) {
+            now = System.currentTimeMillis();
+            if (isFresh(watchingSubjectsSnapshot, watchingSubjectsSnapshotAt,
+                    watchingSubjectsSnapshotDirty.get(), now)) {
+                return watchingSubjectsSnapshot;
+            }
+            List<WatchingSubjectVo> snapshot = List.copyOf(presenceService.watchingSubjects());
+            watchingSubjectsSnapshot = snapshot;
+            watchingSubjectsSnapshotAt = now;
+            watchingSubjectsSnapshotDirty.set(false);
+            return snapshot;
+        }
+    }
+
+    private static boolean isFresh(Object snapshot, long snapshotAt,
+                                   boolean dirty, long now) {
+        return snapshot != null
+                && !dirty
+                && now - snapshotAt < SNAPSHOT_CACHE_MILLIS;
     }
 
     @PreDestroy

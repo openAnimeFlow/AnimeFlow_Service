@@ -27,6 +27,7 @@ import java.util.stream.IntStream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -78,7 +79,7 @@ class PresenceServiceImplTest {
         subject.setName("Anime");
         subject.setImages("{\"large\":\"https://example.com/cover.jpg\"}");
         when(zset.reverseRangeByScore(eq(Constants.PRESENCE_WATCHING_SUBJECTS_KEY),
-                anyDouble(), anyDouble())).thenAnswer(invocation -> {
+                anyDouble(), anyDouble(), anyLong(), anyLong())).thenAnswer(invocation -> {
                     double min = invocation.getArgument(1);
                     double max = invocation.getArgument(2);
                     // Spring Data takes min, max even for reverse queries.
@@ -132,7 +133,7 @@ class PresenceServiceImplTest {
         }).toList();
 
         when(zset.reverseRangeByScore(eq(Constants.PRESENCE_WATCHING_SUBJECTS_KEY),
-                anyDouble(), anyDouble()))
+                anyDouble(), anyDouble(), anyLong(), anyLong()))
                 .thenReturn(ids.stream().map(String::valueOf).collect(Collectors.toSet()));
         when(bangumiSubjectMapper.selectByIds(anyList())).thenReturn(subjects);
         when(zset.rangeByScore(anyString(), anyDouble(), anyDouble())).thenAnswer(invocation -> {

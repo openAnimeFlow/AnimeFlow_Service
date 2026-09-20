@@ -22,6 +22,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.Objects;
+import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.Comparator;
 import java.util.List;
@@ -34,6 +35,7 @@ public class PresenceServiceImpl implements PresenceService {
 
     private static final long TTL_SECONDS = 180L;
     private static final int MAX_WATCHING_SUBJECTS = 100;
+    private static final int WATCHING_SUBJECTS_PAGE_SIZE = 200;
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final StringRedisTemplate stringRedisTemplate;
@@ -179,39 +181,60 @@ public class PresenceServiceImpl implements PresenceService {
         String indexKey = Constants.PRESENCE_WATCHING_SUBJECTS_KEY;
         stringRedisTemplate.opsForZSet().removeRangeByScore(
                 indexKey, Double.NEGATIVE_INFINITY, expiredBefore);
-        Set<String> subjectIds = stringRedisTemplate.opsForZSet()
-                // Spring Data 的倒序查询仍然使用 min、max 参数顺序。
-                .reverseRangeByScore(indexKey, expiredBefore + 1, now);
-        if (subjectIds == null || subjectIds.isEmpty()) {
-            return List.of();
-        }
+        Comparator<WatchingSubjectVo> bestFirst = Comparator.comparingLong(
+                        (WatchingSubjectVo item) -> item.getOnline().getOnlineUsers())
+                .reversed()
+                .thenComparingInt(WatchingSubjectVo::getSubjectId);
+        Comparator<WatchingSubjectVo> worstFirst = (left, right) -> {
+            int onlineUsers = Long.compare(
+                    left.getOnline().getOnlineUsers(), right.getOnline().getOnlineUsers());
+            return onlineUsers != 0
+                    ? onlineUsers
+                    : Integer.compare(right.getSubjectId(), left.getSubjectId());
+        };
+        PriorityQueue<WatchingSubjectVo> topSubjects =
+                new PriorityQueue<>(MAX_WATCHING_SUBJECTS + 1, worstFirst);
 
-        List<Integer> ids = subjectIds.stream()
-                .map(this::parseSubjectId)
-                .filter(id -> id != null && id > 0)
-                .toList();
-        if (ids.isEmpty()) {
-            return List.of();
-        }
-        List<BangumiSubjectEntity> subjects = bangumiSubjectMapper.selectByIds(ids);
-        return subjects.stream()
-                .map(subject -> {
+        long offset = 0;
+        while (true) {
+            Set<String> subjectIds = stringRedisTemplate.opsForZSet()
+                    // Spring Data 的倒序查询仍然使用 min、max 参数顺序。
+                    .reverseRangeByScore(indexKey, expiredBefore + 1, now,
+                            offset, WATCHING_SUBJECTS_PAGE_SIZE);
+            if (subjectIds == null || subjectIds.isEmpty()) {
+                break;
+            }
+
+            List<Integer> ids = subjectIds.stream()
+                    .map(this::parseSubjectId)
+                    .filter(id -> id != null && id > 0)
+                    .toList();
+            if (!ids.isEmpty()) {
+                List<BangumiSubjectEntity> subjects = bangumiSubjectMapper.selectByIds(ids);
+                for (BangumiSubjectEntity subject : subjects) {
                     CoverImages images = parseImages(subject.getImages());
                     Utils.applyWsrvCdnInPlace(images);
-                    return new WatchingSubjectVo(
+                    WatchingSubjectVo item = new WatchingSubjectVo(
                             subject.getId(),
                             subject.getName(),
                             subject.getNameCn(),
                             images,
                             subjectOnlineCount(subject.getId()));
-                })
-                .filter(item -> item.getOnline().getOnlineDevices() > 0)
-                .sorted(Comparator.comparingLong(
-                                (WatchingSubjectVo item) -> item.getOnline().getOnlineUsers())
-                        .reversed()
-                        .thenComparingInt(WatchingSubjectVo::getSubjectId))
-                .limit(MAX_WATCHING_SUBJECTS)
-                .toList();
+                    if (item.getOnline().getOnlineDevices() <= 0) {
+                        continue;
+                    }
+                    topSubjects.offer(item);
+                    if (topSubjects.size() > MAX_WATCHING_SUBJECTS) {
+                        topSubjects.poll();
+                    }
+                }
+            }
+            if (subjectIds.size() < WATCHING_SUBJECTS_PAGE_SIZE) {
+                break;
+            }
+            offset += subjectIds.size();
+        }
+        return topSubjects.stream().sorted(bestFirst).toList();
     }
 
     private PresenceContext readPreviousContext(String recordKey) {
