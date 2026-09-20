@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ligg.common.constants.Constants;
 import com.ligg.common.entity.BangumiSubjectEntity;
 import com.ligg.common.model.CoverImages;
+import com.ligg.common.utils.Utils;
 import com.ligg.flowclient.module.dto.PresenceHeartbeatDto;
 import com.ligg.flowclient.module.vo.OnlineCountVo;
 import com.ligg.flowclient.module.vo.PresenceContext;
@@ -185,12 +186,16 @@ public class PresenceServiceImpl implements PresenceService {
         }
         List<BangumiSubjectEntity> subjects = bangumiSubjectMapper.selectByIds(ids);
         return subjects.stream()
-                .map(subject -> new WatchingSubjectVo(
-                        subject.getId(),
-                        subject.getName(),
-                        subject.getNameCn(),
-                        parseImages(subject.getImages()),
-                        subjectOnlineCount(subject.getId())))
+                .map(subject -> {
+                    CoverImages images = parseImages(subject.getImages());
+                    Utils.applyWsrvCdnInPlace(images);
+                    return new WatchingSubjectVo(
+                            subject.getId(),
+                            subject.getName(),
+                            subject.getNameCn(),
+                            images,
+                            subjectOnlineCount(subject.getId()));
+                })
                 .filter(item -> item.getOnline().getOnlineDevices() > 0)
                 .sorted(Comparator.comparingLong(
                         item -> -item.getOnline().getOnlineUsers()))

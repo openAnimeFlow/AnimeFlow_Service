@@ -67,6 +67,7 @@ class PresenceServiceImplTest {
         BangumiSubjectEntity subject = new BangumiSubjectEntity();
         subject.setId(SUBJECT_ID);
         subject.setName("Anime");
+        subject.setImages("{\"large\":\"https://example.com/cover.jpg\"}");
         when(zset.reverseRangeByScore(eq(Constants.PRESENCE_WATCHING_SUBJECTS_KEY),
                 anyDouble(), anyDouble())).thenAnswer(invocation -> {
                     double min = invocation.getArgument(1);
@@ -85,6 +86,8 @@ class PresenceServiceImplTest {
         assertEquals(1, result.size());
         assertEquals(SUBJECT_ID, result.get(0).getSubjectId());
         assertEquals(1, result.get(0).getOnline().getOnlineUsers());
+        assertEquals("https://wsrv.nl/?url=https://example.com/cover.jpg",
+                result.get(0).getImages().getLarge());
     }
 
     @Test
