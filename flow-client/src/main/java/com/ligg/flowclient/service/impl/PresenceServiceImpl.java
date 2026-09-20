@@ -86,14 +86,17 @@ public class PresenceServiceImpl implements PresenceService {
         }
         String key = recordKey(presenceId);
         PresenceContext previous = readPreviousContext(key);
+        long now = Instant.now().getEpochSecond();
         redisTemplate.delete(key);
         stringRedisTemplate.opsForZSet().remove(Constants.PRESENCE_DEVICES_KEY, presenceId);
+        if (previous != null) {
+            removeGlobalUserIndexIfUnused(previous, now);
+        }
         if (previous != null && hasPlaybackContext(previous)) {
-            stringRedisTemplate.opsForZSet().remove(
-                    subjectDevicesKey(previous.getSubjectId()), presenceId);
+            removeSubjectPresenceIndex(previous, now);
             removeSubjectFromGlobalIndexIfOffline(previous.getSubjectId());
         }
-        if (previous != null && isActive(previous, Instant.now().getEpochSecond())) {
+        if (previous != null && isActive(previous, now)) {
             publishPresenceChanged();
         }
     }
@@ -157,9 +160,10 @@ public class PresenceServiceImpl implements PresenceService {
 
     private void updateSubjectIndexes(PresenceContext previous, PresenceContext current, long now) {
         if (previous != null && hasPlaybackContext(previous)
-                && (!hasPlaybackContext(current) || !sameSubject(previous, current))) {
-            stringRedisTemplate.opsForZSet().remove(
-                    subjectDevicesKey(previous.getSubjectId()), current.getPresenceId());
+                && (!hasPlaybackContext(current)
+                || !sameSubject(previous, current)
+                || !Objects.equals(previous.getDedupeKey(), current.getDedupeKey()))) {
+            removeSubjectPresenceIndex(previous, now);
         }
         if (hasPlaybackContext(current)) {
             String devicesKey = subjectDevicesKey(current.getSubjectId());
@@ -173,6 +177,10 @@ public class PresenceServiceImpl implements PresenceService {
         if (previous != null && hasPlaybackContext(previous)
                 && (!hasPlaybackContext(current) || !sameSubject(previous, current))) {
             removeSubjectFromGlobalIndexIfOffline(previous.getSubjectId());
+        }
+        if (previous != null
+                && !Objects.equals(previous.getDedupeKey(), current.getDedupeKey())) {
+            removeGlobalUserIndexIfUnused(previous, now);
         }
     }
 
@@ -327,6 +335,53 @@ public class PresenceServiceImpl implements PresenceService {
             stringRedisTemplate.opsForZSet().remove(
                     Constants.PRESENCE_WATCHING_SUBJECTS_KEY, String.valueOf(subjectId));
         }
+    }
+
+    private void removeSubjectPresenceIndex(PresenceContext previous, long now) {
+        String devicesKey = subjectDevicesKey(previous.getSubjectId());
+        stringRedisTemplate.opsForZSet().remove(devicesKey, previous.getPresenceId());
+        removeDedupeIndexIfUnused(
+                devicesKey,
+                subjectUsersKey(previous.getSubjectId()),
+                previous.getDedupeKey(),
+                previous.getPresenceId(),
+                now);
+    }
+
+    private void removeGlobalUserIndexIfUnused(PresenceContext previous, long now) {
+        removeDedupeIndexIfUnused(
+                Constants.PRESENCE_DEVICES_KEY,
+                Constants.PRESENCE_USERS_KEY,
+                previous.getDedupeKey(),
+                previous.getPresenceId(),
+                now);
+    }
+
+    private void removeDedupeIndexIfUnused(
+            String devicesKey,
+            String usersKey,
+            String dedupeKey,
+            String excludedPresenceId,
+            long now) {
+        if (!StringUtils.hasText(dedupeKey)) {
+            return;
+        }
+        Set<String> activePresenceIds = stringRedisTemplate.opsForZSet()
+                .rangeByScore(devicesKey, now - TTL_SECONDS + 1, now);
+        if (activePresenceIds != null) {
+            for (String presenceId : activePresenceIds) {
+                if (Objects.equals(presenceId, excludedPresenceId)) {
+                    continue;
+                }
+                PresenceContext context = readPreviousContext(recordKey(presenceId));
+                if (context != null
+                        && isActive(context, now)
+                        && Objects.equals(dedupeKey, context.getDedupeKey())) {
+                    return;
+                }
+            }
+        }
+        stringRedisTemplate.opsForZSet().remove(usersKey, dedupeKey);
     }
 
     private Integer parseSubjectId(String value) {

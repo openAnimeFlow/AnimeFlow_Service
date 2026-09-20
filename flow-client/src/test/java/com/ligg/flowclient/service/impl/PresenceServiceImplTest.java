@@ -179,4 +179,46 @@ class PresenceServiceImplTest {
         verify(zset).remove(SUBJECT_DEVICES, "presence-1");
         verify(zset).remove(Constants.PRESENCE_WATCHING_SUBJECTS_KEY, String.valueOf(SUBJECT_ID));
     }
+
+    @Test
+    void offlineRemovesSubjectAndGlobalUserIndexes() {
+        long now = java.time.Instant.now().getEpochSecond();
+        PresenceContext previous = new PresenceContext(
+                "presence-1", "visitor-1", null, "visitor:visitor-1", "ANDROID", null,
+                "watching", SUBJECT_ID, 1699260, 120, now);
+        when(values.get(Constants.PRESENCE_KEY + ":presence-1")).thenReturn(previous);
+
+        service.offline("presence-1");
+
+        verify(zset).remove(Constants.PRESENCE_DEVICES_KEY, "presence-1");
+        verify(zset).remove(Constants.PRESENCE_USERS_KEY, "visitor:visitor-1");
+        verify(zset).remove(SUBJECT_DEVICES, "presence-1");
+        verify(zset).remove(SUBJECT_USERS, "visitor:visitor-1");
+    }
+
+    @Test
+    void switchingSubjectRemovesPreviousSubjectUserIndex() {
+        long now = java.time.Instant.now().getEpochSecond();
+        int nextSubjectId = SUBJECT_ID + 1;
+        String nextSubjectDevices = Constants.PRESENCE_SUBJECT_KEY + ":" + nextSubjectId + ":devices";
+        String nextSubjectUsers = Constants.PRESENCE_SUBJECT_KEY + ":" + nextSubjectId + ":users";
+        PresenceContext previous = new PresenceContext(
+                "presence-1", "visitor-1", null, "visitor:visitor-1", "ANDROID", null,
+                "watching", SUBJECT_ID, 1699260, 120, now);
+        when(values.get(Constants.PRESENCE_KEY + ":presence-1")).thenReturn(previous);
+
+        PresenceHeartbeatDto dto = new PresenceHeartbeatDto();
+        dto.setVisitorId("visitor-1");
+        dto.setClientType("ANDROID");
+        dto.setStatus("watching");
+        dto.setSubjectId(nextSubjectId);
+        dto.setEpisodeId(1699261);
+
+        service.heartbeat("presence-1", dto, null, false);
+
+        verify(zset).remove(SUBJECT_DEVICES, "presence-1");
+        verify(zset).remove(SUBJECT_USERS, "visitor:visitor-1");
+        verify(zset).add(eq(nextSubjectDevices), eq("presence-1"), anyDouble());
+        verify(zset).add(eq(nextSubjectUsers), eq("visitor:visitor-1"), anyDouble());
+    }
 }
