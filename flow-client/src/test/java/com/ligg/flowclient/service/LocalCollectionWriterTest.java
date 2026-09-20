@@ -3,6 +3,7 @@ package com.ligg.flowclient.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ligg.common.entity.BangumiSubjectEntity;
 import com.ligg.common.entity.UserBgmCollectionEntity;
+import com.ligg.common.statuenum.CollectionRemoteSyncStatus;
 import com.ligg.flowclient.mapper.BangumiSubjectMapper;
 import com.ligg.flowclient.mapper.UserBgmCollectionMapper;
 import com.ligg.flowclient.module.dto.UpdateUserCollectionDto;
@@ -37,7 +38,7 @@ class LocalCollectionWriterTest {
         assertNull(row.getBgmUpdatedAt());
         assertNull(row.getSyncTime());
         assertEquals(4, row.getSubjectType());
-        assertEquals("LOCAL_ONLY", row.getRemoteSyncStatus());
+        assertEquals(CollectionRemoteSyncStatus.LOCAL_ONLY, row.getRemoteSyncStatus());
         assertEquals(1L, row.getVersion());
         verify(mapper).insert(row);
     }

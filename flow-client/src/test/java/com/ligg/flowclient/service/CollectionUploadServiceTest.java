@@ -35,7 +35,7 @@ class CollectionUploadServiceTest {
         row = new UserBgmCollectionEntity();
         row.setId(1L); row.setUserId(10L); row.setSubjectId(42); row.setType(3);
         row.setSubjectType(2);
-        row.setVersion(1L); row.setRemoteSyncStatus("PENDING");
+        row.setVersion(1L); row.setRemoteSyncStatus(CollectionRemoteSyncStatus.PENDING);
         row.setPendingPayload("{\"type\":3}"); row.setSyncOauthId(20L); row.setBgmAccountUid(30L);
         var oauth = new UserOauthEntity();
         oauth.setId(20L); oauth.setPlatformUid(30L); oauth.setAccessToken("test-token");
@@ -47,7 +47,7 @@ class CollectionUploadServiceTest {
 
     @Test
     void unboundDoesNotCallUpstream() {
-        row.setRemoteSyncStatus("LOCAL_ONLY");
+        row.setRemoteSyncStatus(CollectionRemoteSyncStatus.LOCAL_ONLY);
         assertEquals(CollectionRemoteSyncStatus.LOCAL_ONLY, service.upload(row).remoteSyncStatus());
         verifyNoInteractions(client);
     }

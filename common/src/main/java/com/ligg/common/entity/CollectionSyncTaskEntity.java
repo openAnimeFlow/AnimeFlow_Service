@@ -1,8 +1,11 @@
-package com.ligg.flowclient.module.entity;
+package com.ligg.common.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.ligg.common.statuenum.BgmCollectionSyncStatus;
+import com.ligg.common.statuenum.CollectionSyncPhase;
+import com.ligg.common.statuenum.CollectionSyncTaskErrorCode;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -24,9 +27,9 @@ public class CollectionSyncTaskEntity {
     /** 客户端幂等请求 ID。 */
     private String requestId;
     /** QUEUED/RUNNING/WAITING_CONFLICT/PARTIAL_FAILED/SUCCESS/FAILED/CANCELLED。 */
-    private String status;
+    private BgmCollectionSyncStatus status;
     /** SCANNING/APPLYING/RESOLVING。 */
-    private String phase;
+    private CollectionSyncPhase phase;
     /** 去重后的任务总条目数。 */
     private Integer totalCount;
     /** 从 Bangumi 导入的条目数。 */
@@ -44,7 +47,7 @@ public class CollectionSyncTaskEntity {
     /** 任务状态版本。 */
     private Long statusVersion;
     /** 任务级错误码。 */
-    private String errorCode;
+    private CollectionSyncTaskErrorCode errorCode;
     /** 任务创建时间。 */
     private LocalDateTime createdAt;
     /** 首次执行时间。 */

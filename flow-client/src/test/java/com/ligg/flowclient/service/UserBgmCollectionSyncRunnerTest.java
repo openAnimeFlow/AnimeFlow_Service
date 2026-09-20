@@ -2,15 +2,16 @@ package com.ligg.flowclient.service;
 
 import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.common.entity.*;
+import com.ligg.common.statuenum.BgmCollectionSyncStatus;
+import com.ligg.common.statuenum.CollectionSyncItemStatus;
 import com.ligg.common.thirdparty.bangumi.response.UserCollectionsDto;
 import com.ligg.flowclient.mapper.*;
-import com.ligg.flowclient.module.entity.*;
+import com.ligg.common.statuenum.CollectionSyncPhase;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import java.util.*;
 import java.util.function.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class UserBgmCollectionSyncRunnerTest {
@@ -27,7 +28,8 @@ class UserBgmCollectionSyncRunnerTest {
     final List<CollectionSyncConflictEntity> staged=new ArrayList<>();
     @SuppressWarnings("unchecked")
     UserBgmCollectionSyncRunnerTest() {
-        task.setId(1L); task.setUserId(10L); task.setSubjectType(2); task.setStatus("QUEUED"); task.setPhase("SCANNING");
+        task.setId(1L); task.setUserId(10L); task.setSubjectType(2);
+        task.setStatus(BgmCollectionSyncStatus.QUEUED); task.setPhase(CollectionSyncPhase.SCANNING);
         when(taskMapper.selectById(1L)).thenReturn(task);
         when(locks.execute(anyLong(),anyInt(),any())).thenAnswer(i -> ((Supplier<?>)i.getArgument(2)).get());
         when(tasks.requireBinding(task)).thenReturn(new UserOauthEntity());
@@ -68,19 +70,19 @@ class UserBgmCollectionSyncRunnerTest {
         verify(tasks,never()).summarize(any());
     }
     @Test void schedulerRecoversTaskWithoutClientOrAsyncDispatch() {
-        task.setPhase("APPLYING"); task.setStatus("RUNNING");
-        var pending=new CollectionSyncConflictEntity(); pending.setStatus("APPLY_PENDING"); staged.add(pending);
+        task.setPhase(CollectionSyncPhase.APPLYING); task.setStatus(BgmCollectionSyncStatus.RUNNING);
+        var pending=new CollectionSyncConflictEntity(); pending.setStatus(CollectionSyncItemStatus.APPLY_PENDING); staged.add(pending);
         when(taskMapper.selectRecoverable()).thenReturn(List.of(task));
         runner.recover();
         verify(executor).execute(task,pending);
         verify(client,never()).getMeCollections(anyString(),anyInt(),anyInt(),anyInt(),anyInt());
     }
     @Test void completedItemsDoNotRepeatBindingQueries() {
-        task.setPhase("RESOLVING"); task.setStatus("RUNNING");
+        task.setPhase(CollectionSyncPhase.RESOLVING); task.setStatus(BgmCollectionSyncStatus.RUNNING);
         for (int i=0;i<194;i++) {
-            var done=new CollectionSyncConflictEntity(); done.setStatus("DONE"); staged.add(done);
+            var done=new CollectionSyncConflictEntity(); done.setStatus(CollectionSyncItemStatus.DONE); staged.add(done);
         }
-        var pending=new CollectionSyncConflictEntity(); pending.setStatus("RESOLUTION_PENDING"); staged.add(pending);
+        var pending=new CollectionSyncConflictEntity(); pending.setStatus(CollectionSyncItemStatus.RESOLUTION_PENDING); staged.add(pending);
         runner.runTask(1L);
         verify(tasks,times(2)).requireBinding(task); // Task entry and the one pending item.
         verify(executor).execute(task,pending);

@@ -3,6 +3,7 @@ package com.ligg.common.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.ligg.common.statuenum.CollectionRemoteSyncStatus;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -52,7 +53,7 @@ public class UserBgmCollectionEntity {
     /** 本地收藏乐观锁版本。 */
     private Long version;
     /** LOCAL_ONLY/PENDING/SYNCED/AUTH_REQUIRED/CONFLICT。 */
-    private String remoteSyncStatus;
+    private CollectionRemoteSyncStatus remoteSyncStatus;
     /** Durable, coalesced upload intent; never contains OAuth credentials. */
     private String pendingPayload;
     private String remoteBaseline;

@@ -11,8 +11,13 @@ import com.ligg.common.thirdparty.bangumi.response.UserCollectionsDto;
 import com.ligg.flowclient.mapper.CollectionSyncConflictMapper;
 import com.ligg.flowclient.mapper.CollectionSyncTaskMapper;
 import com.ligg.flowclient.mapper.UserBgmCollectionMapper;
-import com.ligg.flowclient.module.entity.CollectionSyncConflictEntity;
-import com.ligg.flowclient.module.entity.CollectionSyncTaskEntity;
+import com.ligg.common.entity.CollectionSyncConflictEntity;
+import com.ligg.common.statuenum.BgmCollectionSyncStatus;
+import com.ligg.common.statuenum.CollectionSyncPhase;
+import com.ligg.common.statuenum.CollectionSyncItemStatus;
+import com.ligg.common.statuenum.CollectionSyncOperation;
+import com.ligg.common.statuenum.CollectionRemoteSyncStatus;
+import com.ligg.common.entity.CollectionSyncTaskEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -72,9 +77,11 @@ public class CollectionSyncItemExecutor {
                 // Replaying an accepted identical decision is safe, including a lost response.
                 if (Objects.equals(item.getConflictVersion(), version)
                         && Objects.equals(item.getSelectedType(), selectedType)
-                        && List.of("RESOLUTION_PENDING", "APPLY_PENDING", "FAILED", "DONE").contains(item.getStatus()))
+                        && List.of(CollectionSyncItemStatus.RESOLUTION_PENDING, CollectionSyncItemStatus.APPLY_PENDING,
+                        CollectionSyncItemStatus.FAILED, CollectionSyncItemStatus.DONE).contains(item.getStatus()))
                     return null;
-                if (!"CONFLICT".equals(item.getStatus()) || !Objects.equals(item.getConflictVersion(), version))
+                if (CollectionSyncItemStatus.CONFLICT != item.getStatus()
+                        || !Objects.equals(item.getConflictVersion(), version))
                     throw new IllegalArgumentException("STALE_CONFLICT：请刷新后重新选择");
                 var local = writer.find(userId, item.getSubjectId());
                 var remote = read(task, item);
@@ -88,8 +95,8 @@ public class CollectionSyncItemExecutor {
                 // Persist authorization before dispatch. Do not change local content until remote confirmation.
                 item.setSelectedType(selectedType);
                 item.setDesiredPayload(writer.writeJson(desired(local, remote, selectedType)));
-                item.setOperation("RESOLVE");
-                item.setStatus("RESOLUTION_PENDING");
+                item.setOperation(CollectionSyncOperation.RESOLVE);
+                item.setStatus(CollectionSyncItemStatus.RESOLUTION_PENDING);
                 item.setErrorCode(null);
                 tx.executeWithoutResult(ignored -> {
                     save(item);
@@ -97,9 +104,9 @@ public class CollectionSyncItemExecutor {
                     tasks.summarize(task);
                     taskMapper.update(null, new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
                             .eq(CollectionSyncTaskEntity::getId, taskId)
-                            .ne(CollectionSyncTaskEntity::getStatus, "CANCELLED")
-                            .set(CollectionSyncTaskEntity::getStatus, "RUNNING")
-                            .set(CollectionSyncTaskEntity::getPhase, "RESOLVING")
+                            .ne(CollectionSyncTaskEntity::getStatus, BgmCollectionSyncStatus.CANCELLED)
+                            .set(CollectionSyncTaskEntity::getStatus, BgmCollectionSyncStatus.RUNNING)
+                            .set(CollectionSyncTaskEntity::getPhase, CollectionSyncPhase.RESOLVING)
                             .setSql("status_version=status_version+1"));
                 });
                 return null;
@@ -109,16 +116,18 @@ public class CollectionSyncItemExecutor {
 
     public void execute(CollectionSyncTaskEntity task, CollectionSyncConflictEntity item) {
         locks.execute(task.getUserId(), item.getSubjectId(), () -> {
-            if (List.of("DONE", "CONFLICT").contains(item.getStatus())) return null;
+            if (List.of(CollectionSyncItemStatus.DONE, CollectionSyncItemStatus.CONFLICT).contains(item.getStatus())) return null;
             tasks.requireBinding(task);
             var local = writer.find(task.getUserId(), item.getSubjectId());
             boolean prepared = item.getDesiredPayload() != null;
-            boolean useScan = !prepared && "PLANNED".equals(item.getStatus()) && item.getScanSnapshot() != null;
+            boolean useScan = !prepared && CollectionSyncItemStatus.PLANNED == item.getStatus()
+                    && item.getScanSnapshot() != null;
             var remote = useScan ? scanned(item) : read(task, item);
             if (useScan && remote.getInterest() == null) {
                 if (local == null) {
                     // No collection information to import. Do not invent a category or fetch details.
-                    item.setStatus("DONE"); item.setOperation("UNCHANGED");
+                    item.setStatus(CollectionSyncItemStatus.DONE);
+                    item.setOperation(CollectionSyncOperation.UNCHANGED);
                     item.setErrorCode(null); item.setResolvedAt(LocalDateTime.now());
                     save(item);
                     return null;
@@ -163,9 +172,10 @@ public class CollectionSyncItemExecutor {
                 item.setLocalSnapshot(local == null ? null : writer.writeJson(localFields(local)));
                 item.setRemoteSnapshot(writer.writeJson(current));
                 item.setDesiredPayload(writer.writeJson(target));
-                item.setOperation(local == null ? "IMPORT" : matches(target, current) ? "UNCHANGED" : "UPLOAD");
+                item.setOperation(local == null ? CollectionSyncOperation.IMPORT
+                        : matches(target, current) ? CollectionSyncOperation.UNCHANGED : CollectionSyncOperation.UPLOAD);
             }
-            item.setStatus("APPLY_PENDING");
+            item.setStatus(CollectionSyncItemStatus.APPLY_PENDING);
             save(item); // Durable intent and baseline must commit before HTTP.
             var oauth = tasks.requireBinding(task);
             if (!matches(target, current)) {
@@ -225,7 +235,7 @@ public class CollectionSyncItemExecutor {
             row.setSyncTime(LocalDateTime.now());
             row.setSyncOauthId(task.getOauthId());
             row.setBgmAccountUid(task.getBgmAccountUid());
-            row.setRemoteSyncStatus("SYNCED");
+            row.setRemoteSyncStatus(CollectionRemoteSyncStatus.SYNCED);
             row.setPendingPayload(null);
             row.setRemoteBaseline(null);
             row.setNextRetryAt(null);
@@ -248,14 +258,14 @@ public class CollectionSyncItemExecutor {
                         .set(UserBgmCollectionEntity::getSyncTime, row.getSyncTime())
                         .set(UserBgmCollectionEntity::getSyncOauthId, row.getSyncOauthId())
                         .set(UserBgmCollectionEntity::getBgmAccountUid, row.getBgmAccountUid())
-                        .set(UserBgmCollectionEntity::getRemoteSyncStatus, "SYNCED")
+                        .set(UserBgmCollectionEntity::getRemoteSyncStatus, CollectionRemoteSyncStatus.SYNCED)
                         .set(UserBgmCollectionEntity::getPendingPayload, null)
                         .set(UserBgmCollectionEntity::getRemoteBaseline, null)
                         .set(UserBgmCollectionEntity::getNextRetryAt, null)
                         .set(UserBgmCollectionEntity::getRetryCount, 0));
                 if (count != 1) throw new IllegalStateException("STALE_CONFLICT");
             }
-            item.setStatus("DONE");
+            item.setStatus(CollectionSyncItemStatus.DONE);
             item.setResolvedAt(LocalDateTime.now());
             item.setErrorCode(null);
             save(item);
@@ -270,7 +280,7 @@ public class CollectionSyncItemExecutor {
             item.setLocalSnapshot(local == null ? null : writer.writeJson(localFields(local)));
             item.setRemoteSnapshot(writer.writeJson(fields(remote)));
             item.setConflictVersion((item.getConflictVersion() == null ? 0 : item.getConflictVersion()) + 1);
-            item.setStatus("CONFLICT");
+            item.setStatus(CollectionSyncItemStatus.CONFLICT);
             item.setSelectedType(null);
             item.setDesiredPayload(null);
             item.setErrorCode("STALE_CONFLICT");
@@ -280,7 +290,7 @@ public class CollectionSyncItemExecutor {
                 collections.update(null, new LambdaUpdateWrapper<UserBgmCollectionEntity>()
                         .eq(UserBgmCollectionEntity::getId, local.getId())
                         .eq(UserBgmCollectionEntity::getVersion, local.getVersion())
-                        .set(UserBgmCollectionEntity::getRemoteSyncStatus, "CONFLICT"));
+                        .set(UserBgmCollectionEntity::getRemoteSyncStatus, CollectionRemoteSyncStatus.CONFLICT));
             }
         });
     }

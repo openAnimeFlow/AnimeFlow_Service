@@ -1,8 +1,10 @@
-package com.ligg.flowclient.module.entity;
+package com.ligg.common.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.ligg.common.statuenum.CollectionSyncItemStatus;
+import com.ligg.common.statuenum.CollectionSyncOperation;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -44,9 +46,9 @@ public class CollectionSyncConflictEntity {
     /** 已提交的远端写入意图，网络请求前持久化。 */
     private String desiredPayload;
     /** IMPORT/UPLOAD/UNCHANGED/RESOLVE，成功后用于统计。 */
-    private String operation;
+    private CollectionSyncOperation operation;
     /** PLANNED/CONFLICT/RESOLUTION_PENDING/APPLY_PENDING/DONE/FAILED。 */
-    private String status;
+    private CollectionSyncItemStatus status;
     /** 明细错误码。 */
     private String errorCode;
     /** 冲突创建时间。 */

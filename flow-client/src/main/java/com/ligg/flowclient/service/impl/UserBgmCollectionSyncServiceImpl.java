@@ -20,6 +20,11 @@ public class UserBgmCollectionSyncServiceImpl implements UserBgmCollectionSyncSe
     public UserBgmCollectionSyncStatusVo triggerSync(Long userId, int subjectType, String requestId) {
         var task = tasks.createOrGet(userId, subjectType,
                 requestId == null || requestId.isBlank() ? UUID.randomUUID().toString() : requestId);
+        if (tasks.isWithinCooldown(task)) {
+            var status = tasks.toStatus(task);
+            status.setMessage("同步过于频繁，请稍后再试");
+            return status;
+        }
         runner.runTask(task.getId());
         return tasks.toStatus(task);
     }

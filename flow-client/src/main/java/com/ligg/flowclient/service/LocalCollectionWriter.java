@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ligg.common.entity.UserBgmCollectionEntity;
 import com.ligg.common.entity.UserOauthEntity;
+import com.ligg.common.statuenum.CollectionRemoteSyncStatus;
 import com.ligg.common.thirdparty.bangumi.request.UpdateCollectionBody;
 import com.ligg.flowclient.mapper.BangumiSubjectMapper;
 import com.ligg.flowclient.mapper.UserBgmCollectionMapper;
@@ -79,8 +80,10 @@ public class LocalCollectionWriter {
         row.setVersion((row.getVersion() == null ? 0 : row.getVersion()) + 1);
         row.setLocalUpdatedAt(LocalDateTime.now());
         row.setPendingPayload(writeJson(pending));
-        row.setRemoteSyncStatus(oauth == null ? "LOCAL_ONLY" : "PENDING");
-        if (mapper.countBlockedSyncItems(userId, subjectId) > 0) row.setRemoteSyncStatus("CONFLICT");
+        row.setRemoteSyncStatus(oauth == null ? CollectionRemoteSyncStatus.LOCAL_ONLY
+                : CollectionRemoteSyncStatus.PENDING);
+        if (mapper.countBlockedSyncItems(userId, subjectId) > 0)
+            row.setRemoteSyncStatus(CollectionRemoteSyncStatus.CONFLICT);
         row.setSyncOauthId(oauth == null ? null : oauth.getId());
         row.setBgmAccountUid(oauth == null ? null : oauth.getPlatformUid());
         row.setRemoteBaseline(null);

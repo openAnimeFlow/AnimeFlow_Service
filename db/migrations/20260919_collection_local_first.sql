@@ -6,7 +6,7 @@ ALTER TABLE user_bgm_collection
     MODIFY sync_time DATETIME NULL DEFAULT NULL COMMENT '最后成功同步时间',
     ADD local_updated_at DATETIME(3) NULL COMMENT '本地收藏内容最后修改时间（毫秒精度）',
     ADD version BIGINT NOT NULL DEFAULT 0 COMMENT '本地收藏乐观锁版本，每次本地修改递增',
-    ADD remote_sync_status VARCHAR(32) NOT NULL DEFAULT 'LOCAL_ONLY' COMMENT '远端同步状态：LOCAL_ONLY/PENDING/SYNCED/AUTH_REQUIRED/CONFLICT',
+    ADD remote_sync_status ENUM('LOCAL_ONLY','PENDING','SYNCED','AUTH_REQUIRED','CONFLICT') NOT NULL DEFAULT 'LOCAL_ONLY' COMMENT '远端同步状态',
     ADD pending_payload JSON NULL COMMENT '合并后的待上传字段，不包含凭据',
     ADD remote_baseline JSON NULL COMMENT '首次上传前的远端快照',
     ADD sync_oauth_id BIGINT NULL COMMENT '目标绑定记录 ID，解绑后失效',

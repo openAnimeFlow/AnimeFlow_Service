@@ -6,10 +6,11 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.common.entity.*;
+import com.ligg.common.statuenum.CollectionSyncItemStatus;
+import com.ligg.common.statuenum.CollectionSyncOperation;
 import com.ligg.common.thirdparty.bangumi.request.UpdateCollectionBody;
 import com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto;
 import com.ligg.flowclient.mapper.*;
-import com.ligg.flowclient.module.entity.*;
 import org.apache.ibatis.builder.MapperBuilderAssistant;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -17,7 +18,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.transaction.support.TransactionTemplate;
 import java.util.function.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class CollectionSyncItemExecutorTest {
@@ -43,7 +43,7 @@ class CollectionSyncItemExecutorTest {
         TableInfoHelper.initTableInfo(new MapperBuilderAssistant(new MybatisConfiguration(),""),CollectionSyncConflictEntity.class);
         task.setId(1L); task.setUserId(10L); task.setSubjectType(2); task.setOauthId(8L); task.setBgmAccountUid(99L);
         item.setId(2L); item.setTaskId(1L); item.setUserId(10L); item.setSubjectId(42); item.setSubjectType(2);
-        item.setStatus("PLANNED"); item.setConflictVersion(0L);
+        item.setStatus(CollectionSyncItemStatus.PLANNED); item.setConflictVersion(0L);
         row.setId(3L); row.setUserId(10L); row.setSubjectId(42); row.setSubjectType(2); row.setType(3);
         row.setVersion(0L); row.setTags("[]"); row.setComment(""); row.setRate(0); row.setIsPrivate(false);
         remote.setId(42); remote.setType(2);
@@ -63,7 +63,7 @@ class CollectionSyncItemExecutorTest {
         remote.getInterest().setType(3);
         item.setScanSnapshot(writer.writeJson(remote));
         service.execute(task,item);
-        assertEquals("DONE",item.getStatus());
+        assertEquals(CollectionSyncItemStatus.DONE,item.getStatus());
         verifyNoInteractions(client);
     }
 
@@ -72,7 +72,7 @@ class CollectionSyncItemExecutorTest {
         remote.getInterest().setEpStatus(6);
         item.setScanSnapshot(writer.writeJson(remote));
         service.execute(task,item);
-        assertEquals("IMPORT",item.getOperation());
+        assertEquals(CollectionSyncOperation.IMPORT,item.getOperation());
         verify(collections).insert(argThat((UserBgmCollectionEntity r) -> r.getEpStatus()==6 && r.getType()==2));
         verifyNoInteractions(client);
     }
@@ -80,7 +80,7 @@ class CollectionSyncItemExecutorTest {
     @Test void scannedCategoryConflictDoesNotFetchDetails() {
         item.setScanSnapshot(writer.writeJson(remote));
         service.execute(task,item);
-        assertEquals("CONFLICT",item.getStatus());
+        assertEquals(CollectionSyncItemStatus.CONFLICT,item.getStatus());
         verifyNoInteractions(client);
     }
 
@@ -89,7 +89,7 @@ class CollectionSyncItemExecutorTest {
         remote.setInterest(null);
         item.setScanSnapshot(writer.writeJson(remote));
         service.execute(task,item);
-        assertEquals("DONE",item.getStatus());
+        assertEquals(CollectionSyncItemStatus.DONE,item.getStatus());
         verify(collections,never()).insert(any(UserBgmCollectionEntity.class));
         verifyNoInteractions(client);
     }
@@ -100,18 +100,18 @@ class CollectionSyncItemExecutorTest {
         row.setPendingPayload("{\"rate\":7}");
         remote.getInterest().setType(4); // Changed after pagination.
         service.execute(task,item);
-        assertEquals("CONFLICT",item.getStatus());
+        assertEquals(CollectionSyncItemStatus.CONFLICT,item.getStatus());
         verify(client).getSubject(42,"token");
         verify(client,never()).updateCollection(anyString(),anyInt(),any());
     }
 
     @Test void resumedPreparedIntentIgnoresScanSnapshot() {
         item.setScanSnapshot(writer.writeJson(remote));
-        item.setStatus("APPLY_PENDING"); item.setOperation("UPLOAD"); item.setLocalVersion(0L);
+        item.setStatus(CollectionSyncItemStatus.APPLY_PENDING); item.setOperation(CollectionSyncOperation.UPLOAD); item.setLocalVersion(0L);
         item.setDesiredPayload("{\"type\":3}"); item.setRemoteSnapshot("{\"type\":2}");
         remote.getInterest().setType(3);
         service.execute(task,item);
-        assertEquals("DONE",item.getStatus());
+        assertEquals(CollectionSyncItemStatus.DONE,item.getStatus());
         verify(client).getSubject(42,"token");
         verify(client,never()).updateCollection(anyString(),anyInt(),any());
     }
@@ -130,7 +130,7 @@ class CollectionSyncItemExecutorTest {
 
     @Test void historicalVersionZeroConflictIsFrozenWithoutPut() {
         service.execute(task,item);
-        assertEquals("CONFLICT",item.getStatus());
+        assertEquals(CollectionSyncItemStatus.CONFLICT,item.getStatus());
         assertEquals(0L,item.getLocalVersion());
         verify(client,never()).updateCollection(anyString(),anyInt(),any());
         verify(collections).update(isNull(),argThat((LambdaUpdateWrapper<UserBgmCollectionEntity> w) ->
@@ -142,7 +142,7 @@ class CollectionSyncItemExecutorTest {
         service.execute(task,item); // Detect and persist conflict.
         long version=item.getConflictVersion();
         service.resolve(10L,1L,2L,version,type);
-        assertEquals("RESOLUTION_PENDING",item.getStatus());
+        assertEquals(CollectionSyncItemStatus.RESOLUTION_PENDING,item.getStatus());
         assertEquals(3,row.getType()); // accepting a decision is not yet completion.
         doAnswer(i -> {
             UpdateCollectionBody body=i.getArgument(2);
@@ -152,7 +152,7 @@ class CollectionSyncItemExecutorTest {
             return null;
         }).when(client).updateCollection(anyString(),anyInt(),any());
         service.execute(task,item);
-        assertEquals("DONE",item.getStatus()); assertEquals(type,row.getType()); assertNull(row.getPendingPayload());
+        assertEquals(CollectionSyncItemStatus.DONE,item.getStatus()); assertEquals(type,row.getType()); assertNull(row.getPendingPayload());
         service.resolve(10L,1L,2L,version,type); // response loss is idempotent.
         verify(client,times(1)).updateCollection(anyString(),anyInt(),any());
     }
@@ -169,20 +169,20 @@ class CollectionSyncItemExecutorTest {
             return null;
         }).when(client).updateCollection(anyString(),anyInt(),any());
         service.execute(task,item);
-        assertEquals("DONE",item.getStatus());
+        assertEquals(CollectionSyncItemStatus.DONE,item.getStatus());
         assertEquals(3,row.getType());
         assertNull(row.getPendingPayload());
         verify(client,times(1)).updateCollection(anyString(),anyInt(),any());
     }
 
     @Test void recoveredPutWithReorderedTagsDoesNotWriteAgain() {
-        item.setStatus("APPLY_PENDING"); item.setOperation("RESOLVE"); item.setLocalVersion(0L);
+        item.setStatus(CollectionSyncItemStatus.APPLY_PENDING); item.setOperation(CollectionSyncOperation.RESOLVE); item.setLocalVersion(0L);
         item.setDesiredPayload("{\"type\":3,\"tags\":[\"B\",\"A\"]}");
         item.setRemoteSnapshot("{\"type\":2,\"tags\":[\"A\",\"B\"]}");
         remote.getInterest().setType(3);
         remote.getInterest().setTags(java.util.List.of("A", "B"));
         service.execute(task,item);
-        assertEquals("DONE",item.getStatus());
+        assertEquals(CollectionSyncItemStatus.DONE,item.getStatus());
         verify(client,never()).updateCollection(anyString(),anyInt(),any());
     }
 
@@ -192,28 +192,28 @@ class CollectionSyncItemExecutorTest {
         remote.getInterest().setTags(java.util.List.of("A", "C"));
         assertThrows(IllegalArgumentException.class,
                 () -> service.resolve(10L,1L,2L,item.getConflictVersion(),3));
-        assertEquals("CONFLICT",item.getStatus());
+        assertEquals(CollectionSyncItemStatus.CONFLICT,item.getStatus());
         verify(client,never()).updateCollection(anyString(),anyInt(),any());
     }
 
     @Test void remoteAlreadyEqualsSelectedTypeNeedsNoPut() {
         service.execute(task,item); service.resolve(10L,1L,2L,item.getConflictVersion(),2);
         service.execute(task,item);
-        assertEquals("DONE",item.getStatus()); assertEquals(2,row.getType());
+        assertEquals(CollectionSyncItemStatus.DONE,item.getStatus()); assertEquals(2,row.getType());
         verify(client,never()).updateCollection(anyString(),anyInt(),any());
     }
     @Test void localEditInvalidatesOldDecision() {
         service.execute(task,item); long before=item.getConflictVersion();
         row.setVersion(1L);
         assertThrows(IllegalArgumentException.class,() -> service.resolve(10L,1L,2L,before,3));
-        assertEquals("CONFLICT",item.getStatus()); assertTrue(item.getConflictVersion()>before);
+        assertEquals(CollectionSyncItemStatus.CONFLICT,item.getStatus()); assertTrue(item.getConflictVersion()>before);
         assertNull(item.getSelectedType()); verify(client,never()).updateCollection(anyString(),anyInt(),any());
     }
     @Test void remoteEditInvalidatesOldDecision() {
         service.execute(task,item); long before=item.getConflictVersion();
         remote.getInterest().setType(4);
         assertThrows(IllegalArgumentException.class,() -> service.resolve(10L,1L,2L,before,3));
-        assertEquals(4,item.getRemoteType()); assertEquals("CONFLICT",item.getStatus());
+        assertEquals(4,item.getRemoteType()); assertEquals(CollectionSyncItemStatus.CONFLICT,item.getStatus());
     }
     @Test void changedBindingRejectsOldTaskBeforeReadingOrWritingRemote() {
         when(tasks.requireBinding(task)).thenThrow(new IllegalArgumentException("SYNC_BINDING_CHANGED"));
@@ -221,12 +221,12 @@ class CollectionSyncItemExecutorTest {
         verifyNoInteractions(client); assertNull(row.getSyncOauthId());
     }
     @Test void recoveredPreparedPutConfirmsSuccessWithoutRepeatingIt() {
-        item.setStatus("APPLY_PENDING"); item.setOperation("UPLOAD"); item.setLocalVersion(0L);
+        item.setStatus(CollectionSyncItemStatus.APPLY_PENDING); item.setOperation(CollectionSyncOperation.UPLOAD); item.setLocalVersion(0L);
         item.setDesiredPayload("{\"type\":3}");
         item.setRemoteSnapshot("{\"type\":2}");
         remote.getInterest().setType(3);
         service.execute(task,item);
-        assertEquals("DONE",item.getStatus());
+        assertEquals(CollectionSyncItemStatus.DONE,item.getStatus());
         verify(client,never()).updateCollection(anyString(),anyInt(),any());
     }
     @Test void localOnlyUploadsFullCollection() {
@@ -238,12 +238,12 @@ class CollectionSyncItemExecutorTest {
             return null;
         }).when(client).updateCollection(anyString(),anyInt(),any());
         service.execute(task,item);
-        assertEquals("UPLOAD",item.getOperation()); assertEquals("DONE",item.getStatus());
+        assertEquals(CollectionSyncOperation.UPLOAD,item.getOperation()); assertEquals(CollectionSyncItemStatus.DONE,item.getStatus());
     }
     @Test void remoteOnlyImportsWithoutPut() {
         when(collections.selectOne(any())).thenReturn(null);
         service.execute(task,item);
-        assertEquals("IMPORT",item.getOperation()); assertEquals("DONE",item.getStatus());
+        assertEquals(CollectionSyncOperation.IMPORT,item.getOperation()); assertEquals(CollectionSyncItemStatus.DONE,item.getStatus());
         verify(collections).insert(any(UserBgmCollectionEntity.class));
         verify(client,never()).updateCollection(anyString(),anyInt(),any());
     }
@@ -251,7 +251,7 @@ class CollectionSyncItemExecutorTest {
         service.execute(task,item); service.resolve(10L,1L,2L,item.getConflictVersion(),3);
         remote.getInterest().setComment("another device");
         service.execute(task,item);
-        assertEquals("CONFLICT",item.getStatus()); assertNull(item.getDesiredPayload());
+        assertEquals(CollectionSyncItemStatus.CONFLICT,item.getStatus()); assertNull(item.getDesiredPayload());
         verify(client,never()).updateCollection(anyString(),anyInt(),any());
     }
 }

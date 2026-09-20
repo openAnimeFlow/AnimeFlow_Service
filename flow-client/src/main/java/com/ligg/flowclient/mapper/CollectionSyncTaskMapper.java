@@ -1,7 +1,7 @@
 package com.ligg.flowclient.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.ligg.flowclient.module.entity.CollectionSyncTaskEntity;
+import com.ligg.common.entity.CollectionSyncTaskEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Param;

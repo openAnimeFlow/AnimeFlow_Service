@@ -38,26 +38,26 @@ public class CollectionUploadService {
     }
 
     private CollectionUpdateVo upload(UserBgmCollectionEntity row, boolean recovered) {
-        if (!"PENDING".equals(row.getRemoteSyncStatus())) return result(row);
+        if (CollectionRemoteSyncStatus.PENDING != row.getRemoteSyncStatus()) return result(row);
         // A full task owns reconciliation; ordinary saves remain local until it finishes.
         if (mapper.countBlockedSyncItems(row.getUserId(), row.getSubjectId()) > 0)
-            return mark(row, "CONFLICT");
+            return mark(row, CollectionRemoteSyncStatus.CONFLICT);
         if (mapper.countActiveSyncTasks(row.getUserId(), row.getSubjectType()) > 0) return result(row);
         String savedPayload = row.getPendingPayload();
         String savedBaseline = row.getRemoteBaseline();
         try {
             var oauth = tokens.findBangumiOauth(row.getUserId());
-            if (!sameBinding(row, oauth)) return mark(row, "AUTH_REQUIRED");
+            if (!sameBinding(row, oauth)) return mark(row, CollectionRemoteSyncStatus.AUTH_REQUIRED);
             var body = writer.readPayload(row.getPendingPayload());
             var detail = oauthExecutor.execute(oauth, token -> client.getSubject(row.getSubjectId(), token));
             var current = remoteFields(detail);
             if (detail.getInterest() == null && body.getType() == null) body.setType(row.getType());
             // A crash before capturing a baseline leaves no proof that this remote value is old.
             if (recovered && row.getRemoteBaseline() == null && detail.getInterest() != null
-                    && !matches(body, current)) return mark(row, "CONFLICT");
+                    && !matches(body, current)) return mark(row, CollectionRemoteSyncStatus.CONFLICT);
             if (row.getRemoteBaseline() != null && !matches(body, current)
                     && !sameEditedFields(body, writer.readPayload(row.getRemoteBaseline()), current)) {
-                return mark(row, "CONFLICT");
+                return mark(row, CollectionRemoteSyncStatus.CONFLICT);
             }
             row.setPendingPayload(writer.writeJson(body));
             if (row.getRemoteBaseline() == null) {
@@ -65,7 +65,8 @@ public class CollectionUploadService {
                 persist(row); // Commit baseline before HTTP; retries can detect intervening remote edits.
             }
             savedBaseline = row.getRemoteBaseline();
-            if (!sameBinding(row, tokens.findBangumiOauth(row.getUserId()))) return mark(row, "AUTH_REQUIRED");
+            if (!sameBinding(row, tokens.findBangumiOauth(row.getUserId())))
+                return mark(row, CollectionRemoteSyncStatus.AUTH_REQUIRED);
             if (!matches(body, current)) {
                 oauthExecutor.execute(oauth, token -> {
                     client.updateCollection(token, row.getSubjectId(), body);
@@ -73,9 +74,10 @@ public class CollectionUploadService {
                 });
                 detail = oauthExecutor.execute(oauth, token -> client.getSubject(row.getSubjectId(), token));
             }
-            if (!sameBinding(row, tokens.findBangumiOauth(row.getUserId()))) return mark(row, "AUTH_REQUIRED");
+            if (!sameBinding(row, tokens.findBangumiOauth(row.getUserId())))
+                return mark(row, CollectionRemoteSyncStatus.AUTH_REQUIRED);
             if (detail.getInterest() == null || !matches(body, remoteFields(detail))) {
-                return mark(row, "CONFLICT");
+                return mark(row, CollectionRemoteSyncStatus.CONFLICT);
             }
             row.setBgmInterestId(detail.getInterest().getId());
             row.setBgmUpdatedAt(detail.getInterest().getUpdatedAt());
@@ -83,9 +85,9 @@ public class CollectionUploadService {
             row.setPendingPayload(null);
             row.setRemoteBaseline(null);
             row.setNextRetryAt(null);
-            return mark(row, "SYNCED");
+            return mark(row, CollectionRemoteSyncStatus.SYNCED);
         } catch (LoginExpiredException e) {
-            return mark(row, "AUTH_REQUIRED");
+            return mark(row, CollectionRemoteSyncStatus.AUTH_REQUIRED);
         } catch (RuntimeException e) {
             if (row.getPendingPayload() == null) row.setPendingPayload(savedPayload);
             if (row.getRemoteBaseline() == null) row.setRemoteBaseline(savedBaseline);
@@ -95,7 +97,7 @@ public class CollectionUploadService {
             int attempt = (row.getRetryCount() == null ? 0 : row.getRetryCount()) + 1;
             row.setRetryCount(attempt);
             row.setNextRetryAt(LocalDateTime.now().plusSeconds(Math.min(3600, 30L << Math.min(attempt, 7))));
-            row.setRemoteSyncStatus("PENDING");
+            row.setRemoteSyncStatus(CollectionRemoteSyncStatus.PENDING);
             try { persist(row); }
             catch (RuntimeException storeError) {
                 log.warn("收藏上传状态暂未回写 subjectId={}", row.getSubjectId());
@@ -109,9 +111,9 @@ public class CollectionUploadService {
             var row = writer.find(userId, subjectId);
             if (row == null) throw new IllegalArgumentException("收藏不存在");
             // Conflicts and changed bindings require new user intent; retry must not override them.
-            if ("AUTH_REQUIRED".equals(row.getRemoteSyncStatus())
+            if (CollectionRemoteSyncStatus.AUTH_REQUIRED == row.getRemoteSyncStatus()
                     && sameBinding(row, tokens.findBangumiOauth(userId))) {
-                row.setRemoteSyncStatus("PENDING");
+                row.setRemoteSyncStatus(CollectionRemoteSyncStatus.PENDING);
             }
             return upload(row, true);
         });
@@ -134,7 +136,7 @@ public class CollectionUploadService {
                 && Objects.equals(row.getBgmAccountUid(), oauth.getPlatformUid());
     }
 
-    private CollectionUpdateVo mark(UserBgmCollectionEntity row, String status) {
+    private CollectionUpdateVo mark(UserBgmCollectionEntity row, CollectionRemoteSyncStatus status) {
         row.setRemoteSyncStatus(status);
         persist(row);
         return result(row);
@@ -145,7 +147,7 @@ public class CollectionUploadService {
     }
 
     public static CollectionUpdateVo result(UserBgmCollectionEntity row) {
-        return new CollectionUpdateVo(true, CollectionRemoteSyncStatus.valueOf(row.getRemoteSyncStatus()),
+        return new CollectionUpdateVo(true, row.getRemoteSyncStatus(),
                 row.getVersion() == null ? 0 : row.getVersion());
     }
 

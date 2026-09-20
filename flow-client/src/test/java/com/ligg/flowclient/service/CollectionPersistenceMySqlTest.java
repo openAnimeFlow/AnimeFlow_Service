@@ -3,7 +3,10 @@ package com.ligg.flowclient.service;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.extension.spring.MybatisSqlSessionFactoryBean;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ligg.common.entity.CollectionSyncConflictEntity;
 import com.ligg.common.entity.UserOauthEntity;
+import com.ligg.common.statuenum.CollectionSyncItemStatus;
+import com.ligg.common.statuenum.CollectionRemoteSyncStatus;
 import com.ligg.flowclient.mapper.BangumiSubjectMapper;
 import com.ligg.flowclient.mapper.UserBgmCollectionMapper;
 import com.ligg.flowclient.module.dto.UpdateUserCollectionDto;
@@ -107,9 +110,9 @@ class CollectionPersistenceMySqlTest {
         var dto = new UpdateUserCollectionDto(); dto.setSubjectType(2); dto.setType(3);
         dto.setComment("pending comment");
         lock.execute(10L,42,() -> writer.save(10L,42,dto,null));
-        var item = new com.ligg.flowclient.module.entity.CollectionSyncConflictEntity();
+        var item = new CollectionSyncConflictEntity();
         item.setUserId(10L); item.setTaskId(task.getId()); item.setSubjectId(42); item.setSubjectType(2);
-        item.setStatus("PLANNED"); item.setConflictVersion(0L);
+        item.setStatus(CollectionSyncItemStatus.PLANNED); item.setConflictVersion(0L);
         var remote = new com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto();
         remote.setId(42); remote.setType(2);
         remote.setInterest(new com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto.SubjectInterest());
@@ -131,12 +134,12 @@ class CollectionPersistenceMySqlTest {
         worker.execute(task,item);
         org.mockito.Mockito.verifyNoInteractions(client);
         item = syncItems.selectById(item.getId());
-        assertEquals("CONFLICT",item.getStatus());
-        assertEquals("CONFLICT",writer.find(10L,42).getRemoteSyncStatus());
+        assertEquals(CollectionSyncItemStatus.CONFLICT,item.getStatus());
+        assertEquals(CollectionRemoteSyncStatus.CONFLICT,writer.find(10L,42).getRemoteSyncStatus());
         // Ordinary edits retain the guard and their dirty fields.
         dto.setRate(8);
         lock.execute(10L,42,() -> writer.save(10L,42,dto,oauth));
-        assertEquals("CONFLICT",writer.find(10L,42).getRemoteSyncStatus());
+        assertEquals(CollectionRemoteSyncStatus.CONFLICT,writer.find(10L,42).getRemoteSyncStatus());
         final long conflictId=item.getId(), oldVersion=item.getConflictVersion();
         assertThrows(IllegalArgumentException.class,() -> worker.resolve(10L,task.getId(),conflictId,oldVersion,5));
         item=syncItems.selectById(conflictId);
@@ -166,10 +169,10 @@ class CollectionPersistenceMySqlTest {
                 oauthExecutor,client,new ObjectMapper(),transaction);
         assertThrows(IllegalStateException.class,() -> interrupted.execute(task,syncItems.selectById(conflictId)));
         assertEquals(3,writer.find(10L,42).getType()); // local completion rolls back with item completion
-        assertEquals("APPLY_PENDING",syncItems.selectById(conflictId).getStatus());
+        assertEquals(CollectionSyncItemStatus.APPLY_PENDING,syncItems.selectById(conflictId).getStatus());
         assertEquals(5,remote.getInterest().getType()); // external write already happened
         restarted.execute(task,syncItems.selectById(conflictId)); // confirm, do not repeat PUT
-        assertEquals("DONE",syncItems.selectById(conflictId).getStatus());
+        assertEquals(CollectionSyncItemStatus.DONE,syncItems.selectById(conflictId).getStatus());
         assertEquals(5,writer.find(10L,42).getType());
         assertEquals(8,writer.find(10L,42).getRate());
         assertEquals("pending comment",writer.find(10L,42).getComment());
@@ -204,11 +207,11 @@ class CollectionPersistenceMySqlTest {
         lock.execute(10L, 42, () -> writer.save(10L, 42, dto, oauth));
         new JdbcTemplate(dataSource).update("UPDATE user_bgm_collection SET next_retry_at=CURRENT_TIMESTAMP WHERE user_id=10");
         var persisted = mapper.selectPendingUploads().get(0);
-        assertEquals("PENDING", persisted.getRemoteSyncStatus());
+        assertEquals(CollectionRemoteSyncStatus.PENDING, persisted.getRemoteSyncStatus());
         assertEquals(2L, persisted.getVersion());
         assertEquals(List.of(), writer.readPayload(persisted.getPendingPayload()).getTags());
         persisted.setPendingPayload(null); persisted.setRemoteBaseline(null); persisted.setNextRetryAt(null);
-        persisted.setRemoteSyncStatus("SYNCED");
+        persisted.setRemoteSyncStatus(CollectionRemoteSyncStatus.SYNCED);
         assertEquals(1, mapper.updateRemoteState(persisted));
         assertNull(writer.find(10L, 42).getPendingPayload());
         assertTrue(mapper.selectPendingUploads().isEmpty());
@@ -253,7 +256,7 @@ class CollectionPersistenceMySqlTest {
                 service.updateCollection(10L, 42, dto).remoteSyncStatus());
         var persisted = writer.find(10L, 42);
         assertNotNull(persisted.getPendingPayload());
-        assertEquals("PENDING", persisted.getRemoteSyncStatus());
+        assertEquals(CollectionRemoteSyncStatus.PENDING, persisted.getRemoteSyncStatus());
         new JdbcTemplate(dataSource).update("UPDATE user_bgm_collection SET next_retry_at=CURRENT_TIMESTAMP WHERE user_id=10");
         org.mockito.Mockito.reset(client);
         var detail = new com.ligg.common.thirdparty.bangumi.response.SubjectDetailDto();
@@ -262,7 +265,7 @@ class CollectionPersistenceMySqlTest {
         org.mockito.Mockito.when(client.getSubject(42, "test")).thenReturn(detail);
         var restarted = new CollectionUploadService(writer, mapper, lock, tokens, executor, client, new ObjectMapper());
         restarted.retryPending();
-        assertEquals("SYNCED", writer.find(10L, 42).getRemoteSyncStatus());
+        assertEquals(CollectionRemoteSyncStatus.SYNCED, writer.find(10L, 42).getRemoteSyncStatus());
         assertNull(writer.find(10L, 42).getPendingPayload());
         org.mockito.Mockito.verify(client, org.mockito.Mockito.never()).updateCollection(
                 org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyInt(), org.mockito.ArgumentMatchers.any());
