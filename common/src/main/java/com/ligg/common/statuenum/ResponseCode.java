@@ -1,9 +1,8 @@
-package com.ligg.common.statuenum;
-
 /**
  * @Author Ligg
  * @Time 2025/8/7
  **/
+package com.ligg.common.statuenum;
 
 import lombok.Getter;
 

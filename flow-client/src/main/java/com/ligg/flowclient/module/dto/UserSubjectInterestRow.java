@@ -23,4 +23,5 @@ public class UserSubjectInterestRow {
     private Integer volStatus;
     private Boolean privately;
     private Long bgmUpdatedAt;
+    private String remoteSyncStatus;
 }

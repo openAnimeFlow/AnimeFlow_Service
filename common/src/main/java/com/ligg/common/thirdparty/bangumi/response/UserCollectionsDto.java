@@ -46,5 +46,7 @@ public class UserCollectionsDto {
         @JsonProperty("private")
         private Boolean private_;
         private Long updatedAt;
+
+        private String remoteSyncStatus;
     }
 }

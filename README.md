@@ -115,8 +115,6 @@ mvn -pl flow-bootstrap spring-boot:run
 | POST | `/oauth/bangumi/login` | Bangumi OAuth 登录 |
 | GET | `/oauth/bangumi` | 查询当前 Bangumi 绑定状态 |
 | POST | `/oauth/bangumi/bind` | 绑定 Bangumi 账号 |
-| POST | `/oauth/bangumi/collections/sync` | **触发 Bangumi 收藏同步**（异步） |
-| GET | `/oauth/bangumi/collections/sync` | **查询收藏同步任务状态** |
 
 账户 OAuth 相关路径（除登录外）需 `Authorization: Bearer {Flow JWT}`。
 

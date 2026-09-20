@@ -39,6 +39,8 @@ public class ApiSignatureInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
             throws Exception {
+        // Async completion resumes the already authenticated request; its signature may now be old.
+        if (request.getDispatcherType() == jakarta.servlet.DispatcherType.ASYNC) return true;
         if (!apiAuthProperties.isEnabled()) {
             return true;
         }

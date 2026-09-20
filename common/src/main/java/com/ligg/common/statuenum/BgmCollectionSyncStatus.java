@@ -5,7 +5,11 @@ package com.ligg.common.statuenum;
  */
 public enum BgmCollectionSyncStatus {
     IDLE,
+    QUEUED,
     RUNNING,
+    WAITING_CONFLICT,
+    PARTIAL_FAILED,
     SUCCESS,
-    FAILED
+    FAILED,
+    CANCELLED
 }

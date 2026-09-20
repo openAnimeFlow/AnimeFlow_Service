@@ -24,6 +24,8 @@ public class UserBgmCollectionRow {
     private Integer volStatus;
     private Boolean isPrivate;
     private Long bgmUpdatedAt;
+    private String remoteSyncStatus;
+    private LocalDateTime localUpdatedAt;
     private LocalDateTime syncTime;
     private LocalDateTime createTime;
 
