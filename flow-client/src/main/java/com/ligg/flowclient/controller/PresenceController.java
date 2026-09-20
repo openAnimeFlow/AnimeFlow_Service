@@ -24,6 +24,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/presence")
@@ -67,7 +69,7 @@ public class PresenceController {
     }
 
     @GetMapping("/watching-subjects")
-    public Result<java.util.List<WatchingSubjectVo>> watchingSubjects() {
+    public Result<List<WatchingSubjectVo>> watchingSubjects() {
         return Result.success(ResponseCode.SUCCESS, presenceService.watchingSubjects());
     }
 }

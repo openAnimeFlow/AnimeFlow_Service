@@ -75,7 +75,7 @@ class PresenceServiceImplTest {
                     assertEquals(179.0, max - min, "查询范围应覆盖最近 180 秒且下限小于上限");
                     return Set.of(String.valueOf(SUBJECT_ID));
                 });
-        when(bangumiSubjectMapper.selectBatchIds(List.of(SUBJECT_ID))).thenReturn(List.of(subject));
+        when(bangumiSubjectMapper.selectByIds(List.of(SUBJECT_ID))).thenReturn(List.of(subject));
         when(zset.rangeByScore(eq(SUBJECT_USERS), anyDouble(), anyDouble()))
                 .thenReturn(Set.of("visitor:visitor-1"));
         when(zset.zCard(SUBJECT_DEVICES)).thenReturn(1L);

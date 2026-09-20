@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 public class PresenceServiceImpl implements PresenceService {
 
     private static final long TTL_SECONDS = 180L;
-    private static final long EXPIRED_BEFORE_SECONDS = TTL_SECONDS;
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final StringRedisTemplate stringRedisTemplate;
@@ -62,7 +61,6 @@ public class PresenceServiceImpl implements PresenceService {
                 dto.getPositionSeconds(),
                 now);
 
-        // 单设备上下文使用 RedisConfig 中统一配置的对象序列化器，并随 TTL 过期。
         redisTemplate.opsForValue().set(recordKey, context, TTL_SECONDS, TimeUnit.SECONDS);
         stringRedisTemplate.opsForZSet().add(Constants.PRESENCE_DEVICES_KEY, presenceId, now);
         stringRedisTemplate.opsForZSet().add(Constants.PRESENCE_USERS_KEY, dedupeKey, now);
@@ -89,7 +87,7 @@ public class PresenceServiceImpl implements PresenceService {
     @Override
     public OnlineCountVo onlineCount() {
         long now = Instant.now().getEpochSecond();
-        long expiredBefore = now - EXPIRED_BEFORE_SECONDS;
+        long expiredBefore = now - TTL_SECONDS;
         stringRedisTemplate.opsForZSet().removeRangeByScore(
                 Constants.PRESENCE_DEVICES_KEY, Double.NEGATIVE_INFINITY, expiredBefore);
         stringRedisTemplate.opsForZSet().removeRangeByScore(
@@ -118,7 +116,7 @@ public class PresenceServiceImpl implements PresenceService {
             return new OnlineCountVo(0, 0, 0, 0);
         }
         long now = Instant.now().getEpochSecond();
-        long expiredBefore = now - EXPIRED_BEFORE_SECONDS;
+        long expiredBefore = now - TTL_SECONDS;
         String devicesKey = subjectDevicesKey(subjectId);
         String usersKey = subjectUsersKey(subjectId);
         stringRedisTemplate.opsForZSet().removeRangeByScore(
@@ -167,7 +165,7 @@ public class PresenceServiceImpl implements PresenceService {
     @Override
     public List<WatchingSubjectVo> watchingSubjects() {
         long now = Instant.now().getEpochSecond();
-        long expiredBefore = now - EXPIRED_BEFORE_SECONDS;
+        long expiredBefore = now - TTL_SECONDS;
         String indexKey = Constants.PRESENCE_WATCHING_SUBJECTS_KEY;
         stringRedisTemplate.opsForZSet().removeRangeByScore(
                 indexKey, Double.NEGATIVE_INFINITY, expiredBefore);
@@ -185,7 +183,7 @@ public class PresenceServiceImpl implements PresenceService {
         if (ids.isEmpty()) {
             return List.of();
         }
-        List<BangumiSubjectEntity> subjects = bangumiSubjectMapper.selectBatchIds(ids);
+        List<BangumiSubjectEntity> subjects = bangumiSubjectMapper.selectByIds(ids);
         return subjects.stream()
                 .map(subject -> new WatchingSubjectVo(
                         subject.getId(),
