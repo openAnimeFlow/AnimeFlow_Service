@@ -29,6 +29,8 @@ public class IpRateLimitInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+        // Async completion resumes the already authenticated request; its signature may now be old.
+        if (request.getDispatcherType() == jakarta.servlet.DispatcherType.ASYNC) return true;
         if (!rateLimitProperties.isEnabled()) {
             return true;
         }

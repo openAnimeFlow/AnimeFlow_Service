@@ -16,7 +16,8 @@ import java.util.concurrent.Executor;
 @EnableConfigurationProperties({
         BangumiArchiveSyncProperties.class,
         BackgroundImageSyncProperties.class,
-        ApiAccessLogArchiveProperties.class
+        ApiAccessLogArchiveProperties.class,
+        CollectionSyncCleanupProperties.class
 })
 public class SyncExecutorConfiguration {
 

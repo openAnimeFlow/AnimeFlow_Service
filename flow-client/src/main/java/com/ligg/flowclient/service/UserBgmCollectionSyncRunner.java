@@ -1,175 +1,195 @@
 package com.ligg.flowclient.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.common.entity.UserBgmCollectionEntity;
-import com.ligg.common.entity.UserOauthEntity;
-import com.ligg.common.exception.LoginExpiredException;
-import com.ligg.common.statuenum.BgmCollectionSyncStatus;
-import com.ligg.common.thirdparty.bangumi.response.UserCollectionsDto;
+import com.ligg.flowclient.mapper.CollectionSyncTaskMapper;
+import com.ligg.flowclient.mapper.CollectionSyncConflictMapper;
 import com.ligg.flowclient.mapper.UserBgmCollectionMapper;
-import com.ligg.flowclient.module.vo.UserBgmCollectionSyncStatusVo;
+import com.ligg.common.entity.CollectionSyncTaskEntity;
+import com.ligg.common.entity.CollectionSyncConflictEntity;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.ligg.common.statuenum.BgmCollectionSyncStatus;
+import com.ligg.common.statuenum.CollectionSyncPhase;
+import com.ligg.common.statuenum.CollectionSyncItemStatus;
+import com.ligg.common.statuenum.CollectionSyncTaskErrorCode;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserBgmCollectionSyncRunner {
-
-    private static final int PAGE_SIZE = 50;
-    private static final int[] COLLECTION_TYPES = {1, 2, 3, 4, 5};
-
-    private final BangumiOAuthTokenService bangumiOAuthTokenService;
-    private final BangumiOAuthExecutor bangumiOAuthExecutor;
-    private final BangumiClient bangumiClient;
-    private final UserBgmCollectionMapper userBgmCollectionMapper;
-    private final UserBgmCollectionSyncStatusStore statusStore;
-    private final ObjectMapper objectMapper;
+    private final CollectionSyncTaskMapper taskMapper;
+    private final CollectionSyncConflictMapper items;
+    private final UserBgmCollectionMapper collections;
+    private final CollectionSyncTaskService tasks;
+    private final CollectionSyncItemExecutor executor;
+    private final CollectionWriteLock locks;
+    private final BangumiOAuthExecutor oauth;
+    private final BangumiClient client;
 
     @Async("bgmCollectionSyncExecutor")
-    public void runSync(Long userId, int subjectType) {
+    public void runTask(Long taskId) {
+        run(taskId);
+    }
+
+    @Scheduled(initialDelayString = "${anime-flow.collection-sync.initial-delay-ms:60000}",
+            fixedDelayString = "${anime-flow.collection-sync.retry-delay-ms:60000}")
+    public void recover() {
+        for (var task : taskMapper.selectRecoverable()) run(task.getId());
+    }
+
+    private void run(Long taskId) {
+        var candidate = taskMapper.selectById(taskId);
+        if (candidate == null) return;
         try {
-            executeSync(userId, subjectType);
-        } catch (LoginExpiredException e) {
-            log.warn("Bangumi 收藏同步登录过期 userId={}", userId);
-            markFailed(userId, "Bangumi 授权已过期，请重新绑定");
-        } catch (Exception e) {
-            log.error("Bangumi 收藏同步异常 userId={}", userId, e);
-            markFailed(userId, e.getMessage() != null ? e.getMessage() : "同步失败");
-        } finally {
-            statusStore.releaseLock(userId);
+            // Connection-owned lock: process death releases it, and another instance can recover immediately.
+            locks.execute(candidate.getUserId(), -1, () -> {
+                var task = taskMapper.selectById(taskId);
+                if (task == null || List.of(BgmCollectionSyncStatus.SUCCESS, BgmCollectionSyncStatus.CANCELLED)
+                        .contains(task.getStatus())) return null;
+                try {
+                    tasks.requireBinding(task);
+                    if (CollectionSyncPhase.SCANNING == task.getPhase()) scan(task);
+                    long lastProgress = System.nanoTime();
+                    for (var item : tasks.allItems(taskId)) {
+                        if (List.of(CollectionSyncItemStatus.CONFLICT, CollectionSyncItemStatus.DONE)
+                                .contains(item.getStatus())) continue;
+                        tasks.requireBinding(task);
+                        try {
+                            executor.execute(task, item);
+                        } catch (Exception e) {
+                            tasks.requireBinding(task);
+
+                            items.update(null, new LambdaUpdateWrapper<CollectionSyncConflictEntity>()
+                                    .eq(CollectionSyncConflictEntity::getId, item.getId())
+                                    .ne(CollectionSyncConflictEntity::getStatus, CollectionSyncItemStatus.DONE)
+                                    .ne(CollectionSyncConflictEntity::getStatus, CollectionSyncItemStatus.CONFLICT)
+                                    .set(CollectionSyncConflictEntity::getStatus, CollectionSyncItemStatus.FAILED)
+                                    .set(CollectionSyncConflictEntity::getErrorCode, "ITEM_RETRY_REQUIRED"));
+                            log.warn("收藏同步明细待重试 taskId={} itemId={} error={}", taskId, item.getId(), e.getClass().getSimpleName());
+                        }
+                        heartbeat(task);
+                        if (System.nanoTime() - lastProgress >= 1_000_000_000L) {
+                            tasks.summarize(task);
+                            lastProgress = System.nanoTime();
+                        }
+                    }
+                    tasks.summarize(task);
+                } catch (Exception e) {
+                    taskMapper.updateWithStatusVersion(new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
+                            .eq(CollectionSyncTaskEntity::getId, taskId)
+                            .ne(CollectionSyncTaskEntity::getStatus, BgmCollectionSyncStatus.CANCELLED)
+                            .set(CollectionSyncTaskEntity::getStatus, BgmCollectionSyncStatus.PARTIAL_FAILED)
+                            .set(CollectionSyncTaskEntity::getErrorCode, CollectionSyncTaskErrorCode.SYNC_RETRY_REQUIRED)
+                            .set(CollectionSyncTaskEntity::getHeartbeatAt, LocalDateTime.now()));
+                    tasks.changed(task.getUserId());
+                    log.warn("收藏同步任务待恢复 taskId={} error={}", taskId, e.getClass().getSimpleName());
+                }
+                return null;
+            });
+        } catch (IllegalStateException busy) {
+            // Another instance owns this task. Its connection lock must not be released by us.
+            log.debug("收藏任务由其他执行器持有 taskId={}", taskId);
         }
     }
 
-    private void executeSync(Long userId, int subjectType) {
-        UserOauthEntity oauth = bangumiOAuthTokenService.requireBangumiOauth(userId);
-        LocalDateTime syncStartTime = LocalDateTime.now();
-        int syncedCount = 0;
-        int totalCount = 0;
-
-        updateProgress(userId, syncedCount, totalCount, "正在同步 Bangumi 收藏…");
-
-        for (int collectionType : COLLECTION_TYPES) {
+    private void scan(CollectionSyncTaskEntity task) {
+        taskMapper.updateWithStatusVersion(new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
+                .eq(CollectionSyncTaskEntity::getId, task.getId())
+                .ne(CollectionSyncTaskEntity::getStatus, BgmCollectionSyncStatus.CANCELLED)
+                .set(CollectionSyncTaskEntity::getStatus, BgmCollectionSyncStatus.RUNNING)
+                .set(CollectionSyncTaskEntity::getStartedAt, LocalDateTime.now()));
+        tasks.changed(task.getUserId());
+        // No formal collection changes until all five categories have been read successfully.
+        for (int type = 1; type <= 5; type++) {
             int offset = 0;
+            var seen = new HashSet<Integer>();
             while (true) {
-                final int type = collectionType;
-                final int pageOffset = offset;
-                UserCollectionsDto page = bangumiOAuthExecutor.execute(oauth, accessToken ->
-                        bangumiClient.getMeCollections(
-                                accessToken, subjectType, type, PAGE_SIZE, pageOffset));
-                List<UserCollectionsDto.Item> items = page.getData();
-                if (items == null || items.isEmpty()) {
+                var binding = tasks.requireBinding(task);
+                int pageOffset = offset, collectionType = type;
+                var page = oauth.execute(binding, token -> client.getMeCollections(token, task.getSubjectType(), collectionType, 50, pageOffset));
+                tasks.requireBinding(task);
+                if (page == null || page.getData() == null) throw new IllegalStateException("收藏分页响应无效");
+                if (page.getData().isEmpty()) {
+                    if (page.getTotal() != null && offset < page.getTotal())
+                        throw new IllegalStateException("收藏分页不完整");
                     break;
                 }
-                for (UserCollectionsDto.Item item : items) {
-                    if (item == null || item.getInterest() == null || item.getInterest().getId() == null) {
-                        continue;
-                    }
-                    upsertCollection(userId, item);
-                    syncedCount++;
+                int added = 0;
+                for (var remote : page.getData()) {
+                    if (remote == null || remote.getId() == null || !task.getSubjectType().equals(remote.getType())
+                            || (remote.getInterest() != null && (remote.getInterest().getType() == null
+                            || remote.getInterest().getType() < 1 || remote.getInterest().getType() > 5)))
+                        throw new IllegalStateException("收藏分页条目无效");
+                    if (seen.add(remote.getId())) added++;
+                    stage(task, remote.getId(), remote.getNameCN() == null ? remote.getName() : remote.getNameCN(),
+                            remote.getImages() == null ? null : remote.getImages().getLarge(), executor.scanSnapshot(remote));
                 }
-                if (page.getTotal() != null) {
-                    totalCount = Math.max(totalCount, page.getTotal());
-                }
-                updateProgress(userId, syncedCount, totalCount, "已同步 " + syncedCount + " 条收藏");
-
-                if (items.size() < PAGE_SIZE) {
-                    break;
-                }
-                offset += PAGE_SIZE;
-                if (page.getTotal() != null && offset >= page.getTotal()) {
-                    break;
-                }
+                if (added == 0) throw new IllegalStateException("收藏分页未前进");
+                offset += page.getData().size();
+                heartbeat(task);
+                // Preserve the pre-refactor visible progress boundary for SSE clients.
+                tasks.changed(task.getUserId());
+                if (page.getTotal() != null && offset >= page.getTotal()) break;
+                if (page.getTotal() == null && page.getData().size() < 50) break;
             }
         }
-
-        userBgmCollectionMapper.delete(new LambdaQueryWrapper<UserBgmCollectionEntity>()
-                .eq(UserBgmCollectionEntity::getUserId, userId)
-                .lt(UserBgmCollectionEntity::getSyncTime, syncStartTime));
-
-        UserBgmCollectionSyncStatusVo status = statusStore.getStatus(userId);
-        status.setStatus(BgmCollectionSyncStatus.SUCCESS);
-        status.setUserId(userId);
-        status.setSyncedCount(syncedCount);
-        status.setTotalCount(totalCount);
-        status.setFinishedAt(System.currentTimeMillis());
-        status.setMessage("同步完成，共同步 " + syncedCount + " 条收藏");
-        statusStore.saveStatus(userId, status);
-        log.info("Bangumi 收藏同步完成 userId={} syncedCount={}", userId, syncedCount);
+        // Full union: local-only collections are planned, never deleted.
+        for (var row : collections.selectList(new LambdaQueryWrapper<UserBgmCollectionEntity>()
+                .eq(UserBgmCollectionEntity::getUserId, task.getUserId())
+                .eq(UserBgmCollectionEntity::getSubjectType, task.getSubjectType()))) {
+            stage(task, row.getSubjectId(), null, null, null);
+        }
+        tasks.requireBinding(task);
+        taskMapper.updateWithStatusVersion(new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
+                .eq(CollectionSyncTaskEntity::getId, task.getId())
+                .ne(CollectionSyncTaskEntity::getStatus, BgmCollectionSyncStatus.CANCELLED)
+                .set(CollectionSyncTaskEntity::getPhase, CollectionSyncPhase.APPLYING)
+                .set(CollectionSyncTaskEntity::getErrorCode, null));
+        tasks.changed(task.getUserId());
+        task.setPhase(CollectionSyncPhase.APPLYING);
     }
 
-    private void markFailed(Long userId, String message) {
-        UserBgmCollectionSyncStatusVo status = statusStore.getStatus(userId);
-        status.setStatus(BgmCollectionSyncStatus.FAILED);
-        status.setUserId(userId);
-        status.setFinishedAt(System.currentTimeMillis());
-        status.setMessage(message);
-        statusStore.saveStatus(userId, status);
+    private void stage(CollectionSyncTaskEntity task, int subjectId, String name, String image, String snapshot) {
+        var existing = items.selectOne(new LambdaQueryWrapper<CollectionSyncConflictEntity>()
+                .eq(CollectionSyncConflictEntity::getTaskId, task.getId())
+                .eq(CollectionSyncConflictEntity::getSubjectId, subjectId));
+        if (existing != null) {
+            // A restarted scan must replace an earlier partial scan's snapshot.
+            if (snapshot != null) {
+                items.update(null, new LambdaUpdateWrapper<CollectionSyncConflictEntity>()
+                        .eq(CollectionSyncConflictEntity::getId, existing.getId())
+                        .eq(CollectionSyncConflictEntity::getStatus, CollectionSyncItemStatus.PLANNED)
+                        .set(CollectionSyncConflictEntity::getScanSnapshot, snapshot));
+            }
+            return;
+        }
+        var item = new CollectionSyncConflictEntity();
+        item.setTaskId(task.getId());
+        item.setUserId(task.getUserId());
+        item.setSubjectType(task.getSubjectType());
+        item.setSubjectId(subjectId);
+        item.setSubjectName(name);
+        item.setSubjectImage(image);
+        item.setScanSnapshot(snapshot);
+        item.setStatus(CollectionSyncItemStatus.PLANNED);
+        item.setConflictVersion(0L);
+        items.insert(item);
     }
 
-    private void updateProgress(Long userId, int syncedCount, int totalCount, String message) {
-        UserBgmCollectionSyncStatusVo status = statusStore.getStatus(userId);
-        status.setStatus(BgmCollectionSyncStatus.RUNNING);
-        status.setUserId(userId);
-        status.setSyncedCount(syncedCount);
-        status.setTotalCount(totalCount);
-        status.setMessage(message);
-        if (status.getStartedAt() == null) {
-            status.setStartedAt(System.currentTimeMillis());
-        }
-        statusStore.saveStatus(userId, status);
-    }
-
-    private void upsertCollection(Long userId, UserCollectionsDto.Item item) {
-        UserCollectionsDto.Interest interest = item.getInterest();
-        UserBgmCollectionEntity existing = userBgmCollectionMapper.selectOne(
-                new LambdaQueryWrapper<UserBgmCollectionEntity>()
-                        // user_bgm_collection 的业务唯一键是 (user_id, subject_id)。
-                        // bgm_interest_id 在重新绑定/重新收藏后可能发生变化，不能用它作为
-                        // 判断本地记录是否存在的唯一依据，否则会把同一用户同一条目误判为新增。
-                        .eq(UserBgmCollectionEntity::getUserId, userId)
-                        .eq(UserBgmCollectionEntity::getSubjectId, item.getId()));
-
-        UserBgmCollectionEntity row = existing != null ? existing : new UserBgmCollectionEntity();
-        row.setUserId(userId);
-        row.setSubjectId(item.getId());
-        row.setSubjectType(item.getType() != null ? item.getType() : 2);
-        row.setBgmInterestId(interest.getId());
-        row.setRate(interest.getRate() != null ? interest.getRate() : 0);
-        row.setType(interest.getType());
-        row.setComment(StringUtils.hasText(interest.getComment()) ? interest.getComment() : "");
-        row.setTags(toJson(interest.getTags()));
-        row.setEpStatus(interest.getEpStatus() != null ? interest.getEpStatus() : 0);
-        row.setVolStatus(interest.getVolStatus() != null ? interest.getVolStatus() : 0);
-        row.setIsPrivate(Boolean.TRUE.equals(interest.getPrivate_()));
-        row.setBgmUpdatedAt(interest.getUpdatedAt() != null ? interest.getUpdatedAt() : 0L);
-        row.setSyncTime(LocalDateTime.now());
-
-        if (existing == null) {
-            row.setCreateTime(LocalDateTime.now());
-            userBgmCollectionMapper.insert(row);
-        } else {
-            userBgmCollectionMapper.updateById(row);
-        }
-    }
-
-    private String toJson(Object value) {
-        if (value == null) {
-            return null;
-        }
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("序列化 JSON 失败", e);
-        }
+    private void heartbeat(CollectionSyncTaskEntity task) {
+        taskMapper.updateWithStatusVersion(new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
+                .eq(CollectionSyncTaskEntity::getId, task.getId())
+                .ne(CollectionSyncTaskEntity::getStatus, BgmCollectionSyncStatus.CANCELLED)
+                .set(CollectionSyncTaskEntity::getHeartbeatAt, LocalDateTime.now()));
     }
 }
