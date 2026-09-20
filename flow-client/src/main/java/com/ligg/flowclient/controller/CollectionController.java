@@ -104,7 +104,7 @@ public class CollectionController {
         return Result.success(ResponseCode.SUCCESS, status);
     }
 
-    /** 账号收藏状态流；断开连接不会取消持久任务。 */
+    /** 账号收藏状态流。 */
     @GetMapping("/sync/events")
     public ResponseEntity<SseEmitter> collectionSyncEvents(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken) {
