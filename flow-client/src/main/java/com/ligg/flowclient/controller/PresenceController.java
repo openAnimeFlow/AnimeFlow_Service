@@ -1,17 +1,18 @@
 package com.ligg.flowclient.controller;
 
+import com.ligg.common.exception.AuthorizationException;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
-import com.ligg.common.exception.AuthorizationException;
 import com.ligg.flowclient.annotation.IpEndpointRateLimit;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.module.dto.PresenceHeartbeatDto;
 import com.ligg.flowclient.module.vo.OnlineCountVo;
-import com.ligg.flowclient.module.vo.WatchingSubjectVo;
 import com.ligg.flowclient.service.PresenceService;
+import com.ligg.flowclient.service.PresenceSseService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,7 +25,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequiredArgsConstructor
@@ -32,6 +33,7 @@ import java.util.List;
 public class PresenceController {
 
     private final PresenceService presenceService;
+    private final PresenceSseService presenceSseService;
 
     @PutMapping("/{presenceId}")
 //    @IpEndpointRateLimit(keyPrefix = "animeflow:presence:heartbeat:ip:", seconds = 10, maxRequests = 2)
@@ -58,9 +60,9 @@ public class PresenceController {
         return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/online-count")
-    public Result<OnlineCountVo> onlineCount() {
-        return Result.success(ResponseCode.SUCCESS, presenceService.onlineCount());
+    @GetMapping(value = "/online-count", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity<SseEmitter> onlineCount() {
+        return sseResponse(presenceSseService.subscribeOnlineCount());
     }
 
     @GetMapping("/subjects/{subjectId}/online-count")
@@ -68,8 +70,16 @@ public class PresenceController {
         return Result.success(ResponseCode.SUCCESS, presenceService.subjectOnlineCount(subjectId));
     }
 
-    @GetMapping("/watching-subjects")
-    public Result<List<WatchingSubjectVo>> watchingSubjects() {
-        return Result.success(ResponseCode.SUCCESS, presenceService.watchingSubjects());
+    @GetMapping(value = "/watching-subjects", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity<SseEmitter> watchingSubjects() {
+        return sseResponse(presenceSseService.subscribeWatchingSubjects());
+    }
+
+    private static ResponseEntity<SseEmitter> sseResponse(SseEmitter emitter) {
+        return ResponseEntity.ok()
+                .contentType(MediaType.TEXT_EVENT_STREAM)
+                .header("Cache-Control", "no-cache, no-transform")
+                .header("X-Accel-Buffering", "no")
+                .body(emitter);
     }
 }
