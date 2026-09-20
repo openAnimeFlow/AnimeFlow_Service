@@ -1,331 +1,228 @@
-# 用户 Bangumi 收藏同步
+# Bangumi 收藏同步
 
-本文档介绍 `flow-client` 模块中 **Bangumi 收藏同步** 的完整设计与实现逻辑：客户端携带 AnimeFlow Token 触发同步，服务端从 `user_oauth` 读取 Bangumi OAuth Token 拉取上游数据，异步写入本地表 `user_bgm_collection`。
+本文档描述 flow-client 当前的 Bangumi 收藏双向同步实现。同步任务和同步明细持久化在 MySQL，客户端通过 SSE 接收状态变化。SSE 断开不会取消后台任务，重新连接后以数据库状态为准。
 
----
+## 1. 数据与职责
 
-## 1. 双 Token 模型
-
-同步链路涉及两套互不替代的 Token：
-
-```
-客户端                          flow-client                         Bangumi / bgm.tv
-  │                                 │                                  │
-  │  Authorization: Bearer {Flow JWT}                                  │
-  ├──────────────── POST/GET sync ───►│ JwtTokenService 校验 userId       │
-  │                                 │                                  │
-  │                                 │ 查 user_oauth.access_token         │
-  │                                 ├──── GET /p1/collections/subjects ►│
-  │                                 │     Bearer {Bangumi access_token}  │
-  │◄── 任务状态 / 401(Flow) ────────┤                                  │
-  │  FlowRefreshTokenInterceptor     │  401(Bangumi)                    │
-  │  刷新 Flow Token 并重试          │    → refreshBangumiAccessToken   │
-  │                                 │    → 写回 user_oauth 并重试一次    │
-  │                                 │    → refresh 仍失败 → FAILED       │
-```
-
-| Token | 存储位置 | 用途 | 401 处理方 |
-|-------|----------|------|------------|
-| **Flow JWT** | 客户端 + Redis（`animeflow:auth:token:*`） | 访问 `/api/v1/account/**` | **客户端** `FlowRefreshTokenInterceptor` → `/api/v1/account/refresh` |
-| **Bangumi OAuth** | MySQL `user_oauth` | 调用 `next.bgm.tv` / OAuth | **服务端** `BangumiOAuthExecutor` 统一 401 → refresh → 重试；`BangumiOAuthTokenService` 负责读写 `user_oauth` |
-
-**注意**：Bangumi Token 刷新与 Flow Token **完全无关**。所有需 Bangumi OAuth 的上游调用应经 `BangumiOAuthExecutor.execute(...)`，401 时由执行器调用 `BangumiOAuthTokenService.refreshBangumiAccessToken` 并重试一次，业务代码（如收藏同步）不自行处理 refresh。
-
----
-
-## 2. HTTP 接口
-
-### 2.1 提交同步任务
-
-```
-POST /api/v1/users/collections/sync?subjectType=2
-Authorization: Bearer {Flow access_token}
-```
-
-| 参数 | 默认 | 说明 |
+| 数据 | 表 | 作用 |
 |------|------|------|
-| `subjectType` | `2` | Bangumi 条目大类，2 表示动画 |
+| 本地收藏 | user_bgm_collection | 保存本地收藏、Bangumi 状态和上传意图 |
+| 同步任务 | user_bgm_collection_sync_task | 保存任务状态、阶段、进度、绑定快照和心跳 |
+| 同步明细 | user_bgm_collection_sync_item | 保存条目快照、比较基线、写入意图和冲突 |
 
-**鉴权**：`AuthorizationInterceptor` 校验 Flow Token，`CollectionController` 内 `jwtTokenService.validateAccessToken` 解析 `userId`。
+任务状态以 MySQL 为准。Redis 仅用于跨实例转发状态变化通知，不保存任务状态或收藏内容。
 
-**限流**：`@IpEndpointRateLimit`，60 秒内同一 IP 最多 5 次。
+## 2. Token、绑定和本地优先
 
-**响应**：立即返回 `UserBgmCollectionSyncStatusVo`（通常为 `RUNNING`），实际拉取在后台线程执行。
+- Flow JWT 用于访问 AnimeFlow 接口，由 AuthorizationInterceptor、JwtTokenService 和客户端刷新机制处理。
+- Bangumi OAuth Token 用于调用 Bangumi /p1/collections/subjects 和条目详情接口，由 BangumiOAuthExecutor 统一刷新并重试一次。
+- 未绑定 Bangumi 时，修改收藏仍可只保存本地，状态为 LOCAL_ONLY。
+- 已绑定 Bangumi 时，先保存本地，再尝试上传，状态通常为 PENDING 或 SYNCED。
+- 提交完整同步任务必须已绑定 Bangumi。任务记录 oauth_id 和 Bangumi 用户 UID；绑定变化会取消任务并返回 SYNC_BINDING_CHANGED。
 
-### 2.2 查询同步状态
+## 3. HTTP 接口
 
-```
-GET /api/v1/users/collections/sync
-Authorization: Bearer {Flow access_token}
-```
+所有接口都需要 Flow JWT。
 
-返回同一用户最近一次任务在 Redis 中的状态快照。
+### 3.1 获取收藏
 
-### 2.3 响应体 `UserBgmCollectionSyncStatusVo`
+~~~http
+GET /api/v1/users/collections?subjectType=2&type=2&keyword=关键词&limit=20&offset=0
+~~~
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `status` | enum | `IDLE` / `RUNNING` / `SUCCESS` / `FAILED` |
-| `userId` | long | AnimeFlow 用户 ID |
-| `syncedCount` | int | 已写入/更新的收藏条数 |
-| `totalCount` | int | 进度参考（各收藏类型分页 `total` 的最大值） |
-| `message` | string | 人类可读说明 |
-| `startedAt` | long | 任务开始时间（毫秒时间戳） |
-| `finishedAt` | long | 任务结束时间（毫秒时间戳，进行中为 null） |
+数据来自本地表。排序为：
 
----
+~~~sql
+ORDER BY COALESCE(local_updated_at, FROM_UNIXTIME(bgm_updated_at)) DESC,
+         id DESC
+~~~
 
-## 3. 整体流程
+有 local_updated_at 时按本地修改时间排序；没有时按 Bangumi 更新时间排序。后台同步不会更新 local_updated_at，只有用户主动修改收藏时才更新。
 
-```mermaid
-sequenceDiagram
-    participant Client as 客户端
-    participant AC as AccountController
-    participant Svc as UserBgmCollectionSyncServiceImpl
-    participant Store as UserBgmCollectionSyncStatusStore
-    participant Runner as UserBgmCollectionSyncRunner
-    participant OAuth as BangumiOAuthTokenService
-    participant Exec as BangumiOAuthExecutor
-    participant BGM as BangumiClient
-    participant DB as MySQL
+### 3.2 修改收藏
 
-    Client->>AC: POST sync (Flow JWT)
-    AC->>Svc: triggerSync(userId, subjectType)
-    Svc->>OAuth: requireBangumiOauth(userId)
-    OAuth->>DB: SELECT user_oauth
-    Svc->>Store: 检查状态 / 冷却 / 加锁
-    Svc->>Store: saveStatus(RUNNING)
-    Svc->>Runner: runSync() @Async
-    Svc-->>Client: RUNNING
+~~~http
+PUT /api/v1/users/collections/{subjectId}
+~~~
 
-    Runner->>OAuth: requireBangumiOauth
-    loop 收藏类型 1~5 × 分页
-        Runner->>Exec: execute(oauth, token -> getMeCollections)
-        Exec->>BGM: Bearer access_token
-        BGM-->>Exec: 401 → refresh → retry
-        BGM-->>Runner: UserCollectionsDto
-        Runner->>DB: upsert user_bgm_collection
-        Runner->>Store: updateProgress
-    end
-    Runner->>DB: DELETE 未在本次 sync_time 更新的记录
-    Runner->>Store: saveStatus(SUCCESS)
-    Runner->>Store: releaseLock
+支持收藏分类、评分、评论、标签和隐私设置。响应的 remoteSyncStatus：
 
-    Client->>AC: GET sync status (轮询)
-    AC-->>Client: syncedCount / message / status
-```
-
----
-
-## 4. 模块职责
-
-### 4.1 类与文件
-
-| 类 | 路径 | 职责 |
-|----|------|------|
-| `AccountController` | `controller/AccountController.java` | 暴露同步/查询 API，校验 Flow JWT |
-| `UserBgmCollectionSyncService` | `service/UserBgmCollectionSyncService.java` | 触发与查询入口接口 |
-| `UserBgmCollectionSyncServiceImpl` | `service/impl/UserBgmCollectionSyncServiceImpl.java` | 前置校验、加锁、提交异步任务 |
-| `UserBgmCollectionSyncRunner` | `service/UserBgmCollectionSyncRunner.java` | `@Async` 执行全量同步与 upsert |
-| `UserBgmCollectionSyncStatusStore` | `service/UserBgmCollectionSyncStatusStore.java` | Redis 任务状态与分布式锁 |
-| `BangumiOAuthTokenService` | `service/BangumiOAuthTokenService.java` | 校验绑定；refresh 并持久化 `user_oauth` |
-| `BangumiOAuthExecutor` | `service/BangumiOAuthExecutor.java` | **统一** Bangumi OAuth 调用入口，401 自动 refresh 并重试一次 |
-| `UserBgmCollectionSyncConfiguration` | `config/UserBgmCollectionSyncConfiguration.java` | 专用线程池 `bgmCollectionSyncExecutor` |
-| `UserBgmCollectionMapper` | `mapper/UserBgmCollectionMapper.java` | `user_bgm_collection` CRUD |
-| `BangumiClient` | `third-party-api` | 调用 `GET /p1/collections/subjects` |
-
-### 4.2 线程池
-
-```java
-@Bean("bgmCollectionSyncExecutor")
-// core=1, max=2, queue=50, 线程名前缀 bgm-collection-sync-
-```
-
-同步任务通过 `@Async("bgmCollectionSyncExecutor")` 提交，避免阻塞 Tomcat 工作线程。
-
----
-
-## 5. 触发阶段（`triggerSync`）
-
-`UserBgmCollectionSyncServiceImpl.triggerSync` 在提交异步任务前依次执行：
-
-1. **绑定校验**  
-   `bangumiOAuthTokenService.requireBangumiOauth(userId)`  
-   - 查 `user_oauth` 且 `platform = bangumi`  
-   - 无记录或无 `access_token` → 抛出 `IllegalArgumentException("未绑定 Bangumi 账号")`
-
-2. **运行中检测**  
-   Redis 状态已为 `RUNNING` → 直接返回当前状态，不重复提交。
-
-3. **成功冷却**  
-   上次 `SUCCESS` 且 `finishedAt` 距今不足 **10 分钟** → 返回原状态并设置 `message = "同步过于频繁，请稍后再试"`。
-
-4. **分布式锁**  
-   `SET NX animeflow:sync:bgm-collection:lock:{userId}`，TTL **30 分钟**。  
-   - 加锁失败 → 视为任务进行中，返回 `RUNNING` 语义的状态。  
-   - 加锁成功 → 初始化 `RUNNING` 状态写入 Redis，调用 `syncRunner.runSync()`。
-
-5. **同步返回**  
-   HTTP 线程立即返回，不等待 Bangumi 分页完成。
-
----
-
-## 6. 执行阶段（`UserBgmCollectionSyncRunner.executeSync`）
-
-### 6.1 拉取策略
-
-| 维度 | 值 | 说明 |
-|------|-----|------|
-| 上游 API | `GET https://next.bgm.tv/p1/collections/subjects` | 对应 `BangumiNextApiPath.P1_COLLECTION_SUBJECTS` |
-| 鉴权 | `user_oauth.access_token` | Bearer |
-| `subjectType` | 请求参数，默认 2（动画） | 仅同步该大类条目 |
-| 收藏类型 `type` | 固定遍历 `1,2,3,4,5` | 想看 / 看过 / 在看 / 搁置 / 抛弃 |
-| 分页 | `limit=50`，`offset` 递增 | 直到本页为空或 `offset >= total` |
-
-每一页通过 `bangumiOAuthExecutor.execute(oauth, token -> bangumiClient.getMeCollections(...))` 拉取。401 刷新逻辑集中在 `BangumiOAuthExecutorImpl`，同步 Runner 不包含 refresh 代码。
-
-#### Bangumi Token 自动刷新（`BangumiOAuthExecutor`）
-
-```
-execute(oauth, apiCall)
-    ↓
-apiCall(access_token)
-    ↓ 401 (LoginExpiredException)
-refreshBangumiAccessToken(oauth)   // BangumiOAuthTokenService
-    ↓
-apiCall(新 access_token)           // 仅重试一次
-    ↓ 仍失败
-LoginExpiredException → 任务 FAILED
-```
-
-### 6.2 字段映射（Bangumi → `user_bgm_collection`）
-
-| 表字段 | 来源 |
-|--------|------|
-| `user_id` | AnimeFlow 用户 ID |
-| `subject_id` | `Item.id` |
-| `images` | `Item.images` JSON 序列化 |
-| `bgm_interest_id` | `Interest.id`（唯一键） |
-| `rate` | `Interest.rate`，默认 0 |
-| `type` | `Interest.type`（收藏状态） |
-| `comment` | `Interest.comment`，空则 `""` |
-| `tags` | `Interest.tags` JSON |
-| `ep_status` / `vol_status` | `Interest.epStatus` / `volStatus` |
-| `is_private` | `Interest.private` |
-| `bgm_updated_at` | `Interest.updatedAt` Unix 秒 |
-| `sync_time` | 本次 upsert 时间 |
-| `create_time` | 首次 insert 时写入 |
-
-**Upsert 规则**：
-
-- 以 `bgm_interest_id` 查询是否已存在。  
-- 存在 → `updateById`；不存在 → `insert`。  
-- 跳过 `interest` 或 `interest.id` 为空的条目。
-
-### 6.3 删除已取消的收藏
-
-全部分页完成后：
-
-```sql
-DELETE FROM user_bgm_collection
-WHERE user_id = ?
-  AND sync_time < {本次任务开始的 LocalDateTime}
-```
-
-本次同步未 touch 到的记录视为用户已在 Bangumi 侧移除，从本地删除。
-
-### 6.4 完成与异常
-
-| 结果 | 行为 |
+| 状态 | 含义 |
 |------|------|
-| 正常结束 | `status=SUCCESS`，`message=同步完成，共同步 N 条收藏` |
-| `LoginExpiredException` | refresh_token 失效或刷新后仍 401，`status=FAILED`，`message=Bangumi 授权已过期，请重新绑定` |
-| 其他异常 | `status=FAILED`，`message` 为异常信息或「同步失败」 |
-| `finally` | 始终 `releaseLock(userId)` |
+| LOCAL_ONLY | 未绑定 Bangumi，只保存本地 |
+| PENDING | 已保存本地，等待上传或重试 |
+| SYNCED | 本地与 Bangumi 已确认一致 |
+| AUTH_REQUIRED | 授权失效或绑定变化 |
+| CONFLICT | 需要用户处理冲突 |
 
----
+### 3.3 提交同步任务
 
-## 7. Redis 键设计
+~~~http
+POST /api/v1/users/collections/sync?subjectType=2&requestId=<客户端幂等 ID>
+~~~
 
-| 键 | 常量 | TTL | 内容 |
-|----|------|-----|------|
-| `animeflow:sync:bgm-collection:status:{userId}` | `Constants.BGM_COLLECTION_SYNC_STATUS_KEY` | 24h | `UserBgmCollectionSyncStatusVo` 序列化对象 |
-| `animeflow:sync:bgm-collection:lock:{userId}` | `Constants.BGM_COLLECTION_SYNC_LOCK_KEY` | 30min | 分布式锁标记 `"1"` |
+subjectType 默认 2，可用值为 1、2、3、4、6。requestId 可选，最大长度 80；为空时服务端生成 UUID。相同用户和 requestId 会复用原任务；已有相同 Bangumi 绑定的活动任务也会复用。成功任务完成后有 1 小时用户级冷却，接口按 IP 限制为 60 秒最多 5 次。
 
-无 Redis 记录时，`getStatus` 返回 `IDLE`。
+接口只创建或复用任务并立即返回，不等待后台同步完成。
 
----
+### 3.4 查询状态（兼容接口）
 
-## 8. 数据库表
+~~~http
+GET /api/v1/users/collections/sync
+~~~
 
-### 8.1 `user_oauth`（读 + 刷新时写）
+该接口已标记 Deprecated，仍保留兼容旧客户端。新客户端应使用 SSE；状态来自 MySQL，不是 Redis 快照。
 
-绑定 Bangumi 时写入 `access_token`、`refresh_token`、`expire_time`。同步读取 access_token；若上游 401，`refreshBangumiAccessToken` 会更新上述字段。
+### 3.5 SSE 状态流
 
-### 8.2 `user_bgm_collection`（读写）
+~~~http
+GET /api/v1/users/collections/sync/events
+Accept: text/event-stream
+~~~
 
-详见 `db/anime_flow.sql` 与实体 `UserBgmCollectionEntity`。
+连接最长保持 5 分钟，客户端应在断开或超时后重连。建立连接时先发送当前状态；状态变化以 event=status 发送，事件 ID 为 taskId:statusVersion；每 20 秒发送 SSE 注释心跳。每次发送前校验 Flow JWT，过期会话自动关闭。关闭 SSE 不会取消任务，重连后会重新读取数据库状态。
 
-主要约束：
+Redis Pub/Sub 频道 animeflow:collection-sync:changed 只用于通知其他实例刷新 SSE。
 
-- `uk_bgm_interest_id`：Bangumi 收藏 ID 全局唯一  
-- `uk_user_subject`：同一用户对同一条目仅一条记录  
-- `idx_user_type`：按用户 + 收藏类型查询
+### 3.6 查询和解决冲突
 
----
+~~~http
+GET /api/v1/users/collections/sync/{taskId}/conflicts?offset=0&limit=20
+POST /api/v1/users/collections/sync/{taskId}/conflicts/resolve
+~~~
 
-## 9. 错误与 HTTP 状态
+冲突列表返回 conflictId、subjectId、subjectName、localType、remoteType、localVersion、conflictVersion 和 status。客户端分别展示 AnimeFlow 与 Bangumi 的收藏分类，让用户选择最终分类。
 
-| 场景 | HTTP / 任务状态 | 说明 |
-|------|-----------------|------|
-| 未登录 / Flow JWT 无效 | 401 | `JwtTokenService` → `LoginExpiredException`，由客户端刷新 Flow Token |
-| 未绑定 Bangumi | 400 或业务错误 | `IllegalArgumentException` |
-| Bangumi access_token 过期 | 服务端 `BangumiOAuthExecutor` 自动 refresh 并重试 | 业务无感 |
-| Bangumi refresh_token 失效 | 异步 `FAILED` | 提示用户重新绑定 Bangumi |
-| 同步进行中重复 POST | 200 + `RUNNING` | 不启动第二个任务 |
-| 10 分钟内重复成功同步 | 200 + 原状态 + 频繁提示 | 不启动新任务 |
+批量解决请求示例：
 
-Bangumi 上游 401 在 `BangumiClientImpl.blockBangumi` 中转为 `LoginExpiredException`；`BangumiOAuthExecutor` 捕获后 refresh。仅 refresh 失败时 Runner 将任务标为 `FAILED`。
+~~~json
+{
+  "items": [
+    {
+      "conflictId": 123,
+      "conflictVersion": 2,
+      "selectedType": 3
+    }
+  ]
+}
+~~~
 
----
+selectedType 范围为 1~5。服务端校验任务归属、冲突版本、本地版本和当前 Bangumi 快照；通过后先持久化远端写入意图，再调度后台任务。相同版本和分类的重复提交是幂等的。
 
-## 10. 客户端集成建议
+## 4. 任务状态、阶段和明细
 
-1. 确认已登录（Flow Token）且 Bangumi 已绑定。  
-2. `POST .../collections/sync` 触发同步。  
-3. 每 2~3 秒 `GET .../collections/sync` 轮询，直到 `status` 为 `SUCCESS` 或 `FAILED`。  
-4. `RUNNING` 时展示 `message`、`syncedCount`（及可选 `totalCount`）。  
-5. Flow 接口返回 401 时由 `FlowRefreshTokenInterceptor` 处理；Bangumi 授权过期由服务端 refresh，客户端无感知，仅可能看到同步失败需重新绑定。
+任务状态：QUEUED、RUNNING、WAITING_CONFLICT、PARTIAL_FAILED、SUCCESS、FAILED、CANCELLED、IDLE。
 
-AnimeFlow 客户端参考实现：
+执行阶段：
 
-- API：`lib/http/api_path.dart` → `bangumiCollectionSync`  
-- 请求：`lib/http/requests/flow_request.dart`  
-- 状态：`lib/providers/user/bgm_collection_sync_provider.dart`  
-- UI：`lib/pages/settings/pages/account_settings.dart` → `_BangumiCollectionSyncSection`
+| 阶段 | 说明 |
+|------|------|
+| SCANNING | 拉取 Bangumi 分页并生成明细 |
+| APPLYING | 执行导入、上传或无变化确认 |
+| RESOLVING | 应用客户端已提交的冲突决议 |
 
----
+明细状态：PLANNED、CONFLICT、RESOLUTION_PENDING、APPLY_PENDING、DONE、FAILED。
 
-## 11. 扩展与注意事项
+完成操作：IMPORT、UPLOAD、UNCHANGED、RESOLVE。statusVersion 每次任务状态更新都会递增，客户端可用来过滤重复 SSE 事件。
 
-- **仅同步 `subjectType` 指定大类**：当前默认动画；若未来支持多类型，需调整删除策略（避免误删其他类型本地数据）。  
-- **`totalCount` 为参考值**：多收藏类型分页时取各类型 `total` 的最大值，不等于精确总条数。  
-- **锁 TTL 30 分钟**：极端情况下任务 hung 住，锁过期后可再次触发；正常路径在 `finally` 释放。  
-- **与公开收藏 API 的区别**：`/api/v1/bangumi/users/{username}/collections/subjects` 为代理公开接口；本同步走需 OAuth 的 `/p1/collections/subjects`，数据含用户私有收藏信息。
+## 5. 扫描和应用流程
 
----
+~~~http
+GET /p1/collections/subjects?subjectType={subjectType}&type={1|2|3|4|5}&limit=50&offset=0
+~~~
 
-## 12. 相关上游接口
+分页返回的 interest 已包含分类、评分、评论、标签、隐私和更新时间。服务端把条目和 interest 保存为 scan_snapshot，不会为每条收藏再次请求详情。
 
-Bangumi Next API：
+只有以下情况需要请求条目详情：
 
-```
-GET /p1/collections/subjects
-  ?subjectType={int}
-  &type={1|2|3|4|5}
-  &limit={int}
-  &offset={int}
-Authorization: Bearer {bangumi_access_token}
-```
+- 本地有收藏但扫描结果没有远端收藏，需要确认远端实时状态；
+- 本地收藏需要上传；
+- 任务恢复后验证远端基线；
+- PUT 后确认远端结果。
 
-响应模型：`com.ligg.common.thirdparty.bangumi.response.UserCollectionsDto`。
+五种分类扫描完成后，服务端把本地对应 subjectType 的收藏加入明细，形成双方完整并集。仅存在本地的收藏进入上传判断，不会被同步任务自动删除。
+
+每个条目的处理规则：
+
+| 本地 | Bangumi | 操作 |
+|------|---------|------|
+| 无 | 有 | IMPORT，写入本地 |
+| 有 | 无 | UPLOAD，上传本地 |
+| 有 | 有且分类相同 | UNCHANGED 或 UPLOAD |
+| 有 | 有但分类不同 | CONFLICT，等待用户选择 |
+| 无 | 无 | UNCHANGED，不创建虚假收藏 |
+
+远端 PUT 前会持久化 local_version、local_snapshot、remote_snapshot、desired_payload、operation 和 APPLY_PENDING。进程退出后，恢复任务可根据基线确认 PUT 是否已经成功，避免重复写入或覆盖远端新编辑。
+
+同步完成写回本地时更新 bgm_updated_at、sync_time 和远端绑定信息，但保留已有 local_updated_at。新导入记录的 local_updated_at 为空，列表使用 Bangumi 更新时间排序。
+
+## 6. 冲突、离开页面和恢复
+
+冲突主要是本地与 Bangumi 收藏分类不同，也可能由本地版本变化、远端字段变化或不确定 PUT 造成。客户端关闭页面或应用不会取消任务：
+
+- 任务和明细已经持久化在 MySQL；
+- SSE 断开只移除连接；
+- recover() 默认每 60 秒恢复 QUEUED、RUNNING、WAITING_CONFLICT、PARTIAL_FAILED 任务；
+- MySQL 连接锁在进程退出后自动释放；
+- 恢复时跳过 DONE 和 CONFLICT 明细，只继续未完成或已持久化意图的明细；
+- 重新进入账户设置页面时重新建立 SSE，并再次查询冲突列表。
+
+WAITING_CONFLICT 不会自动替用户选择分类；用户可以稍后继续处理原任务。
+
+## 7. 锁、事务和远端请求
+
+CollectionWriteLock 使用 MySQL GET_LOCK：
+
+- 任务级锁使用约定的负数条目 ID；
+- 条目级锁使用真实 subjectId；
+- 调用方先获取任务锁，再获取条目锁；
+- 获取和释放必须使用同一个物理数据库连接，因此不能拆成普通 MyBatis Mapper 调用；
+- 数据库短事务只持久化意图或最终结果，远端 HTTP 请求不放在数据库事务中。
+
+## 8. 状态响应字段
+
+UserBgmCollectionSyncStatusVo 包含：
+
+| 字段 | 说明 |
+|------|------|
+| taskId、status、phase | 任务标识、状态和阶段 |
+| scannedCount | 扫描阶段已发现的明细数 |
+| totalCount | 去重后的任务条目总数 |
+| syncedCount | 导入、上传、无变化和已解决冲突的合计 |
+| importedCount、uploadedCount、unchangedCount | 各类完成数量 |
+| pendingConflictCount | 待处理冲突数 |
+| failedCount | 可重试失败数 |
+| statusVersion | 状态版本 |
+| message | 任务级错误码或提示 |
+| startedAt、finishedAt | 开始和结束时间，毫秒时间戳 |
+
+扫描阶段显示 scannedCount；应用阶段显示各类完成数量和 syncedCount。
+
+## 9. 错误和兼容性
+
+| 场景 | 处理 |
+|------|------|
+| Flow JWT 无效 | 返回 401，由客户端刷新 Flow Token |
+| 未绑定 Bangumi 提交同步 | 创建任务时拒绝 |
+| Bangumi Token 过期 | 服务端刷新并重试一次 |
+| Bangumi 换绑 | 任务取消，返回 SYNC_BINDING_CHANGED |
+| 网络或临时数据库错误 | 明细 FAILED 或任务 PARTIAL_FAILED，等待恢复 |
+| 冲突版本过期 | 返回 STALE_CONFLICT，刷新后重新选择 |
+| 重复提交 | 按 requestId 或活动任务幂等返回 |
+| 旧客户端轮询 | GET /sync 仍可用，但已弃用 |
+| 旧 AccountController 同步接口 | 已移除，迁移到 /api/v1/users/collections/sync |
+
+任务表和明细表的数据不能在任务仍可能恢复或存在未解决冲突时删除。后续清理应按终态、完成时间和保留期执行。
+
+## 10. 线程池和调度
+
+同步线程池 bgmCollectionSyncExecutor：核心线程 1、最大线程 2、队列容量 50。
+
+任务恢复默认每 60 秒执行一次，可配置：
+
+~~~properties
+anime-flow.collection-sync.initial-delay-ms=60000
+anime-flow.collection-sync.retry-delay-ms=60000
+~~~
+
+SSE 使用独立调度器发送状态和心跳，避免阻塞同步执行器。
