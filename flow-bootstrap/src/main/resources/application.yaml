@@ -86,6 +86,14 @@ anime-flow:
         batch-size: 1000
         lock-ttl-seconds: 7200
 
+  collection-sync:
+    cleanup:
+      enabled: true
+      retention-days: 30
+      batch-size: 100
+      initial-delay-ms: 300000
+      interval-ms: 86400000
+
   resend:
     api_key: ${RESEND_API_KEY}
     domain: ${RESEND_DOMAIN}

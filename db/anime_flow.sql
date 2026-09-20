@@ -415,7 +415,8 @@ CREATE TABLE `user_bgm_collection_sync_task` (
   `active_user_id` bigint GENERATED ALWAYS AS (CASE WHEN status IN ('QUEUED','RUNNING','WAITING_CONFLICT','PARTIAL_FAILED') THEN user_id ELSE NULL END) STORED COMMENT '每用户仅一个活动任务',
   UNIQUE KEY `uk_collection_sync_active_user` (`active_user_id`),
   PRIMARY KEY (`id`), UNIQUE KEY `uk_collection_sync_request` (`user_id`,`request_id`),
-  KEY `idx_collection_sync_active` (`user_id`,`status`,`id`)
+  KEY `idx_collection_sync_active` (`user_id`,`status`,`id`),
+  KEY `idx_collection_sync_cleanup` (`status`,`finished_at`,`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户 Bangumi 收藏双向同步任务';
 
 CREATE TABLE `user_bgm_collection_sync_item` (

@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS user_bgm_collection_sync_task (
   heartbeat_at DATETIME(3) NULL COMMENT '后台执行器最近一次续租/心跳时间',
   PRIMARY KEY (id),
   UNIQUE KEY uk_collection_sync_request (user_id, request_id),
-  KEY idx_collection_sync_active (user_id, status, id)
+  KEY idx_collection_sync_active (user_id, status, id),
+  KEY idx_collection_sync_cleanup (status, finished_at, id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户 Bangumi 收藏双向同步任务';
 
 CREATE TABLE IF NOT EXISTS user_bgm_collection_sync_item (
