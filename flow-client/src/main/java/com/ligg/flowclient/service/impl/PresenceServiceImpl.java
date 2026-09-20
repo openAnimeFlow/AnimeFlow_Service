@@ -14,12 +14,14 @@ import com.ligg.flowclient.mapper.BangumiSubjectMapper;
 import com.ligg.flowclient.service.JwtTokenService;
 import com.ligg.flowclient.service.PresenceService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.Set;
 import java.util.Comparator;
 import java.util.List;
@@ -27,9 +29,11 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PresenceServiceImpl implements PresenceService {
 
     private static final long TTL_SECONDS = 180L;
+    private static final int MAX_WATCHING_SUBJECTS = 100;
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final StringRedisTemplate stringRedisTemplate;
@@ -66,7 +70,9 @@ public class PresenceServiceImpl implements PresenceService {
         stringRedisTemplate.opsForZSet().add(Constants.PRESENCE_DEVICES_KEY, presenceId, now);
         stringRedisTemplate.opsForZSet().add(Constants.PRESENCE_USERS_KEY, dedupeKey, now);
         updateSubjectIndexes(previous, context, now);
-
+        if (presenceChanged(previous, context, now)) {
+            publishPresenceChanged();
+        }
     }
 
     @Override
@@ -82,6 +88,9 @@ public class PresenceServiceImpl implements PresenceService {
             stringRedisTemplate.opsForZSet().remove(
                     subjectDevicesKey(previous.getSubjectId()), presenceId);
             removeSubjectFromGlobalIndexIfOffline(previous.getSubjectId());
+        }
+        if (previous != null && isActive(previous, Instant.now().getEpochSecond())) {
+            publishPresenceChanged();
         }
     }
 
@@ -198,7 +207,10 @@ public class PresenceServiceImpl implements PresenceService {
                 })
                 .filter(item -> item.getOnline().getOnlineDevices() > 0)
                 .sorted(Comparator.comparingLong(
-                        item -> -item.getOnline().getOnlineUsers()))
+                                (WatchingSubjectVo item) -> item.getOnline().getOnlineUsers())
+                        .reversed()
+                        .thenComparingInt(WatchingSubjectVo::getSubjectId))
+                .limit(MAX_WATCHING_SUBJECTS)
                 .toList();
     }
 
@@ -224,6 +236,37 @@ public class PresenceServiceImpl implements PresenceService {
     private static boolean sameSubject(PresenceContext first, PresenceContext second) {
         return first.getSubjectId() != null
                 && first.getSubjectId().equals(second.getSubjectId());
+    }
+
+    private static boolean presenceChanged(PresenceContext previous,
+                                           PresenceContext current,
+                                           long now) {
+        if (previous == null || !isActive(previous, now)) {
+            return true;
+        }
+        boolean onlineUsersChanged = !Objects.equals(
+                previous.getDedupeKey(), current.getDedupeKey());
+        boolean watchingSubjectsChanged = !samePlaybackContext(previous, current);
+        return onlineUsersChanged || watchingSubjectsChanged;
+    }
+
+    private static boolean samePlaybackContext(PresenceContext first, PresenceContext second) {
+        return hasPlaybackContext(first)
+                && hasPlaybackContext(second)
+                && sameSubject(first, second);
+    }
+
+    private static boolean isActive(PresenceContext context, long now) {
+        return context.getLastSeenAt() > now - TTL_SECONDS;
+    }
+
+    private void publishPresenceChanged() {
+        try {
+            stringRedisTemplate.convertAndSend(Constants.PRESENCE_CHANGED_CHANNEL, "changed");
+        } catch (RuntimeException error) {
+            // SSE 有低频兜底刷新，通知失败不应影响在线状态写入。
+            log.warn("Presence SSE change notification unavailable", error);
+        }
     }
 
     private void removeSubjectFromGlobalIndexIfOffline(Integer subjectId) {

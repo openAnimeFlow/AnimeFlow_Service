@@ -6,6 +6,7 @@ import com.ligg.common.entity.BangumiSubjectEntity;
 import com.ligg.flowclient.mapper.BangumiSubjectMapper;
 import com.ligg.flowclient.module.dto.PresenceHeartbeatDto;
 import com.ligg.flowclient.module.vo.PresenceContext;
+import com.ligg.flowclient.module.vo.WatchingSubjectVo;
 import com.ligg.flowclient.service.JwtTokenService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,11 +19,17 @@ import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.core.ZSetOperations;
 
 import java.util.List;
+import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -63,6 +70,8 @@ class PresenceServiceImplTest {
 
         verify(zset).add(eq(SUBJECT_DEVICES), eq("presence-1"), anyDouble());
         verify(zset).add(eq(Constants.PRESENCE_WATCHING_SUBJECTS_KEY), eq(String.valueOf(SUBJECT_ID)), anyDouble());
+        verify(stringRedisTemplate).convertAndSend(
+                Constants.PRESENCE_CHANGED_CHANNEL, "changed");
 
         BangumiSubjectEntity subject = new BangumiSubjectEntity();
         subject.setId(SUBJECT_ID);
@@ -88,6 +97,60 @@ class PresenceServiceImplTest {
         assertEquals(1, result.get(0).getOnline().getOnlineUsers());
         assertEquals("https://wsrv.nl/?url=https://example.com/cover.jpg",
                 result.get(0).getImages().getLarge());
+    }
+
+    @Test
+    void unchangedHeartbeatDoesNotBroadcastAnotherSnapshot() {
+        long now = java.time.Instant.now().getEpochSecond();
+        PresenceContext previous = new PresenceContext(
+                "presence-1", "visitor-1", null, "visitor:visitor-1", "ANDROID", null,
+                "watching", SUBJECT_ID, 1699260, 120, now - 1);
+        when(values.get(Constants.PRESENCE_KEY + ":presence-1")).thenReturn(previous);
+
+        PresenceHeartbeatDto dto = new PresenceHeartbeatDto();
+        dto.setVisitorId("visitor-1");
+        dto.setClientType("ANDROID");
+        dto.setStatus("watching");
+        dto.setSubjectId(SUBJECT_ID);
+        dto.setEpisodeId(1699260);
+        dto.setPositionSeconds(121);
+
+        service.heartbeat("presence-1", dto, null, false);
+
+        verify(stringRedisTemplate, never()).convertAndSend(
+                Constants.PRESENCE_CHANGED_CHANNEL, "changed");
+    }
+
+    @Test
+    void watchingSubjectsReturnsTopOneHundredByOnlineUsers() {
+        List<Integer> ids = IntStream.rangeClosed(1, 101).boxed().toList();
+        List<BangumiSubjectEntity> subjects = ids.stream().map(id -> {
+            BangumiSubjectEntity subject = new BangumiSubjectEntity();
+            subject.setId(id);
+            subject.setName("Anime " + id);
+            return subject;
+        }).toList();
+
+        when(zset.reverseRangeByScore(eq(Constants.PRESENCE_WATCHING_SUBJECTS_KEY),
+                anyDouble(), anyDouble()))
+                .thenReturn(ids.stream().map(String::valueOf).collect(Collectors.toSet()));
+        when(bangumiSubjectMapper.selectByIds(anyList())).thenReturn(subjects);
+        when(zset.rangeByScore(anyString(), anyDouble(), anyDouble())).thenAnswer(invocation -> {
+            String key = invocation.getArgument(0);
+            int subjectId = Integer.parseInt(key.substring(key.lastIndexOf(':') + 1));
+            Set<String> users = new HashSet<>();
+            for (int index = 0; index < 102 - subjectId; index++) {
+                users.add("visitor:" + subjectId + ":" + index);
+            }
+            return users;
+        });
+        when(zset.zCard(anyString())).thenReturn(1L);
+
+        List<WatchingSubjectVo> result = service.watchingSubjects();
+
+        assertEquals(100, result.size());
+        assertEquals(1, result.get(0).getSubjectId());
+        assertEquals(100, result.get(99).getSubjectId());
     }
 
     @Test

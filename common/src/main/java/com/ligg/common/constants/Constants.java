@@ -139,6 +139,9 @@ public class Constants {
     /** 正在播放番剧索引，成员为 subjectId，score 为最近观看时间戳。 */
     public static final String PRESENCE_WATCHING_SUBJECTS_KEY = "animeflow:presence:watching-subjects";
 
+    /** Presence 状态变化通知频道。 */
+    public static final String PRESENCE_CHANGED_CHANNEL = "animeflow:presence:changed";
+
     /**
      * user_oauth.platform 字段：Bangumi 第三方登录
      */
