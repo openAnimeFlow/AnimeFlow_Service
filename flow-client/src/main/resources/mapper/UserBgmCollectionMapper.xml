@@ -26,10 +26,18 @@
     </update>
 
     <select id="selectPendingUploads" resultType="com.ligg.common.entity.UserBgmCollectionEntity">
-        SELECT * FROM user_bgm_collection
-        WHERE remote_sync_status='PENDING' AND pending_payload IS NOT NULL
-          AND next_retry_at &lt;= CURRENT_TIMESTAMP
-        ORDER BY next_retry_at, id LIMIT 20
+        SELECT c.*
+        FROM user_bgm_collection c
+        WHERE c.remote_sync_status='PENDING' AND c.pending_payload IS NOT NULL
+          AND c.next_retry_at &lt;= CURRENT_TIMESTAMP
+          AND NOT EXISTS (
+              SELECT 1
+              FROM user_bgm_collection_sync_task t
+              WHERE t.user_id = c.user_id
+                AND t.subject_type = c.subject_type
+                AND t.status IN ('QUEUED', 'RUNNING', 'PARTIAL_FAILED')
+          )
+        ORDER BY c.next_retry_at, c.id LIMIT 20
     </select>
 
     <sql id="userFilterWhere">

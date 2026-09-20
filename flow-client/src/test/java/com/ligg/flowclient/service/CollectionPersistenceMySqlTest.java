@@ -206,6 +206,10 @@ class CollectionPersistenceMySqlTest {
         dto.setTags(List.of()); dto.setComment("");
         lock.execute(10L, 42, () -> writer.save(10L, 42, dto, oauth));
         new JdbcTemplate(dataSource).update("UPDATE user_bgm_collection SET next_retry_at=CURRENT_TIMESTAMP WHERE user_id=10");
+        var jdbc = new JdbcTemplate(dataSource);
+        jdbc.update("INSERT INTO user_bgm_collection_sync_task(user_id, subject_type, request_id, status, phase) VALUES (10, 2, 'blocking-upload-test', 'RUNNING', 'APPLYING')");
+        assertTrue(mapper.selectPendingUploads().isEmpty());
+        jdbc.update("UPDATE user_bgm_collection_sync_task SET status='SUCCESS', finished_at=CURRENT_TIMESTAMP WHERE user_id=10 AND request_id='blocking-upload-test'");
         var persisted = mapper.selectPendingUploads().get(0);
         assertEquals(CollectionRemoteSyncStatus.PENDING, persisted.getRemoteSyncStatus());
         assertEquals(2L, persisted.getVersion());
