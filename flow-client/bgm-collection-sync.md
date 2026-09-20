@@ -88,7 +88,7 @@ Redis Pub/Sub 频道 animeflow:collection-sync:changed 只用于通知其他实�
 
 ~~~http
 GET /api/v1/users/collections/sync/{taskId}/conflicts?offset=0&limit=20
-POST /api/v1/users/collections/sync/{taskId}/conflicts/resolve
+POST /api/v1/users/collections/sync/{taskId}/conflicts
 ~~~
 
 冲突列表返回 conflictId、subjectId、subjectName、localType、remoteType、localVersion、conflictVersion 和 status。客户端分别展示 AnimeFlow 与 Bangumi 的收藏分类，让用户选择最终分类。

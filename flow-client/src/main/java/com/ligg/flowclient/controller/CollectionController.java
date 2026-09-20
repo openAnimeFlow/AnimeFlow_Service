@@ -125,7 +125,7 @@ public class CollectionController {
         return Result.success(ResponseCode.SUCCESS, userBgmCollectionSyncService.getConflicts(userId, taskId, offset, limit));
     }
 
-    @PostMapping("/sync/{taskId}/conflicts/resolve")
+    @PostMapping("/sync/{taskId}/conflicts")
     public Result<UserBgmCollectionSyncStatusVo> resolveConflicts(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
             @PathVariable Long taskId, @Valid @RequestBody CollectionConflictResolveDto body) {
