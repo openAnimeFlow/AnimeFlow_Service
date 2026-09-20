@@ -18,17 +18,17 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 
 import java.util.List;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -58,6 +58,9 @@ class PresenceServiceImplTest {
                 jwtTokenService, bangumiSubjectMapper, new ObjectMapper());
         lenient().when(redisTemplate.opsForValue()).thenReturn(values);
         when(stringRedisTemplate.opsForZSet()).thenReturn(zset);
+        lenient().when(stringRedisTemplate.execute(
+                any(DefaultRedisScript.class), anyList(), any(), any()))
+                .thenReturn(List.of(String.valueOf(SUBJECT_ID)));
     }
 
     @Test
@@ -80,14 +83,6 @@ class PresenceServiceImplTest {
         subject.setId(SUBJECT_ID);
         subject.setName("Anime");
         subject.setImages("{\"large\":\"https://example.com/cover.jpg\"}");
-        when(zset.reverseRangeByScore(eq(Constants.PRESENCE_WATCHING_SUBJECTS_KEY),
-                anyDouble(), anyDouble(), anyLong(), anyLong())).thenAnswer(invocation -> {
-                    double min = invocation.getArgument(1);
-                    double max = invocation.getArgument(2);
-                    // Spring Data takes min, max even for reverse queries.
-                    assertEquals(179.0, max - min, "查询范围应覆盖最近 180 秒且下限小于上限");
-                    return Set.of(String.valueOf(SUBJECT_ID));
-                });
         when(bangumiSubjectMapper.selectByIds(List.of(SUBJECT_ID))).thenReturn(List.of(subject));
         when(zset.rangeByScore(eq(SUBJECT_USERS), anyDouble(), anyDouble()))
                 .thenReturn(Set.of("visitor:visitor-1"));
@@ -134,9 +129,9 @@ class PresenceServiceImplTest {
             return subject;
         }).toList();
 
-        when(zset.reverseRangeByScore(eq(Constants.PRESENCE_WATCHING_SUBJECTS_KEY),
-                anyDouble(), anyDouble(), anyLong(), anyLong()))
-                .thenReturn(ids.stream().map(String::valueOf).collect(Collectors.toSet()));
+        when(stringRedisTemplate.execute(
+                any(DefaultRedisScript.class), anyList(), any(), any()))
+                .thenReturn(ids.stream().map(String::valueOf).toList());
         when(bangumiSubjectMapper.selectByIds(anyList())).thenReturn(subjects);
         when(zset.rangeByScore(anyString(), anyDouble(), anyDouble())).thenAnswer(invocation -> {
             String key = invocation.getArgument(0);

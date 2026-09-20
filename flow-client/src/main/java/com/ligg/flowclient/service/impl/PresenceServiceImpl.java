@@ -15,8 +15,10 @@ import com.ligg.flowclient.service.JwtTokenService;
 import com.ligg.flowclient.service.PresenceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -24,7 +26,6 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.Comparator;
 import java.util.List;
@@ -37,7 +38,14 @@ public class PresenceServiceImpl implements PresenceService {
 
     private static final long TTL_SECONDS = 180L;
     private static final int MAX_WATCHING_SUBJECTS = 100;
-    private static final int WATCHING_SUBJECTS_PAGE_SIZE = 200;
+    private static final DefaultRedisScript<List> TOP_WATCHING_SUBJECTS_SCRIPT =
+            new DefaultRedisScript<>();
+
+    static {
+        TOP_WATCHING_SUBJECTS_SCRIPT.setLocation(
+                new ClassPathResource("lua/presence_top_subjects.lua"));
+        TOP_WATCHING_SUBJECTS_SCRIPT.setResultType(List.class);
+    }
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final StringRedisTemplate stringRedisTemplate;
@@ -94,6 +102,7 @@ public class PresenceServiceImpl implements PresenceService {
         }
         if (previous != null && hasPlaybackContext(previous)) {
             removeSubjectPresenceIndex(previous, now);
+            refreshSubjectRanking(previous.getSubjectId(), now);
             removeSubjectFromGlobalIndexIfOffline(previous.getSubjectId());
         }
         if (previous != null && isActive(previous, now)) {
@@ -178,6 +187,15 @@ public class PresenceServiceImpl implements PresenceService {
                 && (!hasPlaybackContext(current) || !sameSubject(previous, current))) {
             removeSubjectFromGlobalIndexIfOffline(previous.getSubjectId());
         }
+        if (previous != null && hasPlaybackContext(previous)
+                && (!hasPlaybackContext(current)
+                || !sameSubject(previous, current)
+                || !Objects.equals(previous.getDedupeKey(), current.getDedupeKey()))) {
+            refreshSubjectRanking(previous.getSubjectId(), now);
+        }
+        if (hasPlaybackContext(current)) {
+            refreshSubjectRanking(current.getSubjectId(), now);
+        }
         if (previous != null
                 && !Objects.equals(previous.getDedupeKey(), current.getDedupeKey())) {
             removeGlobalUserIndexIfUnused(previous, now);
@@ -195,48 +213,23 @@ public class PresenceServiceImpl implements PresenceService {
                         (SubjectPresence item) -> item.online().getOnlineUsers())
                 .reversed()
                 .thenComparingInt(SubjectPresence::subjectId);
-        Comparator<SubjectPresence> worstFirst = (left, right) -> {
-            int onlineUsers = Long.compare(
-                    left.online().getOnlineUsers(), right.online().getOnlineUsers());
-            return onlineUsers != 0
-                    ? onlineUsers
-                    : Integer.compare(right.subjectId(), left.subjectId());
-        };
-        PriorityQueue<SubjectPresence> topSubjects =
-                new PriorityQueue<>(MAX_WATCHING_SUBJECTS + 1, worstFirst);
-
-        long offset = 0;
-        while (true) {
-            Set<String> subjectIds = stringRedisTemplate.opsForZSet()
-                    // Spring Data 的倒序查询仍然使用 min、max 参数顺序。
-                    .reverseRangeByScore(indexKey, expiredBefore + 1, now,
-                            offset, WATCHING_SUBJECTS_PAGE_SIZE);
-            if (subjectIds == null || subjectIds.isEmpty()) {
-                break;
-            }
-
-            List<Integer> ids = subjectIds.stream()
-                    .map(this::parseSubjectId)
-                    .filter(id -> id != null && id > 0)
-                    .toList();
-            if (!ids.isEmpty()) {
-                for (Integer subjectId : ids) {
-                    OnlineCountVo online = subjectOnlineCount(subjectId);
-                    if (online.getOnlineDevices() <= 0) {
-                        continue;
-                    }
-                    topSubjects.offer(new SubjectPresence(subjectId, online));
-                    if (topSubjects.size() > MAX_WATCHING_SUBJECTS) {
-                        topSubjects.poll();
-                    }
-                }
-            }
-            if (subjectIds.size() < WATCHING_SUBJECTS_PAGE_SIZE) {
-                break;
-            }
-            offset += subjectIds.size();
+        List<Integer> candidateIds = topWatchingSubjectIds(expiredBefore);
+        if (candidateIds.isEmpty()) {
+            return List.of();
         }
-        List<SubjectPresence> rankedSubjects = topSubjects.stream().sorted(bestFirst).toList();
+
+        List<SubjectPresence> rankedSubjects = new java.util.ArrayList<>(candidateIds.size());
+        for (Integer subjectId : candidateIds) {
+            OnlineCountVo online = subjectOnlineCount(subjectId);
+            if (online.getOnlineDevices() <= 0 || online.getOnlineUsers() <= 0) {
+                stringRedisTemplate.opsForZSet().remove(
+                        Constants.PRESENCE_WATCHING_SUBJECTS_RANK_KEY,
+                        String.valueOf(subjectId));
+                continue;
+            }
+            rankedSubjects.add(new SubjectPresence(subjectId, online));
+        }
+        rankedSubjects = rankedSubjects.stream().sorted(bestFirst).toList();
         if (rankedSubjects.isEmpty()) {
             return List.of();
         }
@@ -268,6 +261,25 @@ public class PresenceServiceImpl implements PresenceService {
     }
 
     private record SubjectPresence(int subjectId, OnlineCountVo online) {
+    }
+
+    private List<Integer> topWatchingSubjectIds(long expiredBefore) {
+        List<?> values = stringRedisTemplate.execute(
+                TOP_WATCHING_SUBJECTS_SCRIPT,
+                List.of(
+                        Constants.PRESENCE_WATCHING_SUBJECTS_RANK_KEY,
+                        Constants.PRESENCE_WATCHING_SUBJECTS_KEY),
+                String.valueOf(expiredBefore),
+                String.valueOf(MAX_WATCHING_SUBJECTS));
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        return values.stream()
+                .map(Object::toString)
+                .map(this::parseSubjectId)
+                .filter(id -> id != null && id > 0)
+                .limit(MAX_WATCHING_SUBJECTS)
+                .toList();
     }
 
     private PresenceContext readPreviousContext(String recordKey) {
@@ -334,6 +346,8 @@ public class PresenceServiceImpl implements PresenceService {
         if (devices == null || devices == 0) {
             stringRedisTemplate.opsForZSet().remove(
                     Constants.PRESENCE_WATCHING_SUBJECTS_KEY, String.valueOf(subjectId));
+            stringRedisTemplate.opsForZSet().remove(
+                    Constants.PRESENCE_WATCHING_SUBJECTS_RANK_KEY, String.valueOf(subjectId));
         }
     }
 
@@ -346,6 +360,26 @@ public class PresenceServiceImpl implements PresenceService {
                 previous.getDedupeKey(),
                 previous.getPresenceId(),
                 now);
+    }
+
+    private void refreshSubjectRanking(Integer subjectId, long now) {
+        if (subjectId == null || subjectId <= 0) {
+            return;
+        }
+        String usersKey = subjectUsersKey(subjectId);
+        stringRedisTemplate.opsForZSet().removeRangeByScore(
+                usersKey, Double.NEGATIVE_INFINITY, now - TTL_SECONDS);
+        Long onlineUsers = stringRedisTemplate.opsForZSet().zCard(usersKey);
+        if (onlineUsers == null || onlineUsers <= 0) {
+            stringRedisTemplate.opsForZSet().remove(
+                    Constants.PRESENCE_WATCHING_SUBJECTS_RANK_KEY,
+                    String.valueOf(subjectId));
+            return;
+        }
+        stringRedisTemplate.opsForZSet().add(
+                Constants.PRESENCE_WATCHING_SUBJECTS_RANK_KEY,
+                String.valueOf(subjectId),
+                onlineUsers.doubleValue());
     }
 
     private void removeGlobalUserIndexIfUnused(PresenceContext previous, long now) {
