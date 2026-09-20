@@ -94,6 +94,7 @@ public class CollectionController {
     /**
      * 查询 Bangumi 收藏同步任务状态。
      */
+    @Deprecated
     @GetMapping("/sync")
     public Result<UserBgmCollectionSyncStatusVo> getCollectionSyncStatus(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken) {
@@ -102,7 +103,7 @@ public class CollectionController {
         return Result.success(ResponseCode.SUCCESS, status);
     }
 
-    /** Account-page status stream; disconnecting does not cancel the durable task. */
+    /** 账号收藏状态流；断开连接不会取消持久任务。 */
     @GetMapping("/sync/events")
     public ResponseEntity<SseEmitter> collectionSyncEvents(
             @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken) {
