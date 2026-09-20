@@ -19,7 +19,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
-/** The collection row is a durable coalescing outbox in phase 1. */
+/** 收藏记录在第一阶段充当持久化的合并式发件箱。 */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -32,14 +32,14 @@ public class CollectionUploadService {
     private final BangumiClient client;
     private final ObjectMapper json;
 
-    /** Must run under the same per-subject lock as local edits. */
+    /** 必须在与本地编辑相同的条目级锁下执行。 */
     public CollectionUpdateVo upload(UserBgmCollectionEntity row) {
         return upload(row, false);
     }
 
     private CollectionUpdateVo upload(UserBgmCollectionEntity row, boolean recovered) {
         if (CollectionRemoteSyncStatus.PENDING != row.getRemoteSyncStatus()) return result(row);
-        // A full task owns reconciliation; ordinary saves remain local until it finishes.
+        // 完整同步任务负责数据对账；普通保存操作在任务完成前只保留本地变更。
         if (mapper.countBlockedSyncItems(row.getUserId(), row.getSubjectId()) > 0)
             return mark(row, CollectionRemoteSyncStatus.CONFLICT);
         if (mapper.countActiveSyncTasks(row.getUserId(), row.getSubjectType()) > 0) return result(row);
@@ -52,7 +52,7 @@ public class CollectionUploadService {
             var detail = oauthExecutor.execute(oauth, token -> client.getSubject(row.getSubjectId(), token));
             var current = remoteFields(detail);
             if (detail.getInterest() == null && body.getType() == null) body.setType(row.getType());
-            // A crash before capturing a baseline leaves no proof that this remote value is old.
+            // 如果在记录远端基线前崩溃，就无法证明当前远端值是旧数据。
             if (recovered && row.getRemoteBaseline() == null && detail.getInterest() != null
                     && !matches(body, current)) return mark(row, CollectionRemoteSyncStatus.CONFLICT);
             if (row.getRemoteBaseline() != null && !matches(body, current)
@@ -62,7 +62,8 @@ public class CollectionUploadService {
             row.setPendingPayload(writer.writeJson(body));
             if (row.getRemoteBaseline() == null) {
                 row.setRemoteBaseline(writer.writeJson(current));
-                persist(row); // Commit baseline before HTTP; retries can detect intervening remote edits.
+            // 在发起 HTTP 请求前提交远端基线，重试时才能检测期间发生的远端编辑。
+            persist(row);
             }
             savedBaseline = row.getRemoteBaseline();
             if (!sameBinding(row, tokens.findBangumiOauth(row.getUserId())))
@@ -91,7 +92,7 @@ public class CollectionUploadService {
         } catch (RuntimeException e) {
             if (row.getPendingPayload() == null) row.setPendingPayload(savedPayload);
             if (row.getRemoteBaseline() == null) row.setRemoteBaseline(savedBaseline);
-            // Preserve the local write and upload intent, without logging private payloads/tokens.
+            // 保留本地写入和上传意图，但不记录私有数据或令牌。
             log.warn("收藏上传待重试 userId={} subjectId={} error={}",
                     row.getUserId(), row.getSubjectId(), e.getClass().getSimpleName());
             int attempt = (row.getRetryCount() == null ? 0 : row.getRetryCount()) + 1;
@@ -110,7 +111,7 @@ public class CollectionUploadService {
         return lock.execute(userId, subjectId, () -> {
             var row = writer.find(userId, subjectId);
             if (row == null) throw new IllegalArgumentException("收藏不存在");
-            // Conflicts and changed bindings require new user intent; retry must not override them.
+            // 冲突和账号绑定变化需要用户重新确认；重试不能覆盖这些状态。
             if (CollectionRemoteSyncStatus.AUTH_REQUIRED == row.getRemoteSyncStatus()
                     && sameBinding(row, tokens.findBangumiOauth(userId))) {
                 row.setRemoteSyncStatus(CollectionRemoteSyncStatus.PENDING);

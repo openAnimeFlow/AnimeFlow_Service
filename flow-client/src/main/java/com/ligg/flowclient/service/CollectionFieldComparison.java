@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import java.util.HashSet;
 import java.util.Objects;
 
-/** Bangumi may reorder tags; their order is not part of collection content. */
+/** Bangumi 可能重新排列标签；标签顺序不属于收藏内容的一部分。 */
 final class CollectionFieldComparison {
     private CollectionFieldComparison() {}
 

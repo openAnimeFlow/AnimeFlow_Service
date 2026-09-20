@@ -8,7 +8,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.function.Supplier;
 
-/** Connection-owned MySQL lock: no expiring lease can let an old upload overtake a new one. */
+/** 由连接持有的 MySQL 锁，避免过期租约让旧上传操作覆盖新操作。 */
 @Component
 @RequiredArgsConstructor
 public class CollectionWriteLock {
@@ -33,7 +33,7 @@ public class CollectionWriteLock {
                     statement.setString(1, key);
                     statement.execute();
                 } catch (SQLException e) {
-                    // Never return a pooled connection that might still own this lock.
+                    // 绝不能归还可能仍持有该锁的连接池连接。
                     connection.abort(Runnable::run);
                     throw e;
                 }

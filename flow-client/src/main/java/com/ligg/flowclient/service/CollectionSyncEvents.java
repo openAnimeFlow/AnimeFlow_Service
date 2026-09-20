@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-/** Notify only after committed writes; notifications never carry collection payloads. */
+/** 仅在写入提交后发送通知；通知中不携带收藏数据内容。 */
 @Component
 @RequiredArgsConstructor
 public class CollectionSyncEvents {

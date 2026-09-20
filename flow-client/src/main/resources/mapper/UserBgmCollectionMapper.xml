@@ -82,7 +82,7 @@
         FROM user_bgm_collection c
                  LEFT JOIN bangumi_subject s ON s.id = c.subject_id
         <include refid="userFilterWhere"/>
-        ORDER BY c.local_updated_at DESC, c.id DESC
+        ORDER BY COALESCE(c.local_updated_at, FROM_UNIXTIME(c.bgm_updated_at)) DESC, c.id DESC
         LIMIT #{limit} OFFSET #{offset}
     </select>
 

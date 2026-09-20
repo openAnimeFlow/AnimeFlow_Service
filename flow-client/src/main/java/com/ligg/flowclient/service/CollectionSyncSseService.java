@@ -15,7 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.concurrent.*;
 
-/** Connections are ephemeral; the database remains the source of truth on every reconnect. */
+/** SSE 连接是临时的；每次重连都以数据库中的状态为准。 */
 @Service
 @Slf4j
 public class CollectionSyncSseService implements MessageListener {
@@ -26,7 +26,7 @@ public class CollectionSyncSseService implements MessageListener {
     private final ConcurrentMap<Long, Set<Connection>> connections = new ConcurrentHashMap<>();
     private final Set<Long> dirty = ConcurrentHashMap.newKeySet();
     private final Set<Long> broadcasts = ConcurrentHashMap.newKeySet();
-    // Slow browsers never block collection workers or grow an unbounded send queue.
+    // 较慢的客户端不会阻塞收藏任务，也不会导致发送队列无限增长。
     private final ExecutorService sends = new ThreadPoolExecutor(2, 8, 60, TimeUnit.SECONDS,
             new ArrayBlockingQueue<>(256), runnable -> {
                 Thread thread = new Thread(runnable, "collection-sse-send");
@@ -42,7 +42,7 @@ public class CollectionSyncSseService implements MessageListener {
     }
 
     public SseEmitter subscribe(Long userId, String accessToken) {
-        // Periodic renewal also bounds stale connections following broker/network outages.
+        // 定期续期也能限制消息代理或网络故障后残留连接的存活时间。
         var emitter = new SseEmitter(300_000L);
         var connection = new Connection(userId, accessToken, emitter);
         connections.compute(userId, (id, existing) -> {
@@ -54,7 +54,7 @@ public class CollectionSyncSseService implements MessageListener {
         emitter.onTimeout(connection::close);
         emitter.onError(error -> connection.close());
         try {
-            // Register before reading: concurrent updates cannot fall into a subscribe gap.
+            // 先注册再读取状态，避免并发更新落入订阅空窗期。
             connection.offer(tasks.status(userId));
         } catch (RuntimeException error) {
             connection.close();
@@ -89,7 +89,7 @@ public class CollectionSyncSseService implements MessageListener {
             try {
                 redis.convertAndSend(CHANNEL, userId.toString());
             } catch (RuntimeException error) {
-                // Delivery failure must not turn a committed collection write into a failed write.
+                // 消息投递失败不能让已经提交的收藏写入变成失败写入。
                 log.warn("Collection SSE broadcast unavailable; clients recover by reconnecting");
                 closeUser(userId);
             }
@@ -109,7 +109,7 @@ public class CollectionSyncSseService implements MessageListener {
 
     @Scheduled(fixedDelay = 20_000, scheduler = "collectionSyncSseScheduler")
     public void heartbeat() {
-        // No task queries here. A write detects dead sockets; authentication uses Redis.
+        // 这里不查询任务状态；写入操作负责发现失效连接，认证通过 Redis 完成。
         connections.values().forEach(set -> set.forEach(Connection::heartbeat));
     }
 
@@ -175,7 +175,7 @@ public class CollectionSyncSseService implements MessageListener {
                         sendPulse = pulse; pulse = false;
                         if (snapshot == null && !sendPulse) { sending = false; return; }
                     }
-                    // Expired/revoked sessions cannot retain access through a long-lived stream.
+                    // 过期或撤销的会话不能通过长期连接继续保留访问权限。
                     if (!userId.equals(jwt.validateAccessToken(token))) { close(); return; }
                     if (snapshot != null) {
                         emitter.send(SseEmitter.event().name("status")

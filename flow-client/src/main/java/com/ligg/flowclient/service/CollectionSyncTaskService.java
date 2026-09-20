@@ -34,7 +34,7 @@ public class CollectionSyncTaskService {
 
     public void changed(Long userId) { events.changed(userId); }
 
-    // Reserved negative subject IDs serialize task registration; no HTTP under this lock.
+    // 使用保留的负数条目 ID 串行化任务注册；持有该锁时不执行 HTTP 请求。
     public CollectionSyncTaskEntity createOrGet(Long userId, int subjectType, String requestId) {
         if (!Set.of(1,2,3,4,6).contains(subjectType)) throw new IllegalArgumentException("条目大类无效");
         if (requestId == null || requestId.isBlank() || requestId.length() > 80)
@@ -56,7 +56,8 @@ public class CollectionSyncTaskService {
             task.setCreatedAt(LocalDateTime.now()); task.setStatusVersion(0L);
             task.setTotalCount(0); task.setImportedCount(0); task.setUploadedCount(0);
             task.setUnchangedCount(0); task.setConflictCount(0); task.setResolvedCount(0); task.setFailedCount(0);
-            tasks.insert(task); // Autocommit completes before any async dispatch.
+            // 异步分发前先通过自动提交完成任务持久化。
+            tasks.insert(task);
             changed(userId);
             return task;
         });
@@ -182,7 +183,7 @@ public class CollectionSyncTaskService {
         vo.setSyncedCount(zero(task.getImportedCount())+zero(task.getUploadedCount())
                 +zero(task.getUnchangedCount())+zero(task.getResolvedCount()));
         if (CollectionSyncPhase.SCANNING == task.getPhase()) {
-            // Keep the pre-refactor progress visible while the five remote lists are scanned.
+            // 扫描五个远端列表时，继续展示重构前的进度信息。
             vo.setScannedCount(allItems(task.getId()).size());
         } else {
             vo.setScannedCount(0);

@@ -16,6 +16,7 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.transaction.support.TransactionTemplate;
+import java.time.LocalDateTime;
 import java.util.function.*;
 import static org.mockito.Mockito.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -247,6 +248,19 @@ class CollectionSyncItemExecutorTest {
         verify(collections).insert(any(UserBgmCollectionEntity.class));
         verify(client,never()).updateCollection(anyString(),anyInt(),any());
     }
+
+    @Test void syncCompletionDoesNotRewriteLocalUpdatedAt() {
+        var localUpdatedAt = LocalDateTime.of(2026, 9, 1, 12, 30);
+        row.setLocalUpdatedAt(localUpdatedAt);
+        remote.getInterest().setType(row.getType());
+
+        service.execute(task, item);
+
+        assertEquals(CollectionSyncItemStatus.DONE, item.getStatus());
+        assertEquals(localUpdatedAt, row.getLocalUpdatedAt());
+        verify(collections).update(isNull(), any(LambdaUpdateWrapper.class));
+    }
+
     @Test void changedRemoteAfterAcceptedDecisionRequiresNewChoice() {
         service.execute(task,item); service.resolve(10L,1L,2L,item.getConflictVersion(),3);
         remote.getInterest().setComment("another device");

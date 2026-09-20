@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Callers hold the task lock then the subject lock. HTTP is always outside transactions.
+ * 调用方先持有任务锁，再持有条目锁；所有 HTTP 请求均在事务外执行。
  */
 @Service
 @RequiredArgsConstructor
@@ -74,7 +74,7 @@ public class CollectionSyncItemExecutor {
             if (item == null || !Objects.equals(item.getTaskId(), taskId) || !Objects.equals(item.getUserId(), userId))
                 throw new IllegalArgumentException("冲突不存在");
             return locks.execute(userId, item.getSubjectId(), () -> {
-                // Replaying an accepted identical decision is safe, including a lost response.
+                // 重放已经接受的相同决策是安全的，即使之前的响应已经丢失。
                 if (Objects.equals(item.getConflictVersion(), version)
                         && Objects.equals(item.getSelectedType(), selectedType)
                         && List.of(CollectionSyncItemStatus.RESOLUTION_PENDING, CollectionSyncItemStatus.APPLY_PENDING,
@@ -92,7 +92,7 @@ public class CollectionSyncItemExecutor {
                     throw new IllegalArgumentException("STALE_CONFLICT：双方收藏已变化，请刷新后重新选择");
                 }
                 tasks.requireBinding(task);
-                // Persist authorization before dispatch. Do not change local content until remote confirmation.
+                // 在发送请求前先持久化授权结果；远端确认前不要修改本地内容。
                 item.setSelectedType(selectedType);
                 item.setDesiredPayload(writer.writeJson(desired(local, remote, selectedType)));
                 item.setOperation(CollectionSyncOperation.RESOLVE);
@@ -100,7 +100,7 @@ public class CollectionSyncItemExecutor {
                 item.setErrorCode(null);
                 tx.executeWithoutResult(ignored -> {
                     save(item);
-                    // Accepted decisions are no longer unresolved conflicts in the UI.
+                    // 已接受的决策不再作为未解决冲突。
                     tasks.summarize(task);
                     taskMapper.updateWithStatusVersion(new LambdaUpdateWrapper<CollectionSyncTaskEntity>()
                             .eq(CollectionSyncTaskEntity::getId, taskId)
@@ -124,14 +124,14 @@ public class CollectionSyncItemExecutor {
             var remote = useScan ? scanned(item) : read(task, item);
             if (useScan && remote.getInterest() == null) {
                 if (local == null) {
-                    // No collection information to import. Do not invent a category or fetch details.
+                    // 远端没有收藏信息可供导入；不要自行创建收藏分类，也不要请求条目详情。
                     item.setStatus(CollectionSyncItemStatus.DONE);
                     item.setOperation(CollectionSyncOperation.UNCHANGED);
                     item.setErrorCode(null); item.setResolvedAt(LocalDateTime.now());
                     save(item);
                     return null;
                 }
-                // A local collection may need an upload; validate the live remote before any write.
+                // 本地收藏可能需要上传；写入远端前先校验实时远端状态。
                 remote = read(task, item);
                 useScan = false;
             }
@@ -143,7 +143,7 @@ public class CollectionSyncItemExecutor {
                     conflict(item, local, remote);
                     return null;
                 }
-                // An uncertain PUT may have succeeded. Confirm before deciding to resend.
+                // 不确定的 PUT 请求可能已经成功；决定是否重试前先确认远端状态。
                 if (!matches(target, current) && !same(current, writer.readPayload(item.getRemoteSnapshot()))) {
                     conflict(item, local, remote);
                     return null;
@@ -157,7 +157,7 @@ public class CollectionSyncItemExecutor {
                     throw new IllegalStateException("远端收藏在扫描后消失，请重试");
                 target = desired(local, remote, null);
                 if (useScan && !matches(target, current)) {
-                    // Only entries that may write remotely need a fresh detail request.
+                    // 只有可能写入远端的条目才需要重新请求详情。
                     var latest = read(task, item);
                     var latestFields = fields(latest);
                     if (!matches(target, latestFields) && !same(current, latestFields)) {
@@ -175,7 +175,8 @@ public class CollectionSyncItemExecutor {
                         : matches(target, current) ? CollectionSyncOperation.UNCHANGED : CollectionSyncOperation.UPLOAD);
             }
             item.setStatus(CollectionSyncItemStatus.APPLY_PENDING);
-            save(item); // Durable intent and baseline must commit before HTTP.
+            // 持久化操作意图和远端基线后，才能发起 HTTP 请求。
+            save(item);
             var oauth = tasks.requireBinding(task);
             if (!matches(target, current)) {
                 oauthExecutor.execute(oauth, token -> {
@@ -227,7 +228,9 @@ public class CollectionSyncItemExecutor {
                 row.setVolStatus(interest.getVolStatus());
                 row.setCreateTime(LocalDateTime.now());
             }
-            row.setLocalUpdatedAt(LocalDateTime.now());
+            // 同步结果属于远端状态更新，不是本地编辑；保留原有的
+            // local_updated_at，避免 Bangumi 同步操作打乱本地收藏排序。
+            // 用户主动修改收藏时，由 LocalCollectionWriter 负责更新该字段。
             row.setVersion(previous + 1);
             row.setBgmInterestId(interest.getId());
             row.setBgmUpdatedAt(interest.getUpdatedAt());
@@ -241,7 +244,7 @@ public class CollectionSyncItemExecutor {
             row.setRetryCount(0);
             if (local == null) collections.insert(row);
             else {
-                // Explicit null writes and expected version protect against stale completion.
+                // 显式写入 null 并校验预期版本，避免过期任务覆盖新数据。
                 int count = collections.update(null, new LambdaUpdateWrapper<UserBgmCollectionEntity>()
                         .eq(UserBgmCollectionEntity::getId, row.getId())
                         .eq(UserBgmCollectionEntity::getVersion, previous)
@@ -295,7 +298,7 @@ public class CollectionSyncItemExecutor {
     }
 
     private void save(CollectionSyncConflictEntity item) {
-        // updateById omits null values by default; explicitly clear obsolete decisions and baselines.
+        // updateById 默认会忽略 null 值，因此需要显式清除过期的决策和基线。
         items.update(null, new LambdaUpdateWrapper<CollectionSyncConflictEntity>()
                 .eq(CollectionSyncConflictEntity::getId, item.getId())
                 .set(CollectionSyncConflictEntity::getStatus, item.getStatus())
@@ -315,7 +318,7 @@ public class CollectionSyncItemExecutor {
     UpdateCollectionBody desired(UserBgmCollectionEntity local, SubjectDetailDto remote, Integer selected) {
         var result = local == null ? new UpdateCollectionBody()
                 : remote.getInterest() == null ? localFields(local) : writer.readPayload(local.getPendingPayload());
-        // Keep all non-type dirty fields, including explicit empty values.
+        // 保留除收藏类型外的所有待同步字段，包括用户明确设置的空值。
         if (selected != null) result.setType(selected);
         else if (local != null) result.setType(local.getType());
         return result;
