@@ -416,7 +416,8 @@ CREATE TABLE `user_bgm_collection_sync_task` (
   UNIQUE KEY `uk_collection_sync_active_user` (`active_user_id`),
   PRIMARY KEY (`id`), UNIQUE KEY `uk_collection_sync_request` (`user_id`,`request_id`),
   KEY `idx_collection_sync_active` (`user_id`,`status`,`id`),
-  KEY `idx_collection_sync_cleanup` (`status`,`finished_at`,`id`)
+  KEY `idx_collection_sync_cleanup` (`status`,`finished_at`,`id`),
+  KEY `idx_sync_task_recovery` (`status`,`heartbeat_at`,`created_at`,`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户 Bangumi 收藏双向同步任务';
 
 CREATE TABLE `user_bgm_collection_sync_item` (
