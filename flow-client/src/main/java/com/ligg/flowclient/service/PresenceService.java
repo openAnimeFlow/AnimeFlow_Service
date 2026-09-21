@@ -15,7 +15,7 @@ public interface PresenceService {
 
     OnlineCountVo onlineCount();
 
-    OnlineCountVo subjectOnlineCount(int subjectId);
+    OnlineCountVo subjectOnlineCount(int subjectId, String excludePresenceId);
 
     List<WatchingSubjectVo> watchingSubjects();
 }

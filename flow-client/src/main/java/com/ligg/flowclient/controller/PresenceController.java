@@ -1,12 +1,9 @@
 package com.ligg.flowclient.controller;
 
 import com.ligg.common.exception.AuthorizationException;
-import com.ligg.common.response.Result;
-import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.flowclient.annotation.IpEndpointRateLimit;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.module.dto.PresenceHeartbeatDto;
-import com.ligg.flowclient.module.vo.OnlineCountVo;
 import com.ligg.flowclient.service.PresenceService;
 import com.ligg.flowclient.service.PresenceSseService;
 import jakarta.validation.Valid;
@@ -22,6 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -65,9 +63,12 @@ public class PresenceController {
         return sseResponse(presenceSseService.subscribeOnlineCount());
     }
 
-    @GetMapping("/subjects/{subjectId}/online-count")
-    public Result<OnlineCountVo> subjectOnlineCount(@PathVariable int subjectId) {
-        return Result.success(ResponseCode.SUCCESS, presenceService.subjectOnlineCount(subjectId));
+    @GetMapping(value = "/subjects/{subjectId}/online-count",
+            produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public ResponseEntity<SseEmitter> subjectOnlineCount(
+            @PathVariable int subjectId,
+            @RequestParam(required = false) String presenceId) {
+        return sseResponse(presenceSseService.subscribeSubjectOnlineCount(subjectId, presenceId));
     }
 
     @GetMapping(value = "/watching-subjects", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

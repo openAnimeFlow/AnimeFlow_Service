@@ -137,7 +137,7 @@ public class PresenceServiceImpl implements PresenceService {
     }
 
     @Override
-    public OnlineCountVo subjectOnlineCount(int subjectId) {
+    public OnlineCountVo subjectOnlineCount(int subjectId, String excludePresenceId) {
         if (subjectId <= 0) {
             return new OnlineCountVo(0, 0, 0, 0);
         }
@@ -152,10 +152,17 @@ public class PresenceServiceImpl implements PresenceService {
 
         Set<String> users = stringRedisTemplate.opsForZSet()
                 .rangeByScore(usersKey, expiredBefore + 1, now);
+        PresenceContext excludedPresence = resolveExcludedPresence(
+                subjectId, excludePresenceId, now);
+        String excludedUser = excludedPresence == null
+                ? null : excludedPresence.getDedupeKey();
         long anonymous = 0;
         long loggedIn = 0;
         if (users != null) {
             for (String user : users) {
+                if (Objects.equals(user, excludedUser)) {
+                    continue;
+                }
                 if (user.startsWith("user:")) {
                     loggedIn++;
                 } else if (user.startsWith("visitor:")) {
@@ -164,7 +171,26 @@ public class PresenceServiceImpl implements PresenceService {
             }
         }
         Long devices = stringRedisTemplate.opsForZSet().zCard(devicesKey);
-        return new OnlineCountVo(anonymous + loggedIn, devices == null ? 0 : devices, anonymous, loggedIn);
+        long onlineDevices = devices == null ? 0 : devices;
+        if (excludedPresence != null
+                && stringRedisTemplate.opsForZSet().score(devicesKey, excludePresenceId) != null) {
+            onlineDevices = Math.max(0, onlineDevices - 1);
+        }
+        return new OnlineCountVo(anonymous + loggedIn, onlineDevices, anonymous, loggedIn);
+    }
+
+    private PresenceContext resolveExcludedPresence(
+            int subjectId, String presenceId, long now) {
+        if (!StringUtils.hasText(presenceId)) {
+            return null;
+        }
+        PresenceContext context = readPreviousContext(recordKey(presenceId));
+        if (context == null
+                || !Objects.equals(context.getSubjectId(), subjectId)
+                || !isActive(context, now)) {
+            return null;
+        }
+        return context;
     }
 
     private void updateSubjectIndexes(PresenceContext previous, PresenceContext current, long now) {
@@ -220,7 +246,7 @@ public class PresenceServiceImpl implements PresenceService {
 
         List<SubjectPresence> rankedSubjects = new java.util.ArrayList<>(candidateIds.size());
         for (Integer subjectId : candidateIds) {
-            OnlineCountVo online = subjectOnlineCount(subjectId);
+            OnlineCountVo online = subjectOnlineCount(subjectId, null);
             if (online.getOnlineDevices() <= 0 || online.getOnlineUsers() <= 0) {
                 stringRedisTemplate.opsForZSet().remove(
                         Constants.PRESENCE_WATCHING_SUBJECTS_RANK_KEY,

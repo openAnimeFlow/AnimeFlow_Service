@@ -35,6 +35,11 @@ public class PresenceSseService implements MessageListener {
     private final PresenceService presenceService;
     private final Set<SseEmitter> onlineCountEmitters = ConcurrentHashMap.newKeySet();
     private final Set<SseEmitter> watchingSubjectEmitters = ConcurrentHashMap.newKeySet();
+    private final ConcurrentHashMap<Integer, Set<SseEmitter>> subjectOnlineCountEmitters =
+            new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<SseEmitter, String> subjectOnlineCountExclusions =
+            new ConcurrentHashMap<>();
+    private final Set<Integer> subjectOnlineCountSnapshotDirty = ConcurrentHashMap.newKeySet();
     private final AtomicBoolean snapshotDirty = new AtomicBoolean();
     private final AtomicBoolean onlineCountSnapshotDirty = new AtomicBoolean(true);
     private final AtomicBoolean watchingSubjectsSnapshotDirty = new AtomicBoolean(true);
@@ -82,6 +87,18 @@ public class PresenceSseService implements MessageListener {
         return emitter;
     }
 
+    public SseEmitter subscribeSubjectOnlineCount(int subjectId, String excludePresenceId) {
+        Set<SseEmitter> emitters = subjectOnlineCountEmitters.computeIfAbsent(
+                subjectId, ignored -> ConcurrentHashMap.newKeySet());
+        SseEmitter emitter = register(emitters);
+        if (excludePresenceId != null && !excludePresenceId.isBlank()) {
+            subjectOnlineCountExclusions.put(emitter, excludePresenceId);
+        }
+        subjectOnlineCountSnapshotDirty.add(subjectId);
+        sendSubjectOnlineCount(emitter, subjectId, excludePresenceId);
+        return emitter;
+    }
+
     @Override
     public void onMessage(Message message, byte[] pattern) {
         invalidateSnapshots();
@@ -90,7 +107,10 @@ public class PresenceSseService implements MessageListener {
     private SseEmitter register(Set<SseEmitter> emitters) {
         SseEmitter emitter = new SseEmitter(CONNECTION_TIMEOUT_MS);
         emitters.add(emitter);
-        Runnable remove = () -> emitters.remove(emitter);
+        Runnable remove = () -> {
+            emitters.remove(emitter);
+            subjectOnlineCountExclusions.remove(emitter);
+        };
         emitter.onCompletion(remove);
         emitter.onTimeout(remove);
         emitter.onError(error -> remove.run());
@@ -98,7 +118,9 @@ public class PresenceSseService implements MessageListener {
     }
 
     private void markSnapshotDirty() {
-        if (!onlineCountEmitters.isEmpty() || !watchingSubjectEmitters.isEmpty()) {
+        if (!onlineCountEmitters.isEmpty()
+                || !watchingSubjectEmitters.isEmpty()
+                || !subjectOnlineCountEmitters.isEmpty()) {
             invalidateSnapshots();
         }
     }
@@ -113,6 +135,15 @@ public class PresenceSseService implements MessageListener {
         if (!watchingSubjectEmitters.isEmpty()) {
             sendWatchingSubjectsSnapshot();
         }
+        subjectOnlineCountSnapshotDirty.removeIf(subjectId -> {
+            Set<SseEmitter> emitters = subjectOnlineCountEmitters.get(subjectId);
+            if (emitters == null || emitters.isEmpty()) {
+                subjectOnlineCountEmitters.remove(subjectId);
+                return true;
+            }
+            sendSubjectOnlineCountSnapshot(subjectId, emitters);
+            return true;
+        });
     }
 
     private void sendOnlineCountSnapshot() {
@@ -140,6 +171,8 @@ public class PresenceSseService implements MessageListener {
     private void sendHeartbeats() {
         onlineCountEmitters.forEach(emitter -> sendHeartbeat(onlineCountEmitters, emitter));
         watchingSubjectEmitters.forEach(emitter -> sendHeartbeat(watchingSubjectEmitters, emitter));
+        subjectOnlineCountEmitters.forEach((subjectId, emitters) ->
+                emitters.forEach(emitter -> sendHeartbeat(emitters, emitter)));
     }
 
     private void sendOnlineCount(SseEmitter emitter) {
@@ -178,6 +211,32 @@ public class PresenceSseService implements MessageListener {
         }
     }
 
+    private void sendSubjectOnlineCountSnapshot(
+            int subjectId, Set<SseEmitter> emitters) {
+        emitters.forEach(emitter -> sendSubjectOnlineCount(
+                emitter,
+                subjectId,
+                subjectOnlineCountExclusions.get(emitter)));
+    }
+
+    private void sendSubjectOnlineCount(
+            SseEmitter emitter,
+            int subjectId,
+            String excludePresenceId) {
+        try {
+            OnlineCountVo snapshot = presenceService.subjectOnlineCount(
+                    subjectId, excludePresenceId);
+            emitter.send(SseEmitter.event()
+                    .name("subject-online-count")
+                    .data(snapshot));
+        } catch (Exception error) {
+            Set<SseEmitter> emitters = subjectOnlineCountEmitters.get(subjectId);
+            if (emitters != null) {
+                close(emitters, emitter);
+            }
+        }
+    }
+
     private void sendHeartbeat(Set<SseEmitter> emitters, SseEmitter emitter) {
         try {
             emitter.send(SseEmitter.event().comment("heartbeat"));
@@ -187,14 +246,24 @@ public class PresenceSseService implements MessageListener {
     }
 
     private void close(Set<SseEmitter> emitters, SseEmitter emitter) {
-        emitters.remove(emitter);
-        emitter.completeWithError(new IllegalStateException("presence SSE closed"));
+        // 完成或错误回调可能会先于定时心跳发现发送失败并移除连接，
+        // 因此关闭操作必须具备幂等性；客户端正常断开不应被视为服务端错误。
+        if (!emitters.remove(emitter)) {
+            return;
+        }
+        subjectOnlineCountExclusions.remove(emitter);
+        try {
+            emitter.complete();
+        } catch (IllegalStateException ignored) {
+            // 连接可能已被其他线程并发完成。
+        }
     }
 
     private void invalidateSnapshots() {
         snapshotDirty.set(true);
         onlineCountSnapshotDirty.set(true);
         watchingSubjectsSnapshotDirty.set(true);
+        subjectOnlineCountSnapshotDirty.addAll(subjectOnlineCountEmitters.keySet());
     }
 
     private OnlineCountVo getOnlineCountSnapshot() {
@@ -248,6 +317,8 @@ public class PresenceSseService implements MessageListener {
     void stop() {
         onlineCountEmitters.forEach(SseEmitter::complete);
         watchingSubjectEmitters.forEach(SseEmitter::complete);
+        subjectOnlineCountEmitters.values().forEach(emitters -> emitters.forEach(SseEmitter::complete));
+        subjectOnlineCountExclusions.clear();
         scheduler.shutdownNow();
     }
 }
