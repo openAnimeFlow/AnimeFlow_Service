@@ -7,11 +7,6 @@ package com.ligg.common.constants;
 public class BangumiConstants {
 
     /**
-     * Bangumi 每日放送重建缓存锁时长（秒）
-     */
-    public static final long BANGUMI_CALENDAR_LOCK_TTL_SECONDS = 60;
-
-    /**
      * 缓存击穿时，等待其他请求重建缓存的最长时间（毫秒）
      */
     public static final long BANGUMI_CALENDAR_CACHE_WAIT_MILLIS = 35_000;

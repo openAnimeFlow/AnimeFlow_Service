@@ -737,13 +737,23 @@ public class BangumiServiceImpl implements BangumiService {
 
     @Override
     public SeasonCalendarVo getSeasonCalendar(boolean includeNsfw) {
-        return getSeasonCalendar(includeNsfw, LocalDate.now());
+        LocalDate now = LocalDate.now();
+        return getSeasonCalendar(includeNsfw, now.getYear(),
+                BangumiSeasonUtils.startMonthOf(now.getMonthValue()), now);
+    }
+
+    @Override
+    public SeasonCalendarVo getSeasonCalendar(boolean includeNsfw, int year, int month) {
+        return getSeasonCalendar(includeNsfw, year, month, LocalDate.now());
     }
 
     SeasonCalendarVo getSeasonCalendar(boolean includeNsfw, LocalDate now) {
-        int year = now.getYear();
-        int month = BangumiSeasonUtils.startMonthOf(now.getMonthValue());
-        String monthPrefix = BangumiSeasonUtils.currentSeasonMonthPrefix(now);
+        return getSeasonCalendar(includeNsfw, now.getYear(),
+                BangumiSeasonUtils.startMonthOf(now.getMonthValue()), now);
+    }
+
+    private SeasonCalendarVo getSeasonCalendar(boolean includeNsfw, int year, int month, LocalDate today) {
+        String monthPrefix = BangumiSeasonUtils.seasonMonthPrefix(year, month);
         List<SeasonSubjectRow> rows = subjectMapper.selectSeasonSubjects(monthPrefix, 2, includeNsfw);
         if (rows == null) {
             rows = Collections.emptyList();
@@ -768,7 +778,7 @@ public class BangumiServiceImpl implements BangumiService {
         List<CalendarDto.Entry> unknown = new ArrayList<>();
         for (SeasonSubjectRow row : rows) {
             CalendarDto.Entry entry = toCalendarEntry(row);
-            applyEpisodeSummary(entry, episodesBySubject.get(row.getId()), now);
+            applyEpisodeSummary(entry, episodesBySubject.get(row.getId()), today);
             List<Integer> weekdays = resolveWeekdays(row.getDate(), row.getInfobox());
             if (weekdays.isEmpty()) {
                 unknown.add(entry);

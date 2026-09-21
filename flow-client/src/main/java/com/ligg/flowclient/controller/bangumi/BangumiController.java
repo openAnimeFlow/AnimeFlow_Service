@@ -15,6 +15,8 @@ import com.ligg.common.utils.Utils;
 import com.ligg.common.vo.bangumi.*;
 import com.ligg.flowclient.annotation.IpEndpointRateLimit;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
+import com.ligg.flowclient.annotation.QuarterMonth;
+import com.ligg.flowclient.annotation.RecentYear;
 import com.ligg.flowclient.service.CacheService;
 import com.ligg.flowclient.service.BangumiService;
 import com.ligg.flowclient.service.JwtTokenService;
@@ -57,17 +59,32 @@ public class BangumiController {
      */
     @GetMapping("/calendar")
     public Result<SeasonCalendarVo> seasonCalendar(
-            @RequestParam(defaultValue = "true") boolean includeNextSeason) {
+            @RequestParam(required = false)
+            @RecentYear
+            Integer year,
+            @RequestParam(required = false)
+            @Min(value = 1, message = "月份必须在 1-12 之间")
+            @Max(value = 12, message = "月份必须在 1-12 之间")
+            @QuarterMonth
+            Integer month) {
+        if ((year == null) != (month == null)) {
+            throw new IllegalArgumentException("year 和 month 必须同时传入");
+        }
+        LocalDate now = LocalDate.now();
+        int targetYear = year != null ? year : now.getYear();
+        int targetMonth = month != null
+                ? month
+                : BangumiSeasonUtils.startMonthOf(now.getMonthValue());
+        String monthPrefix = BangumiSeasonUtils.seasonMonthPrefix(targetYear, targetMonth);
         String cacheKey = BangumiConstants.BANGUMI_SEASON_CALENDAR_CACHE_KEY_PREFIX + ':'
-                + BangumiSeasonUtils.currentSeasonMonthPrefix(LocalDate.now())
-                + ':' + includeNextSeason;
+                + monthPrefix;
         SeasonCalendarVo vo = cacheService.getOrLoad(
                 cacheKey,
                 SeasonCalendarVo.class,
                 BangumiConstants.BANGUMI_SEASON_CALENDAR_CACHE_TTL_SECONDS,
                 "获取季番周表超时，请稍后重试",
                 "获取季番周表被中断",
-                () -> bangumiService.getSeasonCalendar(includeNextSeason),
+                () -> bangumiService.getSeasonCalendar(false, targetYear, targetMonth),
                 () -> log.info("季番周表(命中缓存), cacheKey={}", cacheKey));
         return Result.success(ResponseCode.SUCCESS, vo);
     }

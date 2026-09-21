@@ -100,6 +100,21 @@ class BangumiSeasonCalendarServiceTest {
     }
 
     @Test
+    void loadsRequestedSeason() {
+        SeasonSubjectRow row = row(7, "2025-10-01", "星期三", 8.5);
+        when(subjectMapper.selectSeasonSubjects("2025-10", 2, false)).thenReturn(List.of(row));
+        when(subjectMapper.selectSeasonEpisodes("2025-10")).thenReturn(List.of());
+        mockImage();
+
+        SeasonCalendarVo vo = service().getSeasonCalendar(false, 2025, 10);
+
+        assertEquals(2025, vo.getYear());
+        assertEquals(10, vo.getMonth());
+        assertEquals("2025年10月新番", vo.getSeasonName());
+        assertEquals(1, vo.getDays().get("3").size());
+    }
+
+    @Test
     void sortsEachWeekdayByWatchersDescending() {
         SeasonSubjectRow fewerWatchers = row(5, "2026-07-04", "星期六", 8.0);
         fewerWatchers.setFavorite("{\"done\": 3}");

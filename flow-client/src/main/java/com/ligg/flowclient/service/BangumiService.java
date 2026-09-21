@@ -52,4 +52,9 @@ public interface BangumiService {
      * 根据当前时间自动获取本季度新番周表。
      */
     SeasonCalendarVo getSeasonCalendar(boolean includeNsfw);
+
+    /**
+     * 获取指定季度的新番周表。
+     */
+    SeasonCalendarVo getSeasonCalendar(boolean includeNsfw, int year, int month);
 }

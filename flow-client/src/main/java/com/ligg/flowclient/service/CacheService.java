@@ -4,6 +4,8 @@ import com.ligg.common.constants.BangumiConstants;
 import com.ligg.common.exception.BangumiUpstreamException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.serializer.SerializationException;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,8 @@ public class CacheService {
     private static final long CORRUPT_CACHE_COOLDOWN_MS = 30_000L;
 
     private final RedisTemplate<String, Object> redisTemplate;
+
+    private final RedissonClient redissonClient;
 
     /** 全局记录近期已判定为脏数据的缓存键及冷却截止时间（毫秒时间戳）。 */
     private final ConcurrentHashMap<String, Long> corruptCacheUntil = new ConcurrentHashMap<>();
@@ -134,12 +138,16 @@ public class CacheService {
                 return cached;
             }
 
-            Boolean locked = redisTemplate.opsForValue().setIfAbsent(
-                    lockKey,
-                    "1",
-                    BangumiConstants.BANGUMI_CALENDAR_LOCK_TTL_SECONDS,
-                    TimeUnit.SECONDS);
-            if (Boolean.TRUE.equals(locked)) {
+            RLock lock = redissonClient.getLock(lockKey);
+            boolean locked;
+            try {
+                // 不设置 leaseTime，使用 Redisson watchdog 自动续期，避免回源时间超过固定 TTL 后锁失效。
+                locked = lock.tryLock();
+            } catch (RuntimeException e) {
+                log.warn("获取缓存重建锁失败，cacheKey={}, lockKey={}", cacheKey, lockKey, e);
+                throw e;
+            }
+            if (locked) {
                 try {
                     cached = getCached(cacheKey, type, readContext);
                     if (cached != null) {
@@ -156,7 +164,9 @@ public class CacheService {
                     }
                     return value;
                 } finally {
-                    redisTemplate.delete(lockKey);
+                    if (lock.isHeldByCurrentThread()) {
+                        lock.unlock();
+                    }
                 }
             }
 
