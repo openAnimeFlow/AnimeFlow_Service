@@ -56,7 +56,10 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .order(2);
 
         registry.addInterceptor(optionalAuthorizationInterceptor)
-                .addPathPatterns("/api/v1/bangumi/subjects/**", "/api/v1/bangumi/search/subjects")
+                .addPathPatterns(
+                        "/api/v1/bangumi/subjects/**",
+                        "/api/v1/bangumi/search/subjects",
+                        "/api/v1/presence/**")
                 .order(3);
     }
 
