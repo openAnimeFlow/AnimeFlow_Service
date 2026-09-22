@@ -27,6 +27,7 @@ mybatis-plus:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 anime-flow:
+
   access-log:
     enabled: true
 
@@ -42,7 +43,7 @@ anime-flow:
       - /api/no_session
       - /api/oauth-success
       - /api/success
-      
+
   dandanplay:
     app_id: ${DANDANPLAY_ID}
     secret: ${DANDANPLAY_SECRET}
@@ -111,7 +112,7 @@ anime-flow:
     window-seconds: 60  #时间窗口长度（秒）。
     path-patterns: #拦截路径
       - /api/v1/**
-    exclude-path-patterns: [] #放行路径
+    exclude-path-patterns: [ ] #放行路径
 
   ## 对象存储
   cloudflare:
