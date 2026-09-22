@@ -29,6 +29,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
@@ -228,9 +229,9 @@ public class GlobalExceptionHandler {
     /**
      * SSE 连接超时或被容器关闭。
      */
-    @ExceptionHandler(AsyncRequestTimeoutException.class)
-    public void handleAsyncRequestTimeout(AsyncRequestTimeoutException e) {
-        log.debug("SSE connection timed out or was closed");
+    @ExceptionHandler({AsyncRequestTimeoutException.class, AsyncRequestNotUsableException.class})
+    public void handleAsyncRequestLifecycle(Exception e) {
+        log.debug("SSE connection timed out or became unusable");
     }
 
     /**

@@ -30,7 +30,7 @@ public class ReleaseController {
     public ResponseEntity<Result<ProjectReleaseVo>> getLatestRelease() {
         try {
             return ResponseEntity.ok()
-                    .header("Cache-Control", "public, max-age=3600")
+                    .header("Cache-Control", "no-store")
                     .body(Result.success(ResponseCode.SUCCESS, releaseService.getLatestRelease()));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
@@ -58,7 +58,7 @@ public class ReleaseController {
         try {
             List<ProjectReleaseVo> releases = releaseService.getReleases(page);
             return ResponseEntity.ok()
-                    .header("Cache-Control", "public, max-age=3600")
+                    .header("Cache-Control", "no-store")
                     .body(Result.success(ResponseCode.SUCCESS, releases));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)

@@ -252,11 +252,6 @@ public class PresenceSseService implements MessageListener {
             return;
         }
         subjectOnlineCountExclusions.remove(emitter);
-        try {
-            emitter.complete();
-        } catch (IllegalStateException ignored) {
-            // 连接可能已被其他线程并发完成。
-        }
     }
 
     private void invalidateSnapshots() {
@@ -315,10 +310,19 @@ public class PresenceSseService implements MessageListener {
 
     @PreDestroy
     void stop() {
-        onlineCountEmitters.forEach(SseEmitter::complete);
-        watchingSubjectEmitters.forEach(SseEmitter::complete);
-        subjectOnlineCountEmitters.values().forEach(emitters -> emitters.forEach(SseEmitter::complete));
+        onlineCountEmitters.forEach(this::completeOnShutdown);
+        watchingSubjectEmitters.forEach(this::completeOnShutdown);
+        subjectOnlineCountEmitters.values().forEach(emitters ->
+                emitters.forEach(this::completeOnShutdown));
         subjectOnlineCountExclusions.clear();
         scheduler.shutdownNow();
+    }
+
+    private void completeOnShutdown(SseEmitter emitter) {
+        try {
+            emitter.complete();
+        } catch (RuntimeException ignored) {
+            // 应用关闭时连接可能已经被客户端或容器关闭。
+        }
     }
 }
