@@ -11,11 +11,41 @@
  Target Server Version : 80043 (8.0.43)
  File Encoding         : 65001
 
- Date: 06/07/2026 05:10:14
+ Date: 22/09/2026 17:30:39
 */
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
+
+-- ----------------------------
+-- Table structure for api_access_log
+-- ----------------------------
+DROP TABLE IF EXISTS `api_access_log`;
+CREATE TABLE `api_access_log`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键',
+  `event_id` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '访问事件唯一 ID，用于重试幂等',
+  `trace_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '请求链路 ID',
+  `request_time` datetime(3) NOT NULL COMMENT '请求开始时间',
+  `method` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'HTTP 方法',
+  `uri` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '实际请求 URI',
+  `route` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '接口模板路径',
+  `query_string` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '查询参数（已脱敏）',
+  `client_ip` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '客户端 IP',
+  `user_agent` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '客户端 User-Agent',
+  `referer` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '来源页面',
+  `http_status` smallint NULL DEFAULT NULL COMMENT 'HTTP 状态码',
+  `success` tinyint(1) NOT NULL DEFAULT 1 COMMENT '是否成功',
+  `cost_ms` int UNSIGNED NOT NULL DEFAULT 0 COMMENT '请求耗时（毫秒）',
+  `exception_type` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '异常类型',
+  `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '记录创建时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_event_id`(`event_id` ASC) USING BTREE,
+  INDEX `idx_request_time`(`request_time` ASC) USING BTREE,
+  INDEX `idx_route_time`(`route` ASC, `request_time` ASC) USING BTREE,
+  INDEX `idx_client_ip_time`(`client_ip` ASC, `request_time` ASC) USING BTREE,
+  INDEX `idx_user_id_time`(`request_time` ASC) USING BTREE,
+  INDEX `idx_status_time`(`http_status` ASC, `request_time` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 7861 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '接口访问日志表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for background
@@ -135,48 +165,9 @@ CREATE TABLE `bangumi_subject`  (
   `series` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否为系列作品',
   `images` json NULL,
   PRIMARY KEY (`id`) USING BTREE,
-  INDEX `idx_type_nsfw`(`type` ASC, `nsfw` ASC) USING BTREE,
-  INDEX `idx_bgm_rank`(`rank` ASC) USING BTREE
+  INDEX `idx_bgm_rank`(`rank` ASC) USING BTREE,
+  INDEX `idx_type_nsfw`(`type` ASC, `nsfw` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Bangumi 条目' ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Table structure for bangumi_subject_tag
--- ----------------------------
-DROP TABLE IF EXISTS `bangumi_subject_tag`;
-CREATE TABLE `bangumi_subject_tag`  (
-  `subject_id` int UNSIGNED NOT NULL COMMENT '条目 ID',
-  `tag_type` tinyint UNSIGNED NOT NULL COMMENT '1: tags, 2: meta_tags',
-  `tag_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '标签名',
-  PRIMARY KEY (`subject_id`, `tag_type`, `tag_name`) USING BTREE,
-  INDEX `idx_tag_lookup`(`tag_type` ASC, `tag_name` ASC, `subject_id` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Bangumi 条目标签索引' ROW_FORMAT = Dynamic;
-
--- ----------------------------
--- Table structure for bangumi_subject_search
--- ----------------------------
-DROP TABLE IF EXISTS `bangumi_subject_search`;
-CREATE TABLE `bangumi_subject_search`  (
-  `subject_id` int UNSIGNED NOT NULL COMMENT '条目 ID',
-  `type` tinyint UNSIGNED NOT NULL COMMENT '作品类型：1漫画 2动画 3音乐 4游戏 6三次元',
-  `nsfw` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否 NSFW',
-  `name` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '条目名',
-  `name_cn` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '条目简体中文名',
-  `aliases` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '从 infobox 提取的别名',
-  `tags_text` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '标签名称文本',
-  `meta_tags_text` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '公共标签文本',
-  `year` smallint UNSIGNED NULL DEFAULT NULL COMMENT '发行年份',
-  `platform` smallint UNSIGNED NOT NULL DEFAULT 0 COMMENT '条目平台',
-  `score` decimal(4, 1) NULL DEFAULT NULL COMMENT '评分',
-  `subject_rank` int UNSIGNED NULL DEFAULT NULL COMMENT '类别内排名',
-  `favorite_done` int UNSIGNED NOT NULL DEFAULT 0 COMMENT '看过收藏数',
-  `search_text` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '合并搜索文本',
-  PRIMARY KEY (`subject_id`) USING BTREE,
-  FULLTEXT INDEX `ft_subject_search`(`name`, `name_cn`, `aliases`, `tags_text`, `meta_tags_text`, `search_text`) WITH PARSER `ngram`,
-  INDEX `idx_subject_search_filter_rank`(`type` ASC, `nsfw` ASC, `subject_rank` ASC) USING BTREE,
-  INDEX `idx_subject_search_filter_score`(`type` ASC, `nsfw` ASC, `score` ASC) USING BTREE,
-  INDEX `idx_subject_search_filter_year`(`type` ASC, `nsfw` ASC, `year` ASC) USING BTREE,
-  INDEX `idx_subject_search_favorite_done`(`type` ASC, `nsfw` ASC, `favorite_done` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Bangumi 条目搜索索引' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for bangumi_subject_character
@@ -216,6 +207,45 @@ CREATE TABLE `bangumi_subject_relation`  (
   PRIMARY KEY (`subject_id`, `relation_type`, `related_subject_id`, `order`) USING BTREE,
   INDEX `idx_related_subject_id`(`related_subject_id` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Bangumi 条目关联' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for bangumi_subject_search
+-- ----------------------------
+DROP TABLE IF EXISTS `bangumi_subject_search`;
+CREATE TABLE `bangumi_subject_search`  (
+  `subject_id` int UNSIGNED NOT NULL COMMENT '条目 ID',
+  `type` tinyint UNSIGNED NOT NULL COMMENT '作品类型：1漫画 2动画 3音乐 4游戏 6三次元',
+  `nsfw` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否 NSFW',
+  `name` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '条目名',
+  `name_cn` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '条目简体中文名',
+  `aliases` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '从 infobox 提取的别名',
+  `tags_text` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '标签名称文本',
+  `meta_tags_text` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL COMMENT '公共标签文本',
+  `year` smallint UNSIGNED NULL DEFAULT NULL COMMENT '发行年份',
+  `platform` smallint UNSIGNED NOT NULL DEFAULT 0 COMMENT '条目平台',
+  `score` decimal(4, 1) NULL DEFAULT NULL COMMENT '评分',
+  `subject_rank` int UNSIGNED NULL DEFAULT NULL COMMENT '类别内排名',
+  `favorite_done` int UNSIGNED NOT NULL DEFAULT 0 COMMENT '看过收藏数',
+  `search_text` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '合并搜索文本',
+  PRIMARY KEY (`subject_id`) USING BTREE,
+  INDEX `idx_subject_search_filter_rank`(`type` ASC, `nsfw` ASC, `subject_rank` ASC) USING BTREE,
+  INDEX `idx_subject_search_filter_score`(`type` ASC, `nsfw` ASC, `score` ASC) USING BTREE,
+  INDEX `idx_subject_search_filter_year`(`type` ASC, `nsfw` ASC, `year` ASC) USING BTREE,
+  INDEX `idx_subject_search_favorite_done`(`type` ASC, `nsfw` ASC, `favorite_done` ASC) USING BTREE,
+  FULLTEXT INDEX `ft_subject_search`(`name`, `name_cn`, `aliases`, `tags_text`, `meta_tags_text`, `search_text`) WITH PARSER `ngram`
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Bangumi 条目搜索索引' ROW_FORMAT = DYNAMIC;
+
+-- ----------------------------
+-- Table structure for bangumi_subject_tag
+-- ----------------------------
+DROP TABLE IF EXISTS `bangumi_subject_tag`;
+CREATE TABLE `bangumi_subject_tag`  (
+  `subject_id` int UNSIGNED NOT NULL COMMENT '条目 ID',
+  `tag_type` tinyint UNSIGNED NOT NULL COMMENT '1: tags, 2: meta_tags',
+  `tag_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '标签名',
+  PRIMARY KEY (`subject_id`, `tag_type`, `tag_name`) USING BTREE,
+  INDEX `idx_tag_lookup`(`tag_type` ASC, `tag_name` ASC, `subject_id` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Bangumi 条目标签索引' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for danmaku
@@ -284,7 +314,7 @@ CREATE TABLE `user_bgm_collection`  (
   `subject_id` int NOT NULL COMMENT 'Bangumi 条目 ID，关联 bgm_subject.id',
   `subject_type` tinyint UNSIGNED NOT NULL DEFAULT 2 COMMENT '条目大类：1漫画 2动画 3音乐 4游戏 6三次元',
   `images` json NULL COMMENT '条目封面图 {large,common,medium,small,grid}',
-  `bgm_interest_id` bigint NULL COMMENT 'Bangumi 收藏记录 ID（interest.id）',
+  `bgm_interest_id` bigint NULL DEFAULT NULL COMMENT 'Bangumi 收藏 ID；仅本地收藏为 NULL',
   `rate` tinyint NOT NULL DEFAULT 0 COMMENT '用户评分 0-10，0 表示未评分',
   `type` tinyint NOT NULL COMMENT '收藏类型 1=想看 2=看过 3=在看 4=搁置 5=抛弃',
   `comment` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '收藏评论',
@@ -292,30 +322,97 @@ CREATE TABLE `user_bgm_collection`  (
   `ep_status` smallint UNSIGNED NOT NULL DEFAULT 0 COMMENT '已看话数（interest.epStatus）',
   `vol_status` smallint UNSIGNED NOT NULL DEFAULT 0 COMMENT '已看卷数（interest.volStatus）',
   `is_private` tinyint(1) NOT NULL DEFAULT 0 COMMENT '是否私密收藏（interest.private）',
-  `bgm_updated_at` bigint NULL COMMENT 'Bangumi 收藏更新时间 Unix 秒（interest.updatedAt）',
-  `sync_time` datetime NULL DEFAULT NULL COMMENT '最后同步时间',
+  `bgm_updated_at` bigint NULL DEFAULT NULL COMMENT 'Bangumi 更新时间 Unix 秒',
+  `sync_time` datetime NULL DEFAULT NULL COMMENT '最后成功同步时间',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '首次入库时间',
   `private` tinyint(1) NULL DEFAULT 0 COMMENT '旧版隐私字段，兼容历史数据；新读写统一使用 is_private',
-  `local_updated_at` datetime(3) NULL COMMENT '本地收藏内容最后修改时间（毫秒精度）',
+  `local_updated_at` datetime(3) NULL DEFAULT NULL COMMENT '本地收藏内容最后修改时间（毫秒精度）',
   `version` bigint NOT NULL DEFAULT 0 COMMENT '本地收藏乐观锁版本，每次本地修改递增',
-  `remote_sync_status` enum('LOCAL_ONLY','PENDING','SYNCED','AUTH_REQUIRED','CONFLICT') NOT NULL DEFAULT 'LOCAL_ONLY' COMMENT '远端同步状态',
+  `remote_sync_status` enum('LOCAL_ONLY','PENDING','SYNCED','AUTH_REQUIRED','CONFLICT') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT 'LOCAL_ONLY' COMMENT '远端同步状态',
   `pending_payload` json NULL COMMENT '合并后的待上传字段，不包含凭据',
   `remote_baseline` json NULL COMMENT '首次上传前的远端快照',
-  `sync_oauth_id` bigint NULL COMMENT '目标绑定记录 ID，解绑后失效',
-  `bgm_account_uid` bigint NULL COMMENT '目标 Bangumi 用户 UID，换绑后必须重新建立关联',
+  `sync_oauth_id` bigint NULL DEFAULT NULL COMMENT '目标绑定记录 ID，解绑后失效',
+  `bgm_account_uid` bigint NULL DEFAULT NULL COMMENT '目标 Bangumi 用户 UID，换绑后必须重新建立关联',
   `retry_count` int NOT NULL DEFAULT 0 COMMENT '远端同步连续重试次数',
-  `next_retry_at` datetime NULL COMMENT '下一次远端同步重试时间',
-  INDEX `idx_user_collection_local` (`user_id`, `type`, `subject_type`, `local_updated_at` DESC, `id` DESC),
-  INDEX `idx_collection_upload` (`remote_sync_status`, `next_retry_at`),
+  `next_retry_at` datetime NULL DEFAULT NULL COMMENT '下一次远端同步重试时间',
   PRIMARY KEY (`id`) USING BTREE,
-  INDEX `idx_bgm_interest_id`(`bgm_interest_id` ASC) USING BTREE COMMENT 'Bangumi 收藏 ID 唯一',
   UNIQUE INDEX `uk_user_subject`(`user_id` ASC, `subject_id` ASC) USING BTREE COMMENT '同一用户对同一条目仅一条收藏',
   INDEX `idx_user_type`(`user_id` ASC, `type` ASC) USING BTREE,
   INDEX `idx_subject_id`(`subject_id` ASC) USING BTREE,
   INDEX `idx_user_type_updated`(`user_id` ASC, `type` ASC, `bgm_updated_at` DESC) USING BTREE,
   INDEX `idx_user_type_subject_updated`(`user_id` ASC, `type` ASC, `subject_type` ASC, `bgm_updated_at` DESC) USING BTREE,
-  INDEX `idx_user_sync_time`(`user_id` ASC, `sync_time` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 375 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏关系表' ROW_FORMAT = DYNAMIC;
+  INDEX `idx_user_sync_time`(`user_id` ASC, `sync_time` ASC) USING BTREE,
+  INDEX `idx_bgm_interest_id`(`bgm_interest_id` ASC) USING BTREE,
+  INDEX `idx_user_collection_local`(`user_id` ASC, `type` ASC, `subject_type` ASC, `local_updated_at` DESC, `id` DESC) USING BTREE,
+  INDEX `idx_collection_upload`(`remote_sync_status` ASC, `next_retry_at` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 766 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏关系表' ROW_FORMAT = DYNAMIC;
+
+-- ----------------------------
+-- Table structure for user_bgm_collection_sync_item
+-- ----------------------------
+DROP TABLE IF EXISTS `user_bgm_collection_sync_item`;
+CREATE TABLE `user_bgm_collection_sync_item`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '同步明细主键，同时作为客户端冲突 ID',
+  `task_id` bigint NOT NULL COMMENT '所属同步任务 ID',
+  `user_id` bigint NOT NULL COMMENT 'AnimeFlow 用户 ID，用于归属校验',
+  `subject_id` int NOT NULL COMMENT 'Bangumi 条目 ID',
+  `subject_type` tinyint NOT NULL COMMENT '条目大类，必须与任务目标类型一致',
+  `subject_name` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '冲突发生时的条目名称快照',
+  `subject_image` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '冲突发生时的条目封面地址快照',
+  `local_type` tinyint NULL DEFAULT NULL COMMENT '冲突发生时本地收藏分类，1至5',
+  `remote_type` tinyint NULL DEFAULT NULL COMMENT '冲突发生时 Bangumi 收藏分类，1至5',
+  `local_version` bigint NULL DEFAULT NULL COMMENT '冲突发生时本地收藏乐观锁版本',
+  `conflict_version` bigint NOT NULL DEFAULT 1 COMMENT '冲突快照版本，提交决议时必须匹配',
+  `selected_type` tinyint NULL DEFAULT NULL COMMENT '用户选择的最终收藏分类，决议入库前为空',
+  `local_snapshot` json NULL COMMENT '冲突发生时的本地收藏字段快照，不包含凭据',
+  `remote_snapshot` json NULL COMMENT '冲突发生时的 Bangumi 收藏字段快照，不包含凭据',
+  `status` enum('PLANNED','CONFLICT','RESOLUTION_PENDING','APPLY_PENDING','DONE','FAILED') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '明细状态',
+  `error_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '明细错误码，不保存 token 或完整私密内容',
+  `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '明细创建时间',
+  `resolved_at` datetime(3) NULL DEFAULT NULL COMMENT '远端确认并完成本地回写的时间',
+  `desired_payload` json NULL COMMENT '远端写入前持久化的目标字段，重启后校验基线再执行',
+  `operation` enum('IMPORT','UPLOAD','UNCHANGED','RESOLVE') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '完成的同步操作',
+  `scan_snapshot` json NULL COMMENT '收藏分页条目及interest快照，首次比较与导入复用；NULL兼容旧任务',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_collection_sync_item`(`task_id` ASC, `subject_id` ASC) USING BTREE,
+  INDEX `idx_collection_sync_conflict`(`user_id` ASC, `status` ASC, `id` ASC) USING BTREE,
+  CONSTRAINT `fk_collection_sync_item_task` FOREIGN KEY (`task_id`) REFERENCES `user_bgm_collection_sync_task` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE = InnoDB AUTO_INCREMENT = 2926 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏同步明细与冲突快照' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for user_bgm_collection_sync_task
+-- ----------------------------
+DROP TABLE IF EXISTS `user_bgm_collection_sync_task`;
+CREATE TABLE `user_bgm_collection_sync_task`  (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '同步任务主键',
+  `user_id` bigint NOT NULL COMMENT 'AnimeFlow 用户 ID',
+  `subject_type` tinyint NOT NULL COMMENT '条目大类：1漫画、2动画、3音乐、4游戏、6三次元',
+  `bgm_account_uid` bigint NULL DEFAULT NULL COMMENT '本次任务目标 Bangumi 用户 UID，换绑后不可复用',
+  `oauth_id` bigint NULL DEFAULT NULL COMMENT '本次任务使用的 user_oauth 绑定记录 ID',
+  `request_id` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '客户端幂等请求 ID',
+  `status` enum('QUEUED','RUNNING','WAITING_CONFLICT','PARTIAL_FAILED','SUCCESS','FAILED','CANCELLED') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '任务状态',
+  `phase` enum('SCANNING','APPLYING','RESOLVING') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '执行阶段',
+  `total_count` int NOT NULL DEFAULT 0 COMMENT '本次任务去重后的条目总数',
+  `imported_count` int NOT NULL DEFAULT 0 COMMENT '从 Bangumi 导入到本地的条目数',
+  `uploaded_count` int NOT NULL DEFAULT 0 COMMENT '从本地上传到 Bangumi 的条目数',
+  `unchanged_count` int NOT NULL DEFAULT 0 COMMENT '双方数据一致、无需更新的条目数',
+  `conflict_count` int NOT NULL DEFAULT 0 COMMENT '等待用户处理的冲突数',
+  `resolved_count` int NOT NULL DEFAULT 0 COMMENT '已完成决议并确认同步的冲突数',
+  `failed_count` int NOT NULL DEFAULT 0 COMMENT '处理失败、可重试的条目数',
+  `status_version` bigint NOT NULL DEFAULT 0 COMMENT '任务状态版本，用于客户端判断状态是否变化',
+  `error_code` enum('SYNC_BINDING_CHANGED','SYNC_RETRY_REQUIRED') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '任务级错误码',
+  `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '任务入库时间',
+  `started_at` datetime(3) NULL DEFAULT NULL COMMENT '任务首次开始执行时间',
+  `finished_at` datetime(3) NULL DEFAULT NULL COMMENT '任务进入终态的时间',
+  `heartbeat_at` datetime(3) NULL DEFAULT NULL COMMENT '后台执行器最近一次续租/心跳时间',
+  `active_user_id` bigint GENERATED ALWAYS AS ((case when (`status` in (_utf8mb4'QUEUED',_utf8mb4'RUNNING',_utf8mb4'WAITING_CONFLICT',_utf8mb4'PARTIAL_FAILED')) then `user_id` else NULL end)) STORED COMMENT '活动任务用户唯一约束，终态为 NULL' NULL,
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_collection_sync_request`(`user_id` ASC, `request_id` ASC) USING BTREE,
+  UNIQUE INDEX `uk_collection_sync_active_user`(`active_user_id` ASC) USING BTREE,
+  INDEX `idx_collection_sync_active`(`user_id` ASC, `status` ASC, `id` ASC) USING BTREE,
+  INDEX `idx_collection_sync_cleanup`(`status` ASC, `finished_at` ASC, `id` ASC) USING BTREE,
+  INDEX `idx_sync_task_recovery`(`status` ASC, `heartbeat_at` ASC, `created_at` ASC, `id` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 17 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏双向同步任务' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for user_episode_watch
@@ -335,7 +432,7 @@ CREATE TABLE `user_episode_watch`  (
   INDEX `idx_user_subject`(`user_id` ASC, `subject_id` ASC) USING BTREE,
   INDEX `idx_subject_episode`(`subject_id` ASC, `episode_id` ASC) USING BTREE,
   INDEX `idx_user_subject_status`(`user_id` ASC, `subject_id` ASC, `watch_status` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户剧集观看记录' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 148 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户剧集观看记录' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for user_oauth
@@ -355,96 +452,33 @@ CREATE TABLE `user_oauth`  (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_user_platform`(`user_id` ASC, `platform` ASC) USING BTREE,
   UNIQUE INDEX `uk_platform_uid`(`platform` ASC, `platform_uid` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 22 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户第三方 OAuth 绑定' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 194 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户第三方 OAuth 绑定' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
--- Table structure for api_access_log
+-- Table structure for user_play_history
 -- ----------------------------
-DROP TABLE IF EXISTS `api_access_log`;
-CREATE TABLE `api_access_log`  (
-  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键 ID',
-  `event_id` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '访问事件唯一 ID，用于重试幂等',
-  `trace_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '请求链路 ID',
-  `request_time` datetime(3) NOT NULL COMMENT '请求开始时间',
-  `method` varchar(16) CHARACTER SET ascii COLLATE ascii_general_ci NOT NULL COMMENT 'HTTP 方法',
-  `uri` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '请求 URI',
-  `route` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '接口模板路径',
-  `query_string` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '脱敏后的查询参数',
-  `client_ip` varchar(64) CHARACTER SET ascii COLLATE ascii_general_ci NULL DEFAULT NULL COMMENT '客户端 IP',
-  `user_agent` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT 'User-Agent',
-  `referer` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT 'Referer',
-  `http_status` smallint NULL DEFAULT NULL COMMENT 'HTTP 响应状态码',
-  `success` tinyint(1) NOT NULL COMMENT '请求是否成功',
-  `cost_ms` int UNSIGNED NOT NULL DEFAULT 0 COMMENT '请求耗时（毫秒）',
-  `exception_type` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '异常类型',
-  `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '记录创建时间',
+DROP TABLE IF EXISTS `user_play_history`;
+CREATE TABLE `user_play_history`  (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `user_id` bigint NOT NULL COMMENT '逻辑关联 user.id',
+  `subject_id` int UNSIGNED NOT NULL COMMENT '逻辑关联 bangumi_subject.id',
+  `episode_id` int UNSIGNED NOT NULL COMMENT '逻辑关联 bangumi_episode.id',
+  `episode_sort` int NOT NULL DEFAULT 0,
+  `subject_name` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `cover` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `alias` json NULL,
+  `position_seconds` int UNSIGNED NOT NULL DEFAULT 0,
+  `duration_seconds` int UNSIGNED NOT NULL DEFAULT 0,
+  `is_completed` tinyint(1) NOT NULL DEFAULT 0,
+  `completed_at` datetime NULL DEFAULT NULL,
+  `last_played_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`) USING BTREE,
-  UNIQUE INDEX `uk_event_id`(`event_id` ASC) USING BTREE,
-  INDEX `idx_request_time`(`request_time` ASC) USING BTREE,
-  INDEX `idx_request_time_id`(`request_time` ASC, `id` ASC) USING BTREE,
-  INDEX `idx_route_time`(`route` ASC, `request_time` ASC) USING BTREE,
-  INDEX `idx_client_ip_time`(`client_ip` ASC, `request_time` ASC) USING BTREE,
-  INDEX `idx_status_time`(`http_status` ASC, `request_time` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '接口访问日志' ROW_FORMAT = Dynamic;
-
--- 用户 Bangumi 收藏双向同步任务（生产环境请使用独立迁移脚本）
-DROP TABLE IF EXISTS `user_bgm_collection_sync_item`;
-DROP TABLE IF EXISTS `user_bgm_collection_sync_task`;
-CREATE TABLE `user_bgm_collection_sync_task` (
-  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '同步任务主键',
-  `user_id` bigint NOT NULL COMMENT 'AnimeFlow 用户 ID',
-  `subject_type` tinyint NOT NULL COMMENT '条目大类：1漫画、2动画、3音乐、4游戏、6三次元',
-  `bgm_account_uid` bigint NULL COMMENT '本次任务目标 Bangumi 用户 UID，换绑后不可复用',
-  `oauth_id` bigint NULL COMMENT '本次任务使用的 OAuth 绑定记录 ID',
-  `request_id` varchar(80) NOT NULL COMMENT '客户端幂等请求 ID',
-  `status` enum('QUEUED','RUNNING','WAITING_CONFLICT','PARTIAL_FAILED','SUCCESS','FAILED','CANCELLED') NOT NULL COMMENT '任务状态',
-  `phase` enum('SCANNING','APPLYING','RESOLVING') NOT NULL COMMENT '执行阶段',
-  `total_count` int NOT NULL DEFAULT 0 COMMENT '本次任务去重后的条目总数',
-  `imported_count` int NOT NULL DEFAULT 0 COMMENT '从 Bangumi 导入到本地的条目数',
-  `uploaded_count` int NOT NULL DEFAULT 0 COMMENT '从本地上传到 Bangumi 的条目数',
-  `unchanged_count` int NOT NULL DEFAULT 0 COMMENT '双方数据一致、无需更新的条目数',
-  `conflict_count` int NOT NULL DEFAULT 0 COMMENT '等待用户处理的冲突数',
-  `resolved_count` int NOT NULL DEFAULT 0 COMMENT '已完成决议并确认同步的冲突数',
-  `failed_count` int NOT NULL DEFAULT 0 COMMENT '处理失败、可重试的条目数',
-  `status_version` bigint NOT NULL DEFAULT 0 COMMENT '任务状态版本',
-  `error_code` enum('SYNC_BINDING_CHANGED','SYNC_RETRY_REQUIRED') NULL COMMENT '任务级错误码',
-  `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '任务入库时间',
-  `started_at` datetime(3) NULL COMMENT '任务首次开始执行时间',
-  `finished_at` datetime(3) NULL COMMENT '任务进入终态的时间',
-  `heartbeat_at` datetime(3) NULL COMMENT '后台执行器最近一次心跳时间',
-  `active_user_id` bigint GENERATED ALWAYS AS (CASE WHEN status IN ('QUEUED','RUNNING','WAITING_CONFLICT','PARTIAL_FAILED') THEN user_id ELSE NULL END) STORED COMMENT '每用户仅一个活动任务',
-  UNIQUE KEY `uk_collection_sync_active_user` (`active_user_id`),
-  PRIMARY KEY (`id`), UNIQUE KEY `uk_collection_sync_request` (`user_id`,`request_id`),
-  KEY `idx_collection_sync_active` (`user_id`,`status`,`id`),
-  KEY `idx_collection_sync_cleanup` (`status`,`finished_at`,`id`),
-  KEY `idx_sync_task_recovery` (`status`,`heartbeat_at`,`created_at`,`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户 Bangumi 收藏双向同步任务';
-
-CREATE TABLE `user_bgm_collection_sync_item` (
-  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '同步明细主键，同时作为客户端冲突 ID',
-  `task_id` bigint NOT NULL COMMENT '所属同步任务 ID',
-  `user_id` bigint NOT NULL COMMENT 'AnimeFlow 用户 ID，用于归属校验',
-  `subject_id` int NOT NULL COMMENT 'Bangumi 条目 ID',
-  `subject_type` tinyint NOT NULL COMMENT '条目大类',
-  `subject_name` varchar(512) NULL COMMENT '冲突发生时的条目名称快照',
-  `subject_image` varchar(1024) NULL COMMENT '冲突发生时的条目封面快照',
-  `local_type` tinyint NULL COMMENT '冲突发生时本地收藏分类',
-  `remote_type` tinyint NULL COMMENT '冲突发生时 Bangumi 收藏分类',
-  `local_version` bigint NULL COMMENT '冲突发生时本地收藏版本',
-  `conflict_version` bigint NOT NULL DEFAULT 1 COMMENT '提交决议时必须匹配的冲突版本',
-  `selected_type` tinyint NULL COMMENT '用户选择的最终收藏分类',
-  `local_snapshot` json NULL COMMENT '本地收藏字段快照，不包含凭据',
-  `remote_snapshot` json NULL COMMENT 'Bangumi 收藏字段快照，不包含凭据',
-  `scan_snapshot` json DEFAULT NULL COMMENT '收藏分页条目及interest快照，首次比较与导入复用；NULL兼容旧任务',
-  `desired_payload` json NULL COMMENT '远端写入前持久化的目标字段',
-  `operation` enum('IMPORT','UPLOAD','UNCHANGED','RESOLVE') NULL COMMENT '完成的同步操作',
-  `status` enum('PLANNED','CONFLICT','RESOLUTION_PENDING','APPLY_PENDING','DONE','FAILED') NOT NULL COMMENT '明细状态',
-  `error_code` varchar(64) NULL COMMENT '明细错误码',
-  `created_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT '明细创建时间',
-  `resolved_at` datetime(3) NULL COMMENT '远端确认完成时间',
-  PRIMARY KEY (`id`), UNIQUE KEY `uk_collection_sync_item` (`task_id`,`subject_id`),
-  KEY `idx_collection_sync_conflict` (`user_id`,`status`,`id`),
-  CONSTRAINT `fk_collection_sync_item_task` FOREIGN KEY (`task_id`) REFERENCES `user_bgm_collection_sync_task` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户 Bangumi 收藏同步明细与冲突快照';
+  UNIQUE INDEX `uk_user_subject`(`user_id` ASC, `subject_id` ASC) USING BTREE,
+  INDEX `idx_user_last_played`(`user_id` ASC, `last_played_at` DESC) USING BTREE,
+  INDEX `idx_user_episode`(`user_id` ASC, `episode_id` ASC) USING BTREE,
+  INDEX `idx_subject`(`subject_id` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 100 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户番剧播放记录' ROW_FORMAT = Dynamic;
 
 SET FOREIGN_KEY_CHECKS = 1;
