@@ -64,7 +64,7 @@ class CollectionPersistenceMySqlTest {
         if (!schema.toFile().exists()) schema = Path.of("db/anime_flow.sql");
         new ResourceDatabasePopulator(new FileSystemResource(schema)).execute(dataSource);
         var jdbc = new JdbcTemplate(dataSource);
-        jdbc.update("INSERT INTO user_bgm_collection(user_id, subject_id, bgm_interest_id, type, comment, bgm_updated_at, is_private, `private`) VALUES (8, 41, 123, 2, '', 100, 1, 0)");
+        jdbc.update("INSERT INTO user_bgm_collection(user_id, subject_id, bgm_interest_id, type, comment, bgm_updated_at, is_private, `private`, local_updated_at) VALUES (8, 41, 123, 2, '', 100, 1, 0, CURRENT_TIMESTAMP(3))");
         var config = new MybatisConfiguration();
         config.setMapUnderscoreToCamelCase(true);
         config.addMapper(UserBgmCollectionMapper.class);
@@ -159,7 +159,8 @@ class CollectionPersistenceMySqlTest {
         var failingItems = org.mockito.Mockito.spy(syncItems);
         org.mockito.Mockito.doAnswer(invocation -> {
             var update = (com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<?>) invocation.getArgument(1);
-            if (update.getParamNameValuePairs().containsValue("DONE"))
+            if (update.getParamNameValuePairs().values().stream()
+                    .anyMatch(value -> "DONE".equals(String.valueOf(value))))
                 throw new IllegalStateException("simulated crash before item confirmation");
             return syncItems.update(null, invocation.getArgument(1));
         }).when(failingItems).update(org.mockito.ArgumentMatchers.isNull(),
