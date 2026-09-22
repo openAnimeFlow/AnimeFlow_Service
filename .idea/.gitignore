@@ -1,0 +1,27 @@
+# IDEA project settings: only keep stable, project-level configuration.
+/*
+!/.gitignore
+!/compiler.xml
+!/encodings.xml
+!/inspectionProfiles/
+!/inspectionProfiles/Project_Default.xml
+!/jarRepositories.xml
+!/misc.xml
+!/vcs.xml
+
+# Machine-, user-, plugin- and database-specific settings.
+/shelf/
+/workspace.xml
+/httpRequests/
+/mavenHomeManager.xml
+/dataSources/
+/dataSources.local.xml
+/data_source_mapping.xml
+/.cache/
+/dictionaries/
+/libraries/
+/ApifoxUploaderProjectSetting.xml
+/db-forest-config.xml
+/deviceManager.xml
+/git_toolbox_prj.xml
+/sqldialects.xml

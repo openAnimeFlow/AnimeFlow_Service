@@ -43,7 +43,9 @@ public class CollectionSyncSseService implements MessageListener {
 
     public SseEmitter subscribe(Long userId, String accessToken) {
         // 定期续期也能限制消息代理或网络故障后残留连接的存活时间。
-        var emitter = new SseEmitter(300_000L);
+        // Heartbeats keep the connection and intermediaries alive; do not let
+        // Spring's async request timeout close a healthy SSE stream every five minutes.
+        var emitter = new SseEmitter(0L);
         var connection = new Connection(userId, accessToken, emitter);
         connections.compute(userId, (id, existing) -> {
             Set<Connection> set = existing == null ? ConcurrentHashMap.newKeySet() : existing;
