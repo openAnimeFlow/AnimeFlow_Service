@@ -51,9 +51,14 @@ class CollectionPersistenceMySqlTest {
         new JdbcTemplate(admin).execute("CREATE DATABASE " + database);
         String url = System.getenv("COLLECTION_TEST_MYSQL_URL");
         int query = url.indexOf('?');
-        String base = query < 0 ? url : url.substring(0, query);
+        String urlWithoutOptions = query < 0 ? url : url.substring(0, query);
+        int schemeEnd = urlWithoutOptions.indexOf("://");
+        int databaseSeparator = urlWithoutOptions.indexOf('/', schemeEnd < 0 ? 0 : schemeEnd + 3);
+        String base = databaseSeparator < 0
+                ? urlWithoutOptions
+                : urlWithoutOptions.substring(0, databaseSeparator);
         String options = query < 0 ? "" : url.substring(query);
-        dataSource = new DriverManagerDataSource(base + database + options,
+        dataSource = new DriverManagerDataSource(base + "/" + database + options,
                 System.getenv("COLLECTION_TEST_MYSQL_USER"), System.getenv("COLLECTION_TEST_MYSQL_PASSWORD"));
         Path schema = Path.of("../db/anime_flow.sql");
         if (!schema.toFile().exists()) schema = Path.of("db/anime_flow.sql");
