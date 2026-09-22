@@ -11,6 +11,19 @@ concurrency:
 jobs:
   test-and-package:
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: anime_flow
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -22,7 +35,11 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Run unit tests
+      - name: Run tests
+        env:
+          COLLECTION_TEST_MYSQL_URL: jdbc:mysql://127.0.0.1:3306/anime_flow?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
+          COLLECTION_TEST_MYSQL_USER: root
+          COLLECTION_TEST_MYSQL_PASSWORD: root
         run: mvn -B test
 
       - name: Package project
