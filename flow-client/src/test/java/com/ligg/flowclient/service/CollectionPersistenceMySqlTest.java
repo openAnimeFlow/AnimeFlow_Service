@@ -55,17 +55,11 @@ class CollectionPersistenceMySqlTest {
         String options = query < 0 ? "" : url.substring(query);
         dataSource = new DriverManagerDataSource(base + database + options,
                 System.getenv("COLLECTION_TEST_MYSQL_USER"), System.getenv("COLLECTION_TEST_MYSQL_PASSWORD"));
-        new ResourceDatabasePopulator(new ClassPathResource("db/collection_before_p1.sql")).execute(dataSource);
+        Path schema = Path.of("../db/anime_flow.sql");
+        if (!schema.toFile().exists()) schema = Path.of("db/anime_flow.sql");
+        new ResourceDatabasePopulator(new FileSystemResource(schema)).execute(dataSource);
         var jdbc = new JdbcTemplate(dataSource);
         jdbc.update("INSERT INTO user_bgm_collection(user_id, subject_id, bgm_interest_id, type, comment, bgm_updated_at, is_private, `private`) VALUES (8, 41, 123, 2, '', 100, 1, 0)");
-        Path migration = Path.of("../db/migrations/20260919_collection_local_first.sql");
-        if (!migration.toFile().exists()) migration = Path.of("db/migrations/20260919_collection_local_first.sql");
-        new ResourceDatabasePopulator(new FileSystemResource(migration)).execute(dataSource);
-        Path migrations = migration.getParent();
-        new ResourceDatabasePopulator(
-                new FileSystemResource(migrations.resolve("20260919_collection_sync_tasks.sql")),
-                new FileSystemResource(migrations.resolve("20260920_collection_sync_recovery.sql")),
-                new FileSystemResource(migrations.resolve("20260921_collection_sync_scan_snapshot.sql"))).execute(dataSource);
         var config = new MybatisConfiguration();
         config.setMapUnderscoreToCamelCase(true);
         config.addMapper(UserBgmCollectionMapper.class);
