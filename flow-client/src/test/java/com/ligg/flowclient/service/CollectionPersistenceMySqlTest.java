@@ -7,6 +7,7 @@ import com.ligg.common.entity.CollectionSyncConflictEntity;
 import com.ligg.common.entity.UserOauthEntity;
 import com.ligg.common.statuenum.CollectionSyncItemStatus;
 import com.ligg.common.statuenum.CollectionRemoteSyncStatus;
+import com.ligg.common.statuenum.BgmCollectionSyncStatus;
 import com.ligg.flowclient.mapper.BangumiSubjectMapper;
 import com.ligg.flowclient.mapper.UserBgmCollectionMapper;
 import com.ligg.flowclient.module.dto.UpdateUserCollectionDto;
@@ -178,7 +179,7 @@ class CollectionPersistenceMySqlTest {
         assertEquals("pending comment",writer.find(10L,42).getComment());
         assertNull(writer.find(10L,42).getPendingPayload());
         tasks.summarize(task);
-        assertEquals("SUCCESS",syncTasks.selectById(task.getId()).getStatus());
+        assertEquals(BgmCollectionSyncStatus.SUCCESS, syncTasks.selectById(task.getId()).getStatus());
         assertEquals(1,syncTasks.selectById(task.getId()).getResolvedCount());
         assertEquals(task.getId(),tasks.createOrGet(10L,2,"request-1").getId());
         restarted.resolve(10L,task.getId(),conflictId,acceptedVersion,5);
