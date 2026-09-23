@@ -120,6 +120,53 @@ class PresenceServiceImplTest {
     }
 
     @Test
+    void loggingInRemovesOldVisitorFromGlobalUserIndex() {
+        long now = java.time.Instant.now().getEpochSecond();
+        PresenceContext previous = new PresenceContext(
+                "presence-1", "visitor-1", null, "visitor:visitor-1", "ANDROID", null,
+                "online", null, null, null, now);
+        when(values.get(Constants.PRESENCE_KEY + ":presence-1")).thenReturn(previous);
+        when(jwtTokenService.validateAccessToken("access-token")).thenReturn(42L);
+        when(zset.rangeByScore(eq(Constants.PRESENCE_DEVICES_KEY), anyDouble(), anyDouble()))
+                .thenReturn(Set.of("presence-1"));
+
+        PresenceHeartbeatDto dto = new PresenceHeartbeatDto();
+        dto.setVisitorId("visitor-1");
+        dto.setClientType("ANDROID");
+        dto.setStatus("online");
+
+        service.heartbeat("presence-1", dto, "access-token", true);
+
+        verify(zset).add(eq(Constants.PRESENCE_USERS_KEY), eq("user:42"), anyDouble());
+        verify(zset).remove(Constants.PRESENCE_USERS_KEY, "visitor:visitor-1");
+    }
+
+    @Test
+    void loggingInKeepsVisitorIndexWhenAnotherDeviceIsActive() {
+        long now = java.time.Instant.now().getEpochSecond();
+        PresenceContext previous = new PresenceContext(
+                "presence-1", "visitor-1", null, "visitor:visitor-1", "ANDROID", null,
+                "online", null, null, null, now);
+        PresenceContext otherDevice = new PresenceContext(
+                "presence-2", "visitor-1", null, "visitor:visitor-1", "ANDROID", null,
+                "online", null, null, null, now);
+        when(values.get(Constants.PRESENCE_KEY + ":presence-1")).thenReturn(previous);
+        when(values.get(Constants.PRESENCE_KEY + ":presence-2")).thenReturn(otherDevice);
+        when(jwtTokenService.validateAccessToken("access-token")).thenReturn(42L);
+        when(zset.rangeByScore(eq(Constants.PRESENCE_DEVICES_KEY), anyDouble(), anyDouble()))
+                .thenReturn(Set.of("presence-1", "presence-2"));
+
+        PresenceHeartbeatDto dto = new PresenceHeartbeatDto();
+        dto.setVisitorId("visitor-1");
+        dto.setClientType("ANDROID");
+        dto.setStatus("online");
+
+        service.heartbeat("presence-1", dto, "access-token", true);
+
+        verify(zset, never()).remove(Constants.PRESENCE_USERS_KEY, "visitor:visitor-1");
+    }
+
+    @Test
     void watchingSubjectsReturnsTopOneHundredByOnlineUsers() {
         List<Integer> ids = IntStream.rangeClosed(1, 101).boxed().toList();
         List<BangumiSubjectEntity> subjects = ids.stream().map(id -> {

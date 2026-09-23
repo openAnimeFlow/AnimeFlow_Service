@@ -35,6 +35,16 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Set up Redis test executable
+        run: |
+          if ! command -v redis-server >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y redis-server
+          fi
+          redis_executable="$(command -v redis-server)"
+          test -x "$redis_executable"
+          echo "REDIS_TEST_EXECUTABLE=$redis_executable" >> "$GITHUB_ENV"
+
       - name: Run tests
         env:
           COLLECTION_TEST_MYSQL_URL: jdbc:mysql://127.0.0.1:3306/anime_flow?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
