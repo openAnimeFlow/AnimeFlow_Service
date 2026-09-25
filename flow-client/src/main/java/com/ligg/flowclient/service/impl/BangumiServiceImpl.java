@@ -736,13 +736,6 @@ public class BangumiServiceImpl implements BangumiService {
     }
 
     @Override
-    public SeasonCalendarVo getSeasonCalendar(boolean includeNsfw) {
-        LocalDate now = LocalDate.now();
-        return getSeasonCalendar(includeNsfw, now.getYear(),
-                BangumiSeasonUtils.startMonthOf(now.getMonthValue()), now);
-    }
-
-    @Override
     public SeasonCalendarVo getSeasonCalendar(boolean includeNsfw, int year, int month) {
         return getSeasonCalendar(includeNsfw, year, month, LocalDate.now());
     }
