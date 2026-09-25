@@ -6,7 +6,7 @@ package com.ligg.flowclient.controller;
 
 import com.ligg.api.resend.ResendClient;
 import com.ligg.common.constants.Constants;
-import com.ligg.common.exception.EmailSendException;
+import com.ligg.common.exception.VerificationCodeException;
 import com.ligg.common.response.Result;
 import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.flowclient.annotation.IpEndpointRateLimit;
@@ -48,7 +48,7 @@ public class EmailController {
     @IpEndpointRateLimit(keyPrefix = "animeflow:email:send:ip:", seconds = 60, maxRequests = 5)
     public Result<String> sendEmail(@Valid SendEmailDto sendEmailDto) {
         if (!captchaService.verifyCaptcha(sendEmailDto.getCaptchaId(), sendEmailDto.getCaptcha())) {
-            throw new EmailSendException("验证码错误");
+            throw new VerificationCodeException("验证码错误");
         }
 
         final String email = sendEmailDto.getEmail();
