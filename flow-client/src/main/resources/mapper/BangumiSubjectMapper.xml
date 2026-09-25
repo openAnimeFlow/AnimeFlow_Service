@@ -280,12 +280,13 @@
             </otherwise>
         </choose>
         idx.subject_id
-        limit 20
+        limit #{limit} offset #{offset}
     </select>
 
     <select id="countLocalSearchSubjects" resultType="java.lang.Integer">
         select count(*)
         from bangumi_subject_search idx
+                 join bangumi_subject bs on bs.id = idx.subject_id
         <include refid="localSearchWhere"/>
     </select>
 
