@@ -138,8 +138,17 @@ public class PresenceServiceImpl implements PresenceService {
 
     @Override
     public OnlineCountVo subjectOnlineCount(int subjectId, String excludePresenceId) {
+        Set<String> exclusions = excludePresenceId == null
+                ? Set.of() : Set.of(excludePresenceId);
+        return subjectOnlineCounts(subjectId, exclusions).forPresence(excludePresenceId);
+    }
+
+    @Override
+    public PresenceService.SubjectOnlineCounts subjectOnlineCounts(
+            int subjectId, Set<String> excludePresenceIds) {
         if (subjectId <= 0) {
-            return new OnlineCountVo(0, 0, 0, 0);
+            return new PresenceService.SubjectOnlineCounts(
+                    new OnlineCountVo(0, 0, 0, 0), Map.of());
         }
         long now = Instant.now().getEpochSecond();
         long expiredBefore = now - TTL_SECONDS;
@@ -152,31 +161,48 @@ public class PresenceServiceImpl implements PresenceService {
 
         Set<String> users = stringRedisTemplate.opsForZSet()
                 .rangeByScore(usersKey, expiredBefore + 1, now);
-        PresenceContext excludedPresence = resolveExcludedPresence(
-                subjectId, excludePresenceId, now);
-        String excludedUser = excludedPresence == null
-                ? null : excludedPresence.getDedupeKey();
+        if (users == null) {
+            users = Set.of();
+        }
         long anonymous = 0;
         long loggedIn = 0;
-        if (users != null) {
-            for (String user : users) {
-                if (Objects.equals(user, excludedUser)) {
-                    continue;
-                }
-                if (user.startsWith("user:")) {
-                    loggedIn++;
-                } else if (user.startsWith("visitor:")) {
-                    anonymous++;
-                }
+        for (String user : users) {
+            if (user.startsWith("user:")) {
+                loggedIn++;
+            } else if (user.startsWith("visitor:")) {
+                anonymous++;
             }
         }
         Long devices = stringRedisTemplate.opsForZSet().zCard(devicesKey);
         long onlineDevices = devices == null ? 0 : devices;
-        if (excludedPresence != null
-                && stringRedisTemplate.opsForZSet().score(devicesKey, excludePresenceId) != null) {
-            onlineDevices = Math.max(0, onlineDevices - 1);
+        OnlineCountVo total = new OnlineCountVo(
+                anonymous + loggedIn, onlineDevices, anonymous, loggedIn);
+        Map<String, OnlineCountVo> excluded = new HashMap<>();
+        for (String presenceId : excludePresenceIds) {
+            PresenceContext context = resolveExcludedPresence(subjectId, presenceId, now);
+            if (context == null) {
+                excluded.put(presenceId, total);
+                continue;
+            }
+            long withoutAnonymous = anonymous;
+            long withoutLoggedIn = loggedIn;
+            String excludedUser = context.getDedupeKey();
+            if (excludedUser != null && users.contains(excludedUser)) {
+                if (excludedUser.startsWith("user:")) {
+                    withoutLoggedIn--;
+                } else if (excludedUser.startsWith("visitor:")) {
+                    withoutAnonymous--;
+                }
+            }
+            long withoutDevices = onlineDevices;
+            if (stringRedisTemplate.opsForZSet().score(devicesKey, presenceId) != null) {
+                withoutDevices = Math.max(0, withoutDevices - 1);
+            }
+            excluded.put(presenceId, new OnlineCountVo(
+                    withoutAnonymous + withoutLoggedIn, withoutDevices,
+                    withoutAnonymous, withoutLoggedIn));
         }
-        return new OnlineCountVo(anonymous + loggedIn, onlineDevices, anonymous, loggedIn);
+        return new PresenceService.SubjectOnlineCounts(total, Map.copyOf(excluded));
     }
 
     private PresenceContext resolveExcludedPresence(

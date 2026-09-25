@@ -11,36 +11,46 @@ import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
-/** 在线状态 SSE；状态变化时推送，客户端断线后会重新获取完整快照。 */
+/**
+ * 在线状态 SSE；状态变化时推送，客户端断线后会重新获取完整快照。
+ */
 @Service
 @RequiredArgsConstructor
 public class PresenceSseService implements MessageListener {
 
     public static final String CHANNEL = Constants.PRESENCE_CHANGED_CHANNEL;
 
-    private static final long CONNECTION_TIMEOUT_MS = 300_000L;
     private static final long FLUSH_INTERVAL_MILLIS = 250L;
     private static final long FALLBACK_REFRESH_SECONDS = 30L;
     private static final long HEARTBEAT_SECONDS = 20L;
     private static final long SNAPSHOT_CACHE_MILLIS = 1_000L;
+    private static final int MAX_CONCURRENT_DELIVERIES = 32;
 
     private final PresenceService presenceService;
     private final Set<SseEmitter> onlineCountEmitters = ConcurrentHashMap.newKeySet();
     private final Set<SseEmitter> watchingSubjectEmitters = ConcurrentHashMap.newKeySet();
-    private final ConcurrentHashMap<Integer, Set<SseEmitter>> subjectOnlineCountEmitters =
-            new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<SseEmitter, String> subjectOnlineCountExclusions =
-            new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, Set<SseEmitter>> subjectOnlineCountEmitters = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<SseEmitter, String> subjectOnlineCountExclusions = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<SseEmitter, Delivery> deliveries = new ConcurrentHashMap<>();
     private final Set<Integer> subjectOnlineCountSnapshotDirty = ConcurrentHashMap.newKeySet();
     private final AtomicBoolean snapshotDirty = new AtomicBoolean();
+    private final AtomicBoolean flushRunning = new AtomicBoolean();
     private final AtomicBoolean onlineCountSnapshotDirty = new AtomicBoolean(true);
     private final AtomicBoolean watchingSubjectsSnapshotDirty = new AtomicBoolean(true);
     private final Object onlineCountSnapshotLock = new Object();
@@ -55,11 +65,13 @@ public class PresenceSseService implements MessageListener {
                 thread.setDaemon(true);
                 return thread;
             });
+    private final ExecutorService deliveryExecutor = Executors.newVirtualThreadPerTaskExecutor();
+    private final Semaphore deliveryPermits = new Semaphore(MAX_CONCURRENT_DELIVERIES, true);
 
     @PostConstruct
     void start() {
         scheduler.scheduleWithFixedDelay(
-                this::flushDirtySnapshot,
+                this::scheduleFlush,
                 FLUSH_INTERVAL_MILLIS,
                 FLUSH_INTERVAL_MILLIS,
                 TimeUnit.MILLISECONDS);
@@ -76,26 +88,29 @@ public class PresenceSseService implements MessageListener {
     }
 
     public SseEmitter subscribeOnlineCount() {
-        SseEmitter emitter = register(onlineCountEmitters);
-        sendOnlineCount(emitter);
+        SseEmitter emitter = register(onlineCountEmitters, null);
+        enqueueSnapshot(emitter, target -> target.send(SseEmitter.event()
+                .name("online-count")
+                .data(getOnlineCountSnapshot())));
         return emitter;
     }
 
     public SseEmitter subscribeWatchingSubjects() {
-        SseEmitter emitter = register(watchingSubjectEmitters);
-        sendWatchingSubjects(emitter);
+        SseEmitter emitter = register(watchingSubjectEmitters, null);
+        enqueueSnapshot(emitter, target -> target.send(SseEmitter.event()
+                .name("watching-subjects")
+                .data(getWatchingSubjectsSnapshot())));
         return emitter;
     }
 
     public SseEmitter subscribeSubjectOnlineCount(int subjectId, String excludePresenceId) {
         Set<SseEmitter> emitters = subjectOnlineCountEmitters.computeIfAbsent(
                 subjectId, ignored -> ConcurrentHashMap.newKeySet());
-        SseEmitter emitter = register(emitters);
-        if (excludePresenceId != null && !excludePresenceId.isBlank()) {
-            subjectOnlineCountExclusions.put(emitter, excludePresenceId);
-        }
+        SseEmitter emitter = register(emitters, excludePresenceId);
         subjectOnlineCountSnapshotDirty.add(subjectId);
-        sendSubjectOnlineCount(emitter, subjectId, excludePresenceId);
+        enqueueSnapshot(emitter, target -> target.send(SseEmitter.event()
+                .name("subject-online-count")
+                .data(presenceService.subjectOnlineCount(subjectId, excludePresenceId))));
         return emitter;
     }
 
@@ -104,17 +119,44 @@ public class PresenceSseService implements MessageListener {
         invalidateSnapshots();
     }
 
-    private SseEmitter register(Set<SseEmitter> emitters) {
-        SseEmitter emitter = new SseEmitter(CONNECTION_TIMEOUT_MS);
+    private SseEmitter register(Set<SseEmitter> emitters, String excludePresenceId) {
+        // A heartbeat detects dead peers; a fixed timeout would reconnect every client at once.
+        SseEmitter emitter = new SseEmitter(0L);
+        Delivery delivery = new Delivery(emitter, emitters);
+        deliveries.put(emitter, delivery);
+        if (excludePresenceId != null && !excludePresenceId.isBlank()) {
+            subjectOnlineCountExclusions.put(emitter, excludePresenceId);
+        }
         emitters.add(emitter);
         Runnable remove = () -> {
             emitters.remove(emitter);
             subjectOnlineCountExclusions.remove(emitter);
+            delivery.closed.set(true);
+            deliveries.remove(emitter, delivery);
         };
         emitter.onCompletion(remove);
         emitter.onTimeout(remove);
         emitter.onError(error -> remove.run());
         return emitter;
+    }
+
+    private void scheduleFlush() {
+        if (!snapshotDirty.get() || !flushRunning.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            deliveryExecutor.execute(() -> {
+                try {
+                    flushDirtySnapshot();
+                } catch (RuntimeException error) {
+                    snapshotDirty.set(true);
+                } finally {
+                    flushRunning.set(false);
+                }
+            });
+        } catch (RejectedExecutionException ignored) {
+            flushRunning.set(false);
+        }
     }
 
     private void markSnapshotDirty() {
@@ -154,7 +196,10 @@ public class PresenceSseService implements MessageListener {
             snapshotDirty.set(true);
             return;
         }
-        onlineCountEmitters.forEach(emitter -> sendOnlineCount(emitter, snapshot));
+        onlineCountEmitters.forEach(emitter -> enqueueSnapshot(emitter,
+                target -> target.send(SseEmitter.event()
+                        .name("online-count")
+                        .data(snapshot))));
     }
 
     private void sendWatchingSubjectsSnapshot() {
@@ -165,93 +210,136 @@ public class PresenceSseService implements MessageListener {
             snapshotDirty.set(true);
             return;
         }
-        watchingSubjectEmitters.forEach(emitter -> sendWatchingSubjects(emitter, snapshot));
+        watchingSubjectEmitters.forEach(emitter -> enqueueSnapshot(emitter,
+                target -> target.send(SseEmitter.event()
+                        .name("watching-subjects")
+                        .data(snapshot))));
     }
 
     private void sendHeartbeats() {
-        onlineCountEmitters.forEach(emitter -> sendHeartbeat(onlineCountEmitters, emitter));
-        watchingSubjectEmitters.forEach(emitter -> sendHeartbeat(watchingSubjectEmitters, emitter));
+        onlineCountEmitters.forEach(this::enqueueHeartbeat);
+        watchingSubjectEmitters.forEach(this::enqueueHeartbeat);
         subjectOnlineCountEmitters.forEach((subjectId, emitters) ->
-                emitters.forEach(emitter -> sendHeartbeat(emitters, emitter)));
-    }
-
-    private void sendOnlineCount(SseEmitter emitter) {
-        try {
-            sendOnlineCount(emitter, getOnlineCountSnapshot());
-        } catch (Exception error) {
-            close(onlineCountEmitters, emitter);
-        }
-    }
-
-    private void sendOnlineCount(SseEmitter emitter, OnlineCountVo snapshot) {
-        try {
-            emitter.send(SseEmitter.event()
-                    .name("online-count")
-                    .data(snapshot));
-        } catch (Exception error) {
-            close(onlineCountEmitters, emitter);
-        }
-    }
-
-    private void sendWatchingSubjects(SseEmitter emitter) {
-        try {
-            sendWatchingSubjects(emitter, getWatchingSubjectsSnapshot());
-        } catch (Exception error) {
-            close(watchingSubjectEmitters, emitter);
-        }
-    }
-
-    private void sendWatchingSubjects(SseEmitter emitter, List<WatchingSubjectVo> snapshot) {
-        try {
-            emitter.send(SseEmitter.event()
-                    .name("watching-subjects")
-                    .data(snapshot));
-        } catch (Exception error) {
-            close(watchingSubjectEmitters, emitter);
-        }
+                emitters.forEach(this::enqueueHeartbeat));
     }
 
     private void sendSubjectOnlineCountSnapshot(
             int subjectId, Set<SseEmitter> emitters) {
-        emitters.forEach(emitter -> sendSubjectOnlineCount(
-                emitter,
-                subjectId,
-                subjectOnlineCountExclusions.get(emitter)));
-    }
-
-    private void sendSubjectOnlineCount(
-            SseEmitter emitter,
-            int subjectId,
-            String excludePresenceId) {
-        try {
-            OnlineCountVo snapshot = presenceService.subjectOnlineCount(
-                    subjectId, excludePresenceId);
-            emitter.send(SseEmitter.event()
-                    .name("subject-online-count")
-                    .data(snapshot));
-        } catch (Exception error) {
-            Set<SseEmitter> emitters = subjectOnlineCountEmitters.get(subjectId);
-            if (emitters != null) {
-                close(emitters, emitter);
+        List<SseEmitter> subscribers = List.copyOf(emitters);
+        Set<String> excludedIds = new HashSet<>();
+        Map<SseEmitter, String> excludedByEmitter = new HashMap<>();
+        for (SseEmitter emitter : subscribers) {
+            String excludedId = subjectOnlineCountExclusions.get(emitter);
+            if (excludedId != null) {
+                excludedIds.add(excludedId);
+                excludedByEmitter.put(emitter, excludedId);
             }
         }
+        PresenceService.SubjectOnlineCounts snapshots =
+                presenceService.subjectOnlineCounts(subjectId, excludedIds);
+        subscribers.forEach(emitter -> enqueueSnapshot(emitter, target ->
+                target.send(SseEmitter.event()
+                        .name("subject-online-count")
+                        .data(snapshots.forPresence(excludedByEmitter.get(emitter))))));
     }
 
-    private void sendHeartbeat(Set<SseEmitter> emitters, SseEmitter emitter) {
-        try {
-            emitter.send(SseEmitter.event().comment("heartbeat"));
-        } catch (Exception error) {
-            close(emitters, emitter);
+    private void enqueueSnapshot(SseEmitter emitter, EmitterWrite write) {
+        Delivery delivery = deliveries.get(emitter);
+        if (delivery != null && !delivery.closed.get()) {
+            // Each event is a complete snapshot, so only the newest pending one matters.
+            delivery.pendingSnapshot.set(write);
+            delivery.dispatch();
         }
     }
 
-    private void close(Set<SseEmitter> emitters, SseEmitter emitter) {
+    private void enqueueHeartbeat(SseEmitter emitter) {
+        Delivery delivery = deliveries.get(emitter);
+        if (delivery != null && !delivery.closed.get()) {
+            delivery.heartbeatPending.set(true);
+            delivery.dispatch();
+        }
+    }
+
+    private void close(Set<SseEmitter> emitters, SseEmitter emitter, Exception error) {
         // 完成或错误回调可能会先于定时心跳发现发送失败并移除连接，
         // 因此关闭操作必须具备幂等性；客户端正常断开不应被视为服务端错误。
         if (!emitters.remove(emitter)) {
             return;
         }
         subjectOnlineCountExclusions.remove(emitter);
+        Delivery delivery = deliveries.remove(emitter);
+        if (delivery != null) {
+            delivery.closed.set(true);
+        }
+        // Servlet async processing handles an IOException from a disconnected client.
+        if (!(error instanceof IOException)) {
+            emitter.completeWithError(error);
+        }
+    }
+
+    @FunctionalInterface
+    private interface EmitterWrite {
+        void send(SseEmitter emitter) throws IOException;
+    }
+
+    private final class Delivery {
+        private final SseEmitter emitter;
+        private final Set<SseEmitter> owner;
+        private final AtomicReference<EmitterWrite> pendingSnapshot = new AtomicReference<>();
+        private final AtomicBoolean heartbeatPending = new AtomicBoolean();
+        private final AtomicBoolean running = new AtomicBoolean();
+        private final AtomicBoolean closed = new AtomicBoolean();
+
+        private Delivery(SseEmitter emitter, Set<SseEmitter> owner) {
+            this.emitter = emitter;
+            this.owner = owner;
+        }
+
+        private void dispatch() {
+            if (running.compareAndSet(false, true)) {
+                try {
+                    deliveryExecutor.execute(this::drain);
+                } catch (RejectedExecutionException ignored) {
+                    running.set(false);
+                }
+            }
+        }
+
+        private void drain() {
+            try {
+                while (!closed.get()) {
+                    EmitterWrite write = pendingSnapshot.getAndSet(null);
+                    if (write == null && heartbeatPending.getAndSet(false)) {
+                        write = target -> target.send(SseEmitter.event().comment("heartbeat"));
+                    }
+                    if (write == null) {
+                        return;
+                    }
+                    try {
+                        deliveryPermits.acquire();
+                        try {
+                            if (!closed.get()) {
+                                write.send(emitter);
+                            }
+                        } finally {
+                            deliveryPermits.release();
+                        }
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt();
+                        return;
+                    } catch (Exception error) {
+                        close(owner, emitter, error);
+                        return;
+                    }
+                }
+            } finally {
+                running.set(false);
+                if (!closed.get() && !Thread.currentThread().isInterrupted()
+                        && (pendingSnapshot.get() != null || heartbeatPending.get())) {
+                    dispatch();
+                }
+            }
+        }
     }
 
     private void invalidateSnapshots() {
@@ -310,12 +398,15 @@ public class PresenceSseService implements MessageListener {
 
     @PreDestroy
     void stop() {
+        scheduler.shutdownNow();
+        deliveries.values().forEach(delivery -> delivery.closed.set(true));
         onlineCountEmitters.forEach(this::completeOnShutdown);
         watchingSubjectEmitters.forEach(this::completeOnShutdown);
         subjectOnlineCountEmitters.values().forEach(emitters ->
                 emitters.forEach(this::completeOnShutdown));
         subjectOnlineCountExclusions.clear();
-        scheduler.shutdownNow();
+        deliveries.clear();
+        deliveryExecutor.shutdownNow();
     }
 
     private void completeOnShutdown(SseEmitter emitter) {

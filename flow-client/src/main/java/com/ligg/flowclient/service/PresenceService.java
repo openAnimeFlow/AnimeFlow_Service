@@ -5,6 +5,8 @@ import com.ligg.flowclient.module.vo.OnlineCountVo;
 import com.ligg.flowclient.module.vo.WatchingSubjectVo;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public interface PresenceService {
 
@@ -17,5 +19,13 @@ public interface PresenceService {
 
     OnlineCountVo subjectOnlineCount(int subjectId, String excludePresenceId);
 
+    SubjectOnlineCounts subjectOnlineCounts(int subjectId, Set<String> excludePresenceIds);
+
     List<WatchingSubjectVo> watchingSubjects();
+
+    record SubjectOnlineCounts(OnlineCountVo total, Map<String, OnlineCountVo> excluded) {
+        public OnlineCountVo forPresence(String presenceId) {
+            return presenceId == null ? total : excluded.getOrDefault(presenceId, total);
+        }
+    }
 }

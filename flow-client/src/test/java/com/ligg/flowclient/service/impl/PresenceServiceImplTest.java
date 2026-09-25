@@ -33,6 +33,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -117,6 +118,35 @@ class PresenceServiceImplTest {
 
         verify(stringRedisTemplate, never()).convertAndSend(
                 Constants.PRESENCE_CHANGED_CHANNEL, "changed");
+    }
+
+    @Test
+    void subjectCountsReuseBaseQueryForMultipleExcludedPresences() {
+        long now = java.time.Instant.now().getEpochSecond();
+        PresenceContext first = new PresenceContext(
+                "p1", "v1", null, "visitor:v1", "ANDROID", null,
+                "watching", SUBJECT_ID, 1, null, now);
+        PresenceContext second = new PresenceContext(
+                "p2", "v2", null, "visitor:v2", "ANDROID", null,
+                "watching", SUBJECT_ID, 1, null, now);
+        when(values.get(Constants.PRESENCE_KEY + ":p1")).thenReturn(first);
+        when(values.get(Constants.PRESENCE_KEY + ":p2")).thenReturn(second);
+        when(zset.rangeByScore(eq(SUBJECT_USERS), anyDouble(), anyDouble()))
+                .thenReturn(Set.of("visitor:v1", "visitor:v2", "user:9"));
+        when(zset.zCard(SUBJECT_DEVICES)).thenReturn(4L);
+        when(zset.score(eq(SUBJECT_DEVICES), anyString()))
+                .thenAnswer(invocation -> "p1".equals(invocation.getArgument(1)) ? 1.0 : null);
+
+        var counts = service.subjectOnlineCounts(SUBJECT_ID, Set.of("p1", "p2"));
+
+        assertEquals(3, counts.total().getOnlineUsers());
+        assertEquals(4, counts.total().getOnlineDevices());
+        assertEquals(2, counts.forPresence("p1").getOnlineUsers());
+        assertEquals(3, counts.forPresence("p1").getOnlineDevices());
+        assertEquals(2, counts.forPresence("p2").getOnlineUsers());
+        assertEquals(4, counts.forPresence("p2").getOnlineDevices());
+        verify(zset, times(1)).rangeByScore(eq(SUBJECT_USERS), anyDouble(), anyDouble());
+        verify(zset, times(1)).zCard(SUBJECT_DEVICES);
     }
 
     @Test

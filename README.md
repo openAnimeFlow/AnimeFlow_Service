@@ -22,7 +22,7 @@ AnimeFlow 客户端的后端服务，基于 **Spring Boot 3** 与 **Maven 多模
 
 ## 环境要求
 
-- **JDK 17**
+- **JDK 25**
 - **MySQL 8**（库名默认 `anime_flow`）
 - **Redis**（Flow Token、限流、Bangumi Archive 同步锁与状态等）
 - 可选：Resend 账号（邮件验证码）、Bangumi OAuth 应用、弹弹 Play 应用凭证

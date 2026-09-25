@@ -3,6 +3,11 @@ server:
 spring:
   application:
     name: AnimeFlow-Service
+  main:
+    keep-alive: true
+  threads:
+    virtual:
+      enabled: true
   config:
     import: optional:file:.env[.properties]
   servlet:

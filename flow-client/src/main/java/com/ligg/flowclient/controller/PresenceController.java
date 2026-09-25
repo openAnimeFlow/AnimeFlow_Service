@@ -34,7 +34,6 @@ public class PresenceController {
     private final PresenceSseService presenceSseService;
 
     @PutMapping("/{presenceId}")
-//    @IpEndpointRateLimit(keyPrefix = "animeflow:presence:heartbeat:ip:", seconds = 10, maxRequests = 2)
     public ResponseEntity<Void> heartbeat(
             @Valid @RequestBody PresenceHeartbeatDto body,
             @PathVariable String presenceId,
