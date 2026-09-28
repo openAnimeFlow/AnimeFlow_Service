@@ -1,5 +1,10 @@
 package com.ligg.flowscheduler.config;
 
+import com.ligg.flowscheduler.archive.config.BangumiArchiveSyncProperties;
+import com.ligg.flowscheduler.backgroundimage.config.BackgroundImageSyncProperties;
+import com.ligg.flowscheduler.apiaccesslog.config.ApiAccessLogArchiveProperties;
+import com.ligg.flowscheduler.collectioncleanup.config.CollectionSyncCleanupProperties;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;

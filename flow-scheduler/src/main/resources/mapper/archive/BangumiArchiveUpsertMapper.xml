@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ligg.flowscheduler.archive.mapper.BangumiArchiveUpsertMapper">
+
+    <insert id="upsertCharacterBatch">
+        insert into bangumi_character (id, role, name, infobox, summary, comments, collects)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.id}, #{item.role}, #{item.name}, #{item.infobox}, #{item.summary}, #{item.comments}, #{item.collects})
+        </foreach> as new
+        on duplicate key update
+        role = new.role,
+        name = new.name,
+        infobox = new.infobox,
+        summary = new.summary,
+        comments = new.comments,
+        collects = new.collects
+    </insert>
+
+    <insert id="upsertEpisodeBatch">
+        insert into bangumi_episode (id, name, name_cn, description, airdate, disc, duration, subject_id, sort, type)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.id}, #{item.name}, #{item.nameCn}, #{item.description}, #{item.airdate}, #{item.disc},
+            #{item.duration}, #{item.subjectId}, #{item.sort}, #{item.type})
+        </foreach> as new
+        on duplicate key update
+        name = new.name,
+        name_cn = new.name_cn,
+        description = new.description,
+        airdate = new.airdate,
+        disc = new.disc,
+        duration = new.duration,
+        subject_id = new.subject_id,
+        sort = new.sort,
+        type = new.type
+    </insert>
+
+    <insert id="upsertPersonBatch">
+        insert into bangumi_person (id, name, type, career, infobox, summary, comments, collects)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.id}, #{item.name}, #{item.type}, #{item.career}, #{item.infobox}, #{item.summary},
+            #{item.comments}, #{item.collects})
+        </foreach> as new
+        on duplicate key update
+        name = new.name,
+        type = new.type,
+        career = new.career,
+        infobox = new.infobox,
+        summary = new.summary,
+        comments = new.comments,
+        collects = new.collects
+    </insert>
+
+    <insert id="upsertSubjectBatch">
+        insert into bangumi_subject (id, type, name, name_cn, infobox, platform, summary, nsfw, tags, meta_tags,
+        score, score_details, `rank`, date, favorite, series)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.id}, #{item.type}, #{item.name}, #{item.nameCn}, #{item.infobox}, #{item.platform},
+            #{item.summary}, #{item.nsfw}, #{item.tags}, #{item.metaTags}, #{item.score}, #{item.scoreDetails},
+            #{item.rank}, #{item.date}, #{item.favorite}, #{item.series})
+        </foreach> as new
+        on duplicate key update
+        type = new.type,
+        name = new.name,
+        name_cn = new.name_cn,
+        infobox = new.infobox,
+        platform = new.platform,
+        summary = new.summary,
+        nsfw = new.nsfw,
+        tags = new.tags,
+        meta_tags = new.meta_tags,
+        score = new.score,
+        score_details = new.score_details,
+        `rank` = new.`rank`,
+        date = new.date,
+        favorite = new.favorite,
+        series = new.series
+    </insert>
+
+    <insert id="upsertSubjectSearchBatch">
+        insert into bangumi_subject_search (subject_id, type, nsfw, name, name_cn, aliases, tags_text, meta_tags_text,
+        year, platform, score, subject_rank, favorite_done, search_text)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.subjectId}, #{item.type}, #{item.nsfw}, #{item.name}, #{item.nameCn}, #{item.aliases},
+            #{item.tagsText}, #{item.metaTagsText}, #{item.year}, #{item.platform}, #{item.score},
+            #{item.subjectRank}, #{item.favoriteDone}, #{item.searchText})
+        </foreach> as new
+        on duplicate key update
+        type = new.type,
+        nsfw = new.nsfw,
+        name = new.name,
+        name_cn = new.name_cn,
+        aliases = new.aliases,
+        tags_text = new.tags_text,
+        meta_tags_text = new.meta_tags_text,
+        year = new.year,
+        platform = new.platform,
+        score = new.score,
+        subject_rank = new.subject_rank,
+        favorite_done = new.favorite_done,
+        search_text = new.search_text
+    </insert>
+
+    <delete id="deleteSubjectTagsBySubjectIds">
+        delete from bangumi_subject_tag
+        where subject_id in
+        <foreach collection="subjectIds" item="subjectId" open="(" separator="," close=")">
+            #{subjectId}
+        </foreach>
+    </delete>
+
+    <insert id="insertSubjectTagBatch">
+        insert into bangumi_subject_tag (subject_id, tag_type, tag_name)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.subjectId}, #{item.tagType}, #{item.tagName})
+        </foreach>
+        <!-- utf8mb4_unicode_ci may consider distinct source labels equal (case/accent folding). -->
+        on duplicate key update tag_name = bangumi_subject_tag.tag_name
+    </insert>
+
+    <insert id="upsertPersonCharacterBatch">
+        insert into bangumi_person_character (person_id, subject_id, character_id, type, summary)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.personId}, #{item.subjectId}, #{item.characterId}, #{item.type}, #{item.summary})
+        </foreach> as new
+        on duplicate key update
+        type = new.type,
+        summary = new.summary
+    </insert>
+
+    <insert id="upsertPersonRelationBatch">
+        insert into bangumi_person_relation (person_type, person_id, related_person_id, relation_type, spoiler, ended)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.personType}, #{item.personId}, #{item.relatedPersonId}, #{item.relationType},
+            #{item.spoiler}, #{item.ended})
+        </foreach> as new
+        on duplicate key update
+        spoiler = new.spoiler,
+        ended = new.ended
+    </insert>
+
+    <insert id="upsertSubjectCharacterBatch">
+        insert into bangumi_subject_character (character_id, subject_id, type, `order`)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.characterId}, #{item.subjectId}, #{item.type}, #{item.order})
+        </foreach> as new
+        on duplicate key update
+        type = new.type,
+        `order` = new.`order`
+    </insert>
+
+    <insert id="upsertSubjectPersonBatch">
+        insert into bangumi_subject_person (person_id, subject_id, position, appear_eps)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.personId}, #{item.subjectId}, #{item.position}, #{item.appearEps})
+        </foreach> as new
+        on duplicate key update
+        appear_eps = new.appear_eps
+    </insert>
+
+    <insert id="upsertSubjectRelationBatch">
+        insert into bangumi_subject_relation (subject_id, relation_type, related_subject_id, `order`)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.subjectId}, #{item.relationType}, #{item.relatedSubjectId}, #{item.order})
+        </foreach> as new
+        on duplicate key update
+        `order` = new.`order`
+    </insert>
+
+</mapper>

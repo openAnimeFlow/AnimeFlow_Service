@@ -1,0 +1,30 @@
+package com.ligg.flowscheduler.apiaccesslog.scheduler;
+
+import com.ligg.flowscheduler.apiaccesslog.service.ApiAccessLogArchiveService;
+import com.ligg.flowscheduler.apiaccesslog.config.ApiAccessLogArchiveProperties;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+/** 每月 1 日归档或清理上月接口访问日志。 */
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class ApiAccessLogArchiveScheduler {
+
+    private final ApiAccessLogArchiveProperties properties;
+    private final ApiAccessLogArchiveService archiveService;
+
+    @Scheduled(
+            cron = "${anime-flow.sync.access-log.archive.cron:0 0 2 1 * *}",
+            zone = "${anime-flow.sync.access-log.archive.zone:Asia/Shanghai}"
+    )
+    public void archivePreviousMonth() {
+        if (!properties.isEnabled()) {
+            return;
+        }
+        log.info("开始归档上月接口访问日志");
+        archiveService.archivePreviousMonth();
+    }
+}
