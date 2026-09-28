@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ligg.flowscheduler.bangumidata.mapper.BangumiDataMapper">
+    <insert id="upsertItems">
+        insert into bangumi_data_item
+        (item_key, bangumi_id, title, item_type, lang, official_site, begin_date, end_date, raw_data, sync_version)
+        values
+        <foreach collection="list" item="item" separator=",">
+            (#{item.itemKey}, #{item.bangumiId}, #{item.title}, #{item.type}, #{item.lang}, #{item.officialSite},
+             #{item.begin}, #{item.end}, cast(#{item.rawData} as json), #{item.syncVersion})
+        </foreach> as new
+        on duplicate key update
+        bangumi_id = new.bangumi_id,
+        title = new.title,
+        item_type = new.item_type,
+        lang = new.lang,
+        official_site = new.official_site,
+        begin_date = new.begin_date,
+        end_date = new.end_date,
+        raw_data = new.raw_data,
+        sync_version = new.sync_version
+    </insert>
+
+    <insert id="upsertSiteMeta">
+        insert into bangumi_data_site_meta (site_key, title, site_type, url_template, regions, sync_version)
+        values
+        <foreach collection="list" item="site" separator=",">
+            (#{site.siteKey}, #{site.title}, #{site.type}, #{site.urlTemplate}, cast(#{site.regions} as json), #{site.syncVersion})
+        </foreach> as new
+        on duplicate key update
+        title = new.title,
+        site_type = new.site_type,
+        url_template = new.url_template,
+        regions = new.regions,
+        sync_version = new.sync_version
+    </insert>
+
+    <select id="selectStaleItemKeys" resultType="string">
+        select item_key from bangumi_data_item
+        where sync_version &lt;&gt; #{version}
+        order by item_key
+        limit #{limit}
+    </select>
+
+    <delete id="deleteItemsByKeys">
+        delete from bangumi_data_item where item_key in
+        <foreach collection="keys" item="key" open="(" separator="," close=")">
+            #{key}
+        </foreach>
+    </delete>
+
+    <select id="selectStaleSiteKeys" resultType="string">
+        select site_key from bangumi_data_site_meta
+        where sync_version &lt;&gt; #{version}
+        order by site_key
+        limit #{limit}
+    </select>
+
+    <delete id="deleteSitesByKeys">
+        delete from bangumi_data_site_meta where site_key in
+        <foreach collection="keys" item="key" open="(" separator="," close=")">
+            #{key}
+        </foreach>
+    </delete>
+
+    <select id="countItemsByVersion" resultType="int">
+        select count(*) from bangumi_data_item where sync_version = #{version}
+    </select>
+
+    <select id="countSitesByVersion" resultType="int">
+        select count(*) from bangumi_data_site_meta where sync_version = #{version}
+    </select>
+</mapper>

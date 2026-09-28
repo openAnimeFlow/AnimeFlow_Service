@@ -187,6 +187,10 @@ public class Constants {
      */
     public static final String BACKGROUND_IMAGE_SYNC_UPDATED_AT_KEY = "animeflow:background:image:source_updated_at";
 
+    /** bangumi-data 同步锁与当前数据版本 */
+    public static final String BANGUMI_DATA_SYNC_LOCK_KEY = "animeflow:bangumi-data:sync:lock";
+    public static final String BANGUMI_DATA_SYNC_VERSION_KEY = "animeflow:bangumi-data:sync:version";
+
     /** 接口访问日志 Redis 队列。 */
     public static final String API_ACCESS_LOG_QUEUE_KEY = "animeflow:access-log:queue";
 

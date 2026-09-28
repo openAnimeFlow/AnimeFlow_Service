@@ -4,6 +4,7 @@ import com.ligg.flowscheduler.archive.config.BangumiArchiveSyncProperties;
 import com.ligg.flowscheduler.backgroundimage.config.BackgroundImageSyncProperties;
 import com.ligg.flowscheduler.apiaccesslog.config.ApiAccessLogArchiveProperties;
 import com.ligg.flowscheduler.collectioncleanup.config.CollectionSyncCleanupProperties;
+import com.ligg.flowscheduler.bangumidata.config.BangumiDataSyncProperties;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,6 +21,7 @@ import java.util.concurrent.Executor;
 @EnableAsync
 @EnableConfigurationProperties({
         BangumiArchiveSyncProperties.class,
+        BangumiDataSyncProperties.class,
         BackgroundImageSyncProperties.class,
         ApiAccessLogArchiveProperties.class,
         CollectionSyncCleanupProperties.class
@@ -34,6 +36,11 @@ public class SyncExecutorConfiguration {
     @Bean(name = "backgroundImageSyncExecutor")
     public Executor backgroundImageSyncExecutor() {
         return createExecutor("background-image-sync-");
+    }
+
+    @Bean(name = "bangumiDataSyncExecutor")
+    public Executor bangumiDataSyncExecutor() {
+        return createExecutor("bangumi-data-sync-");
     }
 
     private ThreadPoolTaskExecutor createExecutor(String threadNamePrefix) {
