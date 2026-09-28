@@ -19,8 +19,6 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 /**
  * 应用级 Redis 配置。
- *
- * <p>Redis 被多个业务模块使用，因此配置放在统一启动模块，而不是某个业务模块中。</p>
  */
 @Configuration
 public class RedisConfig {
