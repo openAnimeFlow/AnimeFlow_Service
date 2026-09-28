@@ -246,6 +246,25 @@
                  join bangumi_subject bs on bs.id = idx.subject_id
         <include refid="localSearchWhere"/>
         order by
+        case
+            when idx.name_cn = #{keyword} or idx.name = #{keyword} then 0
+            when <include refid="compactText"><property name="column" value="idx.name_cn"/></include> = #{compactKeyword}
+              or <include refid="compactText"><property name="column" value="idx.name"/></include> = #{compactKeyword} then 1
+            when idx.name_cn like concat(#{keyword}, '%')
+              or <include refid="compactText"><property name="column" value="idx.name_cn"/></include> like concat(#{compactKeyword}, '%') then 2
+            when idx.name like concat(#{keyword}, '%')
+              or <include refid="compactText"><property name="column" value="idx.name"/></include> like concat(#{compactKeyword}, '%') then 3
+            else 4
+        end,
+        case
+            when idx.name_cn like concat(#{keyword}, '%')
+              or <include refid="compactText"><property name="column" value="idx.name_cn"/></include> like concat(#{compactKeyword}, '%')
+                then char_length(<include refid="compactText"><property name="column" value="idx.name_cn"/></include>)
+            when idx.name like concat(#{keyword}, '%')
+              or <include refid="compactText"><property name="column" value="idx.name"/></include> like concat(#{compactKeyword}, '%')
+                then char_length(<include refid="compactText"><property name="column" value="idx.name"/></include>)
+            else null
+        end,
         <choose>
             <when test="sort == 'heat'">
                 relevanceScore desc,
