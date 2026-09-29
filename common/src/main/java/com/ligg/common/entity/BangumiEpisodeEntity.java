@@ -62,4 +62,7 @@ public class BangumiEpisodeEntity {
      * 类型：0正篇 1特别篇 2OP 3ED 4Trailer 5MAD 6其他
      */
     private Integer type;
+
+    /**集剧海报*/
+    private String cover;
 }

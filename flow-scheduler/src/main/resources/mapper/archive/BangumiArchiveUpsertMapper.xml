@@ -18,11 +18,11 @@
     </insert>
 
     <insert id="upsertEpisodeBatch">
-        insert into bangumi_episode (id, name, name_cn, description, airdate, disc, duration, subject_id, sort, type)
+        insert into bangumi_episode (id, name, name_cn, description, airdate, disc, duration, subject_id, sort, type, cover)
         values
         <foreach collection="list" item="item" separator=",">
             (#{item.id}, #{item.name}, #{item.nameCn}, #{item.description}, #{item.airdate}, #{item.disc},
-            #{item.duration}, #{item.subjectId}, #{item.sort}, #{item.type})
+            #{item.duration}, #{item.subjectId}, #{item.sort}, #{item.type}, #{item.cover})
         </foreach> as new
         on duplicate key update
         name = new.name,

@@ -8,11 +8,19 @@ import org.apache.ibatis.annotations.Select;
 public interface BangumiDataItemMapper {
 
     @Select("""
-            SELECT JSON_EXTRACT(raw_data, '$.sites')
-            FROM bangumi_data_item
-            WHERE bangumi_id = #{bangumiId}
-            ORDER BY item_key
+            SELECT JSON_UNQUOTE(site.id)
+            FROM bangumi_data_item b
+            JOIN JSON_TABLE(
+                b.raw_data,
+                '$.sites[*]' COLUMNS (
+                    site_key VARCHAR(64) PATH '$.site',
+                    id JSON PATH '$.id'
+                )
+            ) AS site
+            WHERE b.bangumi_id = #{bangumiId}
+              AND site.site_key = 'tmdb'
+            ORDER BY b.item_key
             LIMIT 1
             """)
-    String selectSitesByBangumiId(@Param("bangumiId") String bangumiId);
+    String selectTmdbIdByBangumiId(@Param("bangumiId") String bangumiId);
 }

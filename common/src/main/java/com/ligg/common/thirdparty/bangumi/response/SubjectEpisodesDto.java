@@ -32,6 +32,7 @@ public class SubjectEpisodesDto {
         private String airdate;
         private Integer comment;
         private String desc;
+        private String cover;
         @JsonInclude(JsonInclude.Include.NON_NULL)
         private Boolean watched;
     }

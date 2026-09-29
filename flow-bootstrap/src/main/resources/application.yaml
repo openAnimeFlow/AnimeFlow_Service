@@ -53,6 +53,9 @@ anime-flow:
     app_id: ${DANDANPLAY_ID}
     secret: ${DANDANPLAY_SECRET}
 
+  tmdb:
+    read-access-token: ${TMDB_READ_ACCESS_TOKEN:}
+
   bangumi:
     client_id: ${CLIENT_ID}
     client_secret: ${CLIENT_SECRET}

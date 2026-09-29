@@ -47,6 +47,7 @@ import com.ligg.flowclient.module.dto.SubjectBrowseRow;
 import com.ligg.flowclient.module.dto.UserSubjectInterestRow;
 import com.ligg.flowclient.mybatis.LimitOffsetPage;
 import com.ligg.flowclient.service.*;
+import com.ligg.flowclient.service.EpisodeCoverBackfillService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -96,6 +97,7 @@ public class BangumiServiceImpl implements BangumiService {
     private final ImageBackfillService imageBackfillService;
     private final UserBgmCollectionMapper userBgmCollectionMapper;
     private final UserEpisodeWatchService userEpisodeWatchService;
+    private final EpisodeCoverBackfillService episodeCoverBackfillService;
 
     @Override
     public SubjectsVo getSubjects(SubjectBrowseSort sort, int page, int type, Integer year, Integer month) {
@@ -364,8 +366,13 @@ public class BangumiServiceImpl implements BangumiService {
                 ? userEpisodeWatchService.listWatchedEpisodeIds(userId, subjectId)
                 : Collections.emptySet();
         boolean includeWatched = userId > 0;
+        Map<Integer, String> episodeCovers = episodeCoverBackfillService.resolve(page.getRecords());
         dto.setData(page.getRecords().stream()
-                .map(entity -> toEpisode(entity, watchedEpisodeIds, includeWatched))
+                .map(entity -> {
+                    SubjectEpisodesDto.Episode episode = toEpisode(entity, watchedEpisodeIds, includeWatched);
+                    episode.setCover(episodeCovers.get(entity.getId()));
+                    return episode;
+                })
                 .toList());
         return dto;
     }

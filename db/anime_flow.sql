@@ -89,6 +89,7 @@ CREATE TABLE `bangumi_episode`  (
   `subject_id` int UNSIGNED NOT NULL COMMENT '作品 ID',
   `sort` int NOT NULL DEFAULT 0 COMMENT '集数排序',
   `type` tinyint UNSIGNED NOT NULL DEFAULT 0 COMMENT '类型：0正篇 1特别篇 2OP 3ED 4Trailer 5MAD 6其他',
+  `cover` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT '剧集封面 URL',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_subject_id`(`subject_id` ASC) USING BTREE,
   INDEX `idx_subject_sort`(`subject_id` ASC, `sort` ASC) USING BTREE,
