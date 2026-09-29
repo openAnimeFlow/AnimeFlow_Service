@@ -11,7 +11,7 @@
  Target Server Version : 80043 (8.0.43)
  File Encoding         : 65001
 
- Date: 22/09/2026 17:30:39
+ Date: 29/09/2026 21:06:15
 */
 
 SET NAMES utf8mb4;
@@ -45,7 +45,7 @@ CREATE TABLE `api_access_log`  (
   INDEX `idx_client_ip_time`(`client_ip` ASC, `request_time` ASC) USING BTREE,
   INDEX `idx_user_id_time`(`request_time` ASC) USING BTREE,
   INDEX `idx_status_time`(`http_status` ASC, `request_time` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 7861 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '接口访问日志表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 9294 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '接口访问日志表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for background
@@ -73,6 +73,44 @@ CREATE TABLE `bangumi_character`  (
   `collects` int UNSIGNED NOT NULL DEFAULT 0 COMMENT '收藏数',
   PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Bangumi 角色' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for bangumi_data_item
+-- ----------------------------
+DROP TABLE IF EXISTS `bangumi_data_item`;
+CREATE TABLE `bangumi_data_item`  (
+  `item_key` varchar(96) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '稳定记录键：Bangumi ID 或内容哈希',
+  `bangumi_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL COMMENT 'bangumi-data sites 中的 Bangumi 条目 ID',
+  `title` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `item_type` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `lang` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `official_site` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `begin_date` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `end_date` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  `raw_data` json NOT NULL COMMENT '原始番组对象，保留译名、broadcast、comment、sites 等字段',
+  `sync_version` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '同步源 JSON 的 SHA-256',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`item_key`) USING BTREE,
+  INDEX `idx_bangumi_data_bangumi_id`(`bangumi_id` ASC) USING BTREE,
+  INDEX `idx_bangumi_data_begin_date`(`begin_date` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'bangumi-data 番组数据' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for bangumi_data_site_meta
+-- ----------------------------
+DROP TABLE IF EXISTS `bangumi_data_site_meta`;
+CREATE TABLE `bangumi_data_site_meta`  (
+  `site_key` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `site_type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `url_template` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `regions` json NOT NULL,
+  `sync_version` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`site_key`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'bangumi-data 站点元数据' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for bangumi_episode
@@ -317,7 +355,7 @@ CREATE TABLE `user_bgm_collection`  (
   `images` json NULL COMMENT '条目封面图 {large,common,medium,small,grid}',
   `bgm_interest_id` bigint NULL DEFAULT NULL COMMENT 'Bangumi 收藏 ID；仅本地收藏为 NULL',
   `rate` tinyint NOT NULL DEFAULT 0 COMMENT '用户评分 0-10，0 表示未评分',
-  `type` tinyint NOT NULL COMMENT '收藏类型 1=想看 2=看过 3=在看 4=搁置 5=抛弃',
+  `type` tinyint NOT NULL COMMENT '收藏类型 1=想看 2=看过 3=在看 4=搁置 5=抛弃 6=本地取消收藏',
   `comment` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '收藏评论',
   `tags` json NULL COMMENT '收藏标签 JSON 数组',
   `ep_status` smallint UNSIGNED NOT NULL DEFAULT 0 COMMENT '已看话数（interest.epStatus）',
@@ -378,7 +416,7 @@ CREATE TABLE `user_bgm_collection_sync_item`  (
   UNIQUE INDEX `uk_collection_sync_item`(`task_id` ASC, `subject_id` ASC) USING BTREE,
   INDEX `idx_collection_sync_conflict`(`user_id` ASC, `status` ASC, `id` ASC) USING BTREE,
   CONSTRAINT `fk_collection_sync_item_task` FOREIGN KEY (`task_id`) REFERENCES `user_bgm_collection_sync_task` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 2926 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏同步明细与冲突快照' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 3318 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏同步明细与冲突快照' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for user_bgm_collection_sync_task
@@ -413,7 +451,7 @@ CREATE TABLE `user_bgm_collection_sync_task`  (
   INDEX `idx_collection_sync_active`(`user_id` ASC, `status` ASC, `id` ASC) USING BTREE,
   INDEX `idx_collection_sync_cleanup`(`status` ASC, `finished_at` ASC, `id` ASC) USING BTREE,
   INDEX `idx_sync_task_recovery`(`status` ASC, `heartbeat_at` ASC, `created_at` ASC, `id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 17 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏双向同步任务' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 19 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏双向同步任务' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for user_episode_watch
@@ -453,7 +491,7 @@ CREATE TABLE `user_oauth`  (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_user_platform`(`user_id` ASC, `platform` ASC) USING BTREE,
   UNIQUE INDEX `uk_platform_uid`(`platform` ASC, `platform_uid` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 194 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户第三方 OAuth 绑定' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 277 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户第三方 OAuth 绑定' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for user_play_history
