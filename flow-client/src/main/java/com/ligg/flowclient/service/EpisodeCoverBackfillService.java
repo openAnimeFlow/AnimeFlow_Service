@@ -6,7 +6,6 @@ import com.ligg.flowclient.mapper.BangumiDataItemMapper;
 import com.ligg.flowclient.mapper.BangumiEpisodeMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import uk.co.conoregan.themoviedbapi.model.movies.MovieDb;
@@ -69,23 +68,24 @@ public class EpisodeCoverBackfillService {
             Map<Integer, String> covers) {
         Object lock = locks.computeIfAbsent(subjectId, ignored -> new Object());
         synchronized (lock) {
-            List<BangumiEpisodeEntity> stillMissing = new java.util.ArrayList<>();
-            for (BangumiEpisodeEntity episode : episodes) {
-                BangumiEpisodeEntity current = episodeMapper.selectById(episode.getId());
-                if (current != null && StringUtils.hasText(current.getCover())) {
-                    episode.setCover(current.getCover());
-                    covers.put(episode.getId(), current.getCover());
-                } else {
-                    stillMissing.add(episode);
-                }
-            }
-            if (stillMissing.isEmpty()) {
-                return;
-            }
-
             try {
+                List<BangumiEpisodeEntity> stillMissing = new java.util.ArrayList<>();
+                for (BangumiEpisodeEntity episode : episodes) {
+                    BangumiEpisodeEntity current = episodeMapper.selectById(episode.getId());
+                    if (current != null && StringUtils.hasText(current.getCover())) {
+                        episode.setCover(current.getCover());
+                        covers.put(episode.getId(), current.getCover());
+                    } else {
+                        stillMissing.add(episode);
+                    }
+                }
+                if (stillMissing.isEmpty()) {
+                    return;
+                }
+
                 String tmdbId = bangumiDataItemMapper.selectTmdbIdByBangumiId(String.valueOf(subjectId));
                 if (!StringUtils.hasText(tmdbId)) {
+                    log.debug("条目 subjectId={} 没有 TMDb 映射，跳过剧集封面回填", subjectId);
                     return;
                 }
                 Map<Integer, String> fetched = fetchCovers(tmdbId.trim(), stillMissing);
@@ -106,8 +106,8 @@ public class EpisodeCoverBackfillService {
                 if (backfilledCount > 0) {
                     log.info("条目 subjectId={} 回填剧集封面数量={}", subjectId, backfilledCount);
                 }
-            } catch (DataAccessException | TmdbException | NumberFormatException e) {
-                log.debug("回填剧集封面失败, subjectId={}", subjectId, e);
+            } catch (TmdbException | RuntimeException e) {
+                log.warn("条目 subjectId={} 回填剧集封面失败", subjectId, e);
             }
         }
     }
