@@ -73,10 +73,13 @@ public class SubjectsController {
         return Result.success(ResponseCode.SUCCESS, vo);
     }
 
-    /** 条目预览图。 */
+    /**
+     * 条目预览图。
+     */
     @GetMapping("/{subjectId}/stills")
     public Result<List<String>> subjectStills(@Min(1) @PathVariable int subjectId) {
-        return Result.success(ResponseCode.SUCCESS, bangumiService.getSubjectStills(subjectId));
+        List<String> subjectStills = bangumiService.getSubjectStills(subjectId);
+        return Result.success(ResponseCode.SUCCESS, subjectStills.stream().map(Utils::imgUrlToWsrvCdn).toList());
     }
 
     /**
