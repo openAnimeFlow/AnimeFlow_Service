@@ -1,9 +1,15 @@
 package com.ligg.flowclient.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ligg.api.themoviedbapi.TmdbClient;
+import com.ligg.api.themoviedbapi.TmdbImageSet;
 import com.ligg.common.entity.BangumiEpisodeEntity;
+import com.ligg.common.entity.BangumiSubjectBackdropCacheEntity;
 import com.ligg.flowclient.mapper.BangumiDataItemMapper;
 import com.ligg.flowclient.mapper.BangumiEpisodeMapper;
+import com.ligg.flowclient.mapper.BangumiSubjectBackdropCacheMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -19,6 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.time.LocalDateTime;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,8 +43,90 @@ public class EpisodeCoverBackfillService {
 
     private final BangumiEpisodeMapper episodeMapper;
     private final BangumiDataItemMapper bangumiDataItemMapper;
+    private final BangumiSubjectBackdropCacheMapper backdropCacheMapper;
     private final TmdbClient tmdbClient;
+    private final ObjectMapper objectMapper;
     private final ConcurrentHashMap<Integer, Object> locks = new ConcurrentHashMap<>();
+
+    private static final long BACKDROP_CACHE_DAYS = 7;
+
+    /** Gets the wide still/backdrop images associated with a Bangumi subject's TMDb entry. */
+    public List<String> getSubjectStills(Integer subjectId) {
+        if (subjectId == null || subjectId <= 0) {
+            throw new IllegalArgumentException("subjectId 必须大于 0");
+        }
+        Object lock = locks.computeIfAbsent(subjectId, ignored -> new Object());
+        synchronized (lock) {
+            BangumiSubjectBackdropCacheEntity cached = backdropCacheMapper.selectById(subjectId);
+            if (cached != null && isFresh(cached.getFetchedAt())) {
+                return readBackdrops(cached.getBackdrops());
+            }
+
+            try {
+                String tmdbId = bangumiDataItemMapper.selectTmdbIdByBangumiId(String.valueOf(subjectId));
+                if (!StringUtils.hasText(tmdbId)) {
+                    return cached == null ? Collections.emptyList() : readBackdrops(cached.getBackdrops());
+                }
+                TmdbImageSet images = fetchSubjectImages(tmdbId.trim());
+                saveBackdropCache(subjectId, tmdbId.trim(), images);
+                return images.backdrops();
+            } catch (TmdbException | RuntimeException e) {
+                log.warn("获取 TMDb 剧照失败, subjectId={}", subjectId, e);
+            }
+            return cached == null ? Collections.emptyList() : readBackdrops(cached.getBackdrops());
+        }
+    }
+
+    private boolean isFresh(LocalDateTime fetchedAt) {
+        return fetchedAt != null && fetchedAt.isAfter(LocalDateTime.now().minusDays(BACKDROP_CACHE_DAYS));
+    }
+
+    private TmdbImageSet fetchSubjectImages(String tmdbId) throws TmdbException {
+        Matcher tvMatcher = TMDB_TV_ID_PATTERN.matcher(tmdbId);
+        if (tvMatcher.matches()) {
+            return tmdbClient.getTvSeriesImages(Integer.parseInt(tvMatcher.group(1)));
+        }
+        Matcher movieMatcher = TMDB_MOVIE_ID_PATTERN.matcher(tmdbId);
+        if (movieMatcher.matches()) {
+            return tmdbClient.getMovieImages(Integer.parseInt(movieMatcher.group(1)));
+        }
+        return new TmdbImageSet(Collections.emptyList(), Collections.emptyList(), Collections.emptyList());
+    }
+
+    private void saveBackdropCache(Integer subjectId, String tmdbId, TmdbImageSet images) {
+        try {
+            BangumiSubjectBackdropCacheEntity row = backdropCacheMapper.selectById(subjectId);
+            boolean existing = row != null;
+            if (row == null) {
+                row = new BangumiSubjectBackdropCacheEntity();
+                row.setSubjectId(subjectId);
+            }
+            row.setTmdbId(tmdbId);
+            row.setBackdrops(objectMapper.writeValueAsString(images.backdrops()));
+            row.setLogos(objectMapper.writeValueAsString(images.logos()));
+            row.setPosters(objectMapper.writeValueAsString(images.posters()));
+            row.setFetchedAt(LocalDateTime.now());
+            if (!existing) {
+                backdropCacheMapper.insert(row);
+            } else {
+                backdropCacheMapper.updateById(row);
+            }
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("序列化剧照缓存失败", e);
+        }
+    }
+
+    private List<String> readBackdrops(String json) {
+        if (!StringUtils.hasText(json)) {
+            return Collections.emptyList();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() { });
+        } catch (JsonProcessingException e) {
+            log.warn("读取剧照缓存失败", e);
+            return Collections.emptyList();
+        }
+    }
 
     /**
      * Returns covers keyed by Bangumi episode ID, preferring values already stored in DB.

@@ -3,6 +3,7 @@ package com.ligg.flowclient.service;
 import com.ligg.common.thirdparty.bangumi.request.SearchSubjectsBody;
 import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
 import com.ligg.common.thirdparty.bangumi.response.SubjectEpisodesDto;
+import java.util.List;
 import com.ligg.common.thirdparty.bangumi.response.SubjectsDto;
 import com.ligg.common.vo.bangumi.SearchSuggestionsVo;
 import com.ligg.common.vo.bangumi.SeasonCalendarVo;
@@ -26,6 +27,11 @@ public interface BangumiService {
      * 获取番剧剧集列表
      */
     SubjectEpisodesDto getEpisodes(Integer subjectId, int limit, int offset, long userId);
+
+    /**
+     * 获取条目预览图
+     */
+    List<String> getSubjectStills(Integer subjectId);
 
     /**
      * 获取搜索建议

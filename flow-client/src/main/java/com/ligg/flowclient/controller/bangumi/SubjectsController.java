@@ -26,6 +26,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
@@ -70,6 +71,12 @@ public class SubjectsController {
         SubjectEpisodesVo vo = new SubjectEpisodesVo();
         BeanUtils.copyProperties(dto, vo);
         return Result.success(ResponseCode.SUCCESS, vo);
+    }
+
+    /** 条目预览图。 */
+    @GetMapping("/{subjectId}/stills")
+    public Result<List<String>> subjectStills(@Min(1) @PathVariable int subjectId) {
+        return Result.success(ResponseCode.SUCCESS, bangumiService.getSubjectStills(subjectId));
     }
 
     /**

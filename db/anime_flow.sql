@@ -135,6 +135,21 @@ CREATE TABLE `bangumi_episode`  (
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Bangumi 章节' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
+-- Table structure for bangumi_subject_backdrop_cache
+-- ----------------------------
+DROP TABLE IF EXISTS `bangumi_subject_backdrop_cache`;
+CREATE TABLE `bangumi_subject_backdrop_cache`  (
+  `subject_id` int UNSIGNED NOT NULL COMMENT 'Bangumi 条目 ID',
+  `tmdb_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'TMDb 条目标识，如 tv/66716',
+  `backdrops` json NOT NULL COMMENT '剧照 URL 数组',
+  `logos` json NOT NULL COMMENT 'Logo URL 数组',
+  `posters` json NOT NULL COMMENT '海报 URL 数组',
+  `fetched_at` datetime NOT NULL COMMENT '最近一次成功从 TMDb 获取的时间',
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`subject_id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Bangumi 条目 TMDb 剧照缓存' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
 -- Table structure for bangumi_person
 -- ----------------------------
 DROP TABLE IF EXISTS `bangumi_person`;

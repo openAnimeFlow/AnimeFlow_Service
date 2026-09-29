@@ -377,6 +377,11 @@ public class BangumiServiceImpl implements BangumiService {
         return dto;
     }
 
+    @Override
+    public List<String> getSubjectStills(Integer subjectId) {
+        return episodeCoverBackfillService.getSubjectStills(subjectId);
+    }
+
     private SubjectEpisodesDto.Episode toEpisode(
             BangumiEpisodeEntity entity,
             Set<Long> watchedEpisodeIds,

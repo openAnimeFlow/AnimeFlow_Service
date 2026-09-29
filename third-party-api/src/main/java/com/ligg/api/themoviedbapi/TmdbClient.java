@@ -6,6 +6,7 @@ import uk.co.conoregan.themoviedbapi.model.movies.MovieDb;
 import uk.co.conoregan.themoviedbapi.model.tv.series.TvSeriesDb;
 import uk.co.conoregan.themoviedbapi.model.tv.episode.TvEpisodeDb;
 import uk.co.conoregan.themoviedbapi.model.tv.season.TvSeasonDb;
+import java.util.List;
 import uk.co.conoregan.themoviedbapi.tools.TmdbException;
 
 public interface TmdbClient {
@@ -20,6 +21,14 @@ public interface TmdbClient {
     TvSeasonDb getTvSeasonDetails(int seriesId, int seasonNumber, String language) throws TmdbException;
 
     String getImageUrl(String imagePath);
+
+    List<String> getTvSeriesBackdrops(int seriesId) throws TmdbException;
+
+    List<String> getMovieBackdrops(int movieId) throws TmdbException;
+
+    TmdbImageSet getTvSeriesImages(int seriesId) throws TmdbException;
+
+    TmdbImageSet getMovieImages(int movieId) throws TmdbException;
 
     String getTvEpisodeStillUrl(int seriesId, int seasonNumber, int episodeNumber, String language)
             throws TmdbException;
