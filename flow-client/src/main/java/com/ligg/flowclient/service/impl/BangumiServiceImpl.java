@@ -302,6 +302,27 @@ public class BangumiServiceImpl implements BangumiService {
         return vo;
     }
 
+//    private Map<String, String> getPlatformIds(Integer subjectId) {
+//        Map<String, String> platformIds = new LinkedHashMap<>();
+//        try {
+//            String sitesJson = bangumiDataItemMapper.selectSitesByBangumiId(String.valueOf(subjectId));
+//            if (!StringUtils.hasText(sitesJson)) return platformIds;
+//
+//            JsonNode sites = objectMapper.readTree(sitesJson);
+//            if (!sites.isArray()) return platformIds;
+//            for (JsonNode site : sites) {
+//                String platform = site.path("site").asText("");
+//                String id = site.path("id").asText("");
+//                if (!StringUtils.hasText(platform) || !StringUtils.hasText(id)) continue;
+//
+//                platformIds.putIfAbsent(platform, id);
+//            }
+//        } catch (JsonProcessingException | DataAccessException e) {
+//            log.debug("读取 bangumi-data 平台映射失败, subjectId={}", subjectId, e);
+//        }
+//        return platformIds;
+//    }
+
     private static SubjectDetailDto.SubjectInterest getInterest(UserSubjectInterestRow userInterest) {
         SubjectDetailDto.SubjectInterest interest = new SubjectDetailDto.SubjectInterest();
         interest.setId(userInterest.getId());
@@ -544,7 +565,7 @@ public class BangumiServiceImpl implements BangumiService {
             return IntRange.empty();
         }
         if (years.size() == 1) {
-            return new IntRange(years.get(0), years.get(0));
+            return new IntRange(years.getFirst(), years.getFirst());
         }
         return new IntRange(Collections.min(years), Collections.max(years));
     }
@@ -557,7 +578,7 @@ public class BangumiServiceImpl implements BangumiService {
             return DoubleRange.empty();
         }
         if (ratings.size() == 1) {
-            return new DoubleRange(ratings.get(0), null);
+            return new DoubleRange(ratings.getFirst(), null);
         }
         return new DoubleRange(Collections.min(ratings), Collections.max(ratings));
     }
@@ -570,7 +591,7 @@ public class BangumiServiceImpl implements BangumiService {
             return IntRange.empty();
         }
         if (ranks.size() == 1) {
-            return new IntRange(null, ranks.get(0));
+            return new IntRange(null, ranks.getFirst());
         }
         return new IntRange(Collections.min(ranks), Collections.max(ranks));
     }
