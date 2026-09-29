@@ -45,7 +45,8 @@ class SubjectsBrowsePaginationTest {
     void setUp() {
         BangumiServiceImpl service = new BangumiServiceImpl(
                 mock(BangumiEpisodeMapper.class), subjectMapper, new ObjectMapper(),
-                imageBackfillService, mock(UserBgmCollectionMapper.class), mock(UserEpisodeWatchService.class));
+                imageBackfillService, mock(UserBgmCollectionMapper.class), mock(UserEpisodeWatchService.class),
+                mock(EpisodeCoverBackfillService.class));
         when(cacheService.getOrLoad(
                 anyString(), eq(SubjectsVo.class), anyLong(), anyString(), anyString(),
                 org.mockito.ArgumentMatchers.<Supplier<SubjectsVo>>any(), any(Runnable.class)))

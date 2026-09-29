@@ -9,10 +9,12 @@ import com.ligg.flowclient.mapper.BangumiSubjectMapper;
 import com.ligg.flowclient.mapper.UserBgmCollectionMapper;
 import com.ligg.flowclient.module.dto.SeasonEpisodeRow;
 import com.ligg.flowclient.module.dto.SeasonSubjectRow;
+import com.ligg.flowclient.service.EpisodeCoverBackfillService;
 import com.ligg.flowclient.service.ImageBackfillService;
 import com.ligg.flowclient.service.UserEpisodeWatchService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
@@ -31,20 +33,23 @@ class BangumiSeasonCalendarServiceTest {
 
     private static final LocalDate FIXED_NOW = LocalDate.of(2026, 7, 15);
 
-    @org.mockito.Mock
+    @Mock
     private BangumiEpisodeMapper episodeMapper;
 
-    @org.mockito.Mock
+    @Mock
     private BangumiSubjectMapper subjectMapper;
 
-    @org.mockito.Mock
+    @Mock
     private ImageBackfillService imageBackfillService;
 
-    @org.mockito.Mock
+    @Mock
     private UserBgmCollectionMapper userBgmCollectionMapper;
 
-    @org.mockito.Mock
+    @Mock
     private UserEpisodeWatchService userEpisodeWatchService;
+
+    @Mock
+    private EpisodeCoverBackfillService episodeCoverBackfillService;
 
     @Test
     void groupsByWeekdayAndFallsBackToStartDate() {
@@ -140,7 +145,8 @@ class BangumiSeasonCalendarServiceTest {
                 new ObjectMapper(),
                 imageBackfillService,
                 userBgmCollectionMapper,
-                userEpisodeWatchService);
+                userEpisodeWatchService,
+                episodeCoverBackfillService);
     }
 
     private static SeasonSubjectRow row(int id, String date, String weekday, double score) {
