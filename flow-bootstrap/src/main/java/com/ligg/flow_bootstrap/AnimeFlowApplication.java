@@ -23,7 +23,7 @@ public class AnimeFlowApplication implements ApplicationRunner {
     @Value("${server.port}")
     private String port;
 
-    public static void main(String[] args) {
+    static void main(String[] args) {
         SpringApplication.run(AnimeFlowApplication.class, args);
     }
 
