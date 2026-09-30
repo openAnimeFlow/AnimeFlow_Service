@@ -27,6 +27,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
@@ -68,6 +69,10 @@ public class SubjectsController {
             }
         }
         SubjectEpisodesDto dto = bangumiService.getEpisodes(subjectId, limit, offset, userId);
+        if (dto.getData() != null) {
+            dto.getData().stream().filter(Objects::nonNull)
+                    .forEach(episode -> episode.setCover(Utils.imgUrlToWsrvCdn(episode.getCover())));
+        }
         SubjectEpisodesVo vo = new SubjectEpisodesVo();
         BeanUtils.copyProperties(dto, vo);
         return Result.success(ResponseCode.SUCCESS, vo);
@@ -79,7 +84,8 @@ public class SubjectsController {
     @GetMapping("/{subjectId}/stills")
     public Result<List<String>> subjectStills(@Min(1) @PathVariable int subjectId) {
         List<String> subjectStills = bangumiService.getSubjectStills(subjectId);
-        return Result.success(ResponseCode.SUCCESS, subjectStills.stream().map(Utils::imgUrlToWsrvCdn).toList());
+        subjectStills.replaceAll(Utils::imgUrlToWsrvCdn);
+        return Result.success(ResponseCode.SUCCESS, subjectStills);
     }
 
     /**
@@ -356,7 +362,7 @@ public class SubjectsController {
             try {
                 userId = jwtTokenService.validateAccessToken(flowAccessToken);
             } catch (LoginExpiredException ignored) {
-               // 未登录，回退公开访问
+                // 未登录，回退公开访问
             }
         }
         return Result.success(ResponseCode.SUCCESS, bangumiService.getSubjectInfo(subjectId, userId));
