@@ -106,6 +106,12 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
         item.setImages(images);
         item.setInfo(InfoboxParser.toInfo(row.getInfobox()));
         item.setLocked(false);
+        int totalEpisodes = row.getTotalEpisodes() != null ? row.getTotalEpisodes() : 0;
+        int watchedEpisode = row.getWatchedEpisode() != null ? row.getWatchedEpisode() : 0;
+        item.setTotalEpisodes(totalEpisodes);
+        // ep_status 由 Bangumi 同步带入时可能把特别篇也计入，超过本地收录的正片集数时按正片集数封顶。
+        item.setWatchedEpisode(totalEpisodes > 0 ? Math.min(watchedEpisode, totalEpisodes) : watchedEpisode);
+        item.setNextEpisodeAirDate(row.getNextEpisodeAirDate());
         return item;
     }
 

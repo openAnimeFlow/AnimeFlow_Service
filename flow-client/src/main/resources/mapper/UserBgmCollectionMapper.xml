@@ -86,7 +86,25 @@
                s.score_details,
                s.`rank`,
                s.infobox,
-               s.images
+               s.images,
+               (SELECT COUNT(DISTINCT e.sort)
+                  FROM bangumi_episode e
+                 WHERE e.subject_id = c.subject_id
+                   AND e.type = 0) AS total_episodes,
+               GREATEST(COALESCE(c.ep_status, 0),
+                        COALESCE((SELECT MAX(e.sort)
+                                    FROM user_episode_watch w
+                                    JOIN bangumi_episode e ON e.id = w.episode_id
+                                   WHERE w.user_id = c.user_id
+                                     AND w.subject_id = c.subject_id
+                                     AND w.watch_status = 1
+                                     AND e.type = 0
+                                     AND e.sort &gt; 0), 0)) AS watched_episode,
+               (SELECT DATE_FORMAT(MIN(STR_TO_DATE(e.airdate, '%Y-%m-%d')), '%Y-%m-%d')
+                  FROM bangumi_episode e
+                 WHERE e.subject_id = c.subject_id
+                   AND e.type = 0
+                   AND STR_TO_DATE(e.airdate, '%Y-%m-%d') &gt;= CURDATE()) AS next_episode_air_date
         FROM user_bgm_collection c
                  LEFT JOIN bangumi_subject s ON s.id = c.subject_id
         <include refid="userFilterWhere"/>

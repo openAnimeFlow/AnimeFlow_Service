@@ -36,4 +36,11 @@ public class UserBgmCollectionRow {
     private String scoreDetails;
     private Integer rank;
     private String infobox;
+
+    /** 该条目正片总集数（bangumi_episode 中 type=0 的 sort 去重计数）。 */
+    private Integer totalEpisodes;
+    /** 用户观看到第几集：取本地连续观看进度 ep_status 与逐集观看记录的最大正片集号。 */
+    private Integer watchedEpisode;
+    /** 新番的下一集播出日期（yyyy-MM-dd），已完结或未收录播出日期时为 null。 */
+    private String nextEpisodeAirDate;
 }

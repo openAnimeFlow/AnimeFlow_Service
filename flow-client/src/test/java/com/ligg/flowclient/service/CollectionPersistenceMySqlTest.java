@@ -225,6 +225,37 @@ class CollectionPersistenceMySqlTest {
     }
 
     @Test
+    void pageRowCarriesEpisodeTotalWatchProgressAndNextAirDate() {
+        var jdbc = new JdbcTemplate(dataSource);
+        String future = java.time.LocalDate.now().plusDays(3).toString();
+        jdbc.update("INSERT INTO bangumi_episode(id, airdate, subject_id, sort, type) VALUES "
+                + "(9001, '2020-01-01', 41, 1, 0),"
+                + "(9002, '2020-01-08', 41, 2, 0),"
+                + "(9003, ?, 41, 3, 0),"
+                + "(9004, '2020-01-22', 41, 3, 0),"
+                + "(9005, '2020-01-05', 41, 1, 1),"
+                + "(9006, '2005年10月1日', 41, 4, 0)", future);
+        jdbc.update("INSERT INTO user_episode_watch(user_id, subject_id, episode_id, watch_status) VALUES "
+                + "(8, 41, 9002, 1), (8, 41, 9005, 0)");
+
+        var row = mapper.selectPageByUserFilter(8L, 2, 2, null, 20, 0).get(0);
+
+        assertEquals(4, row.getTotalEpisodes()); // 正片 sort 1/2/3/4 去重，重复归档行与特别篇不计入
+        assertEquals(2, row.getWatchedEpisode()); // 本地逐集记录看到第 2 集
+        assertEquals(future, row.getNextEpisodeAirDate()); // 非 ISO 的播出日期不参与比较
+
+        jdbc.update("UPDATE user_bgm_collection SET ep_status = 3 WHERE user_id = 8 AND subject_id = 41");
+
+        var synced = mapper.selectPageByUserFilter(8L, 2, 2, null, 20, 0).get(0);
+        assertEquals(3, synced.getWatchedEpisode()); // 同步进度更靠前时取两者较大值
+
+        jdbc.update("UPDATE user_bgm_collection SET ep_status = 9 WHERE user_id = 8 AND subject_id = 41");
+
+        var ahead = mapper.selectPageByUserFilter(8L, 2, 2, null, 20, 0).get(0);
+        assertEquals(9, ahead.getWatchedEpisode()); // 超出正片集数时由服务层封顶，mapper 返回原始值
+    }
+
+    @Test
     void separateConnectionsCannotOverlapAndExceptionsReleaseLock() {
         var first = new CollectionWriteLock(dataSource);
         var second = new CollectionWriteLock(dataSource);

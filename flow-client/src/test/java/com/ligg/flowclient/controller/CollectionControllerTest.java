@@ -74,6 +74,28 @@ class CollectionControllerTest {
     }
 
     @Test
+    void getMeCollections_exposesEpisodeTotalProgressAndNextAirDate() throws Exception {
+        var item = new com.ligg.common.thirdparty.bangumi.response.UserCollectionsDto.Item();
+        item.setId(41);
+        item.setTotalEpisodes(12);
+        item.setWatchedEpisode(5);
+        item.setNextEpisodeAirDate("2026-10-11");
+        UserCollectionsVo collections = new UserCollectionsVo();
+        collections.setTotal(1);
+        collections.setData(java.util.List.of(item));
+        when(jwtTokenService.validateAccessToken("flow-token")).thenReturn(10L);
+        when(bangumiOAuthTokenService.findBangumiOauth(10L)).thenReturn(null);
+        when(userBgmCollectionService.listMyCollections(null, 10L, 2, 2, null, 20, 0)).thenReturn(collections);
+
+        mockMvc().perform(get("/api/v1/users/collections")
+                        .requestAttr(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, "flow-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.data[0].totalEpisodes").value(12))
+                .andExpect(jsonPath("$.data.data[0].watchedEpisode").value(5))
+                .andExpect(jsonPath("$.data.data[0].nextEpisodeAirDate").value("2026-10-11"));
+    }
+
+    @Test
     void getMeCollections_passesKeywordAndBangumiToken() throws Exception {
         UserOauthEntity oauth = new UserOauthEntity();
         oauth.setAccessToken("bangumi-token");

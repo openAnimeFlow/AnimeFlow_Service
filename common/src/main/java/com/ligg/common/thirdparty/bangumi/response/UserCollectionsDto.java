@@ -31,6 +31,12 @@ public class UserCollectionsDto {
         private Boolean nsfw;
         private CoverImages images;
         private Interest interest;
+        /** 条目正片总集数。 */
+        private Integer totalEpisodes;
+        /** 当前用户观看到第几集。 */
+        private Integer watchedEpisode;
+        /** 新番的下一集播出日期（yyyy-MM-dd），已完结时为 null。 */
+        private String nextEpisodeAirDate;
     }
 
     @Data
