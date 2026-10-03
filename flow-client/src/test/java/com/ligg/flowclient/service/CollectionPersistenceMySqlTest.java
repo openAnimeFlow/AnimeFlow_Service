@@ -286,7 +286,8 @@ class CollectionPersistenceMySqlTest {
         var lock = new CollectionWriteLock(dataSource);
         var upload = new CollectionUploadService(writer, mapper, lock, tokens, executor, client, new ObjectMapper());
         var service = new com.ligg.flowclient.service.impl.UserBgmCollectionServiceImpl(mapper,
-                new ObjectMapper(), lock, writer, upload, tokens, org.mockito.Mockito.mock(ImageBackfillService.class));
+                new ObjectMapper(), lock, writer, upload, tokens, org.mockito.Mockito.mock(ImageBackfillService.class),
+                org.mockito.Mockito.mock(com.ligg.flowclient.service.CollectionSyncTaskService.class));
         var dto = new UpdateUserCollectionDto(); dto.setType(3); dto.setSubjectType(2);
         assertEquals(com.ligg.common.statuenum.CollectionRemoteSyncStatus.PENDING,
                 service.updateCollection(10L, 42, dto).remoteSyncStatus());

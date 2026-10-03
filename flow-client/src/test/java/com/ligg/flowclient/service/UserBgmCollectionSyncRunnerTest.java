@@ -63,6 +63,26 @@ class UserBgmCollectionSyncRunnerTest {
         verify(client,never()).getSubject(anyInt(),anyString());
     }
 
+    @Test void locallyCancelledCollectionIsExcludedFromSyncUnion() {
+        var cancelled=new UserBgmCollectionEntity();
+        cancelled.setSubjectId(42); cancelled.setSubjectType(2); cancelled.setType(UserBgmCollectionEntity.TYPE_CANCELLED);
+        var active=new UserBgmCollectionEntity();
+        active.setSubjectId(43); active.setSubjectType(2); active.setType(2);
+        when(collections.selectList(any())).thenReturn(List.of(cancelled,active));
+        var remote42=new UserCollectionsDto.Item(); remote42.setId(42); remote42.setType(2);
+        var remote43=new UserCollectionsDto.Item(); remote43.setId(43); remote43.setType(2);
+        var page=new UserCollectionsDto(); page.setData(List.of(remote42,remote43)); page.setTotal(2);
+        when(client.getMeCollections("token",2,1,50,0)).thenReturn(page);
+        when(executor.scanSnapshot(any())).thenReturn("{}");
+
+        runner.runTask(1L);
+
+        assertTrue(staged.stream().noneMatch(item -> Integer.valueOf(42).equals(item.getSubjectId())),
+                "已取消的收藏不应进入同步明细");
+        assertTrue(staged.stream().anyMatch(item -> Integer.valueOf(43).equals(item.getSubjectId())),
+                "未取消的本地收藏仍应进入同步明细");
+    }
+
     @Test void failedScanNeverAppliesPartialData() {
         when(client.getMeCollections("token",2,2,50,0)).thenThrow(new IllegalStateException());
         runner.runTask(1L);

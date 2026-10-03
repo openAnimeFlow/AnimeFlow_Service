@@ -97,6 +97,35 @@ public class LocalCollectionWriter {
         return row;
     }
 
+    /**
+     * 逻辑删除（取消）本地收藏：把 type 置为 {@link UserBgmCollectionEntity#TYPE_CANCELLED}，
+     */
+    @Transactional
+    public UserBgmCollectionEntity cancel(Long userId, int subjectId) {
+        if (subjectId <= 0) {
+            throw new IllegalArgumentException("条目 ID 无效");
+        }
+        var row = find(userId, subjectId);
+        if (row == null) {
+            throw new IllegalArgumentException("收藏不存在");
+        }
+        if (Integer.valueOf(UserBgmCollectionEntity.TYPE_CANCELLED).equals(row.getType())) {
+            return row;
+        }
+        row.setType(UserBgmCollectionEntity.TYPE_CANCELLED);
+        row.setVersion((row.getVersion() == null ? 0 : row.getVersion()) + 1);
+        row.setLocalUpdatedAt(LocalDateTime.now());
+        row.setRemoteSyncStatus(CollectionRemoteSyncStatus.LOCAL_ONLY);
+        row.setPendingPayload(null);
+        row.setRemoteBaseline(null);
+        row.setNextRetryAt(null);
+        row.setRetryCount(0);
+        if (mapper.updateLocal(row) != 1) {
+            throw new IllegalStateException("收藏取消失败，请重试");
+        }
+        return row;
+    }
+
     public UpdateCollectionBody readPayload(String value) {
         if (value == null) return new UpdateCollectionBody();
         try { return json.readValue(value, UpdateCollectionBody.class); }

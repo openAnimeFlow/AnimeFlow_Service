@@ -126,5 +126,6 @@
       from user_bgm_collection
       where user_id = #{userId}
         and subject_id = #{subjectId}
+        and type &lt;&gt; 6
     </select>
 </mapper>

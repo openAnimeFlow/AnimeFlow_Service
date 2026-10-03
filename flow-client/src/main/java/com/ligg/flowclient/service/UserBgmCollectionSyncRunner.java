@@ -109,6 +109,16 @@ public class UserBgmCollectionSyncRunner {
                 .set(CollectionSyncTaskEntity::getStatus, BgmCollectionSyncStatus.RUNNING)
                 .set(CollectionSyncTaskEntity::getStartedAt, LocalDateTime.now()));
         tasks.changed(task.getUserId());
+        // 已取消（逻辑删除）的收藏不参与双向同步：既不导入远端，也不作为本地上传。
+        var localRows = collections.selectList(new LambdaQueryWrapper<UserBgmCollectionEntity>()
+                .eq(UserBgmCollectionEntity::getUserId, task.getUserId())
+                .eq(UserBgmCollectionEntity::getSubjectType, task.getSubjectType()));
+        var cancelled = new HashSet<Integer>();
+        for (var row : localRows) {
+            if (Integer.valueOf(UserBgmCollectionEntity.TYPE_CANCELLED).equals(row.getType())) {
+                cancelled.add(row.getSubjectId());
+            }
+        }
         // No formal collection changes until all five categories have been read successfully.
         for (int type = 1; type <= 5; type++) {
             int offset = 0;
@@ -131,6 +141,7 @@ public class UserBgmCollectionSyncRunner {
                             || remote.getInterest().getType() < 1 || remote.getInterest().getType() > 5)))
                         throw new IllegalStateException("收藏分页条目无效");
                     if (seen.add(remote.getId())) added++;
+                    if (cancelled.contains(remote.getId())) continue;
                     stage(task, remote.getId(), remote.getNameCN() == null ? remote.getName() : remote.getNameCN(),
                             remote.getImages() == null ? null : remote.getImages().getLarge(), executor.scanSnapshot(remote));
                 }
@@ -143,10 +154,9 @@ public class UserBgmCollectionSyncRunner {
                 if (page.getTotal() == null && page.getData().size() < 50) break;
             }
         }
-        // Full union: local-only collections are planned, never deleted.
-        for (var row : collections.selectList(new LambdaQueryWrapper<UserBgmCollectionEntity>()
-                .eq(UserBgmCollectionEntity::getUserId, task.getUserId())
-                .eq(UserBgmCollectionEntity::getSubjectType, task.getSubjectType()))) {
+        // Full union: 未被取消的本地收藏才会进入计划，本地条目始终不会被自动删除。
+        for (var row : localRows) {
+            if (cancelled.contains(row.getSubjectId())) continue;
             stage(task, row.getSubjectId(), null, null, null);
         }
         tasks.requireBinding(task);

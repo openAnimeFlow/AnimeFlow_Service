@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.ligg.common.entity.UserOauthEntity;
 import com.ligg.common.statuenum.BgmCollectionSyncStatus;
 import com.ligg.common.statuenum.CollectionSyncItemStatus;
+import com.ligg.common.statuenum.CollectionSyncOperation;
 import com.ligg.common.statuenum.CollectionSyncTaskErrorCode;
 import com.ligg.flowclient.mapper.CollectionSyncConflictMapper;
 import com.ligg.flowclient.mapper.CollectionSyncTaskMapper;
@@ -115,6 +116,54 @@ public class CollectionSyncTaskService {
                     vo.setStatus(item.getStatus() == null ? null : item.getStatus().name());
                     return vo;
                 }).toList();
+    }
+
+    /**
+     * 用户取消（逻辑删除）本地收藏后，终结该条目未完成的同步明细。
+     * 否则已删除的条目会以旧冲突的形式重新出现，并在提交决议时把本地行重新改回
+     * CONFLICT，进而阻塞后续重新收藏的上传。调用方应持有该条目的写锁。
+     */
+    public void dismissItemsForCancelledSubject(Long userId, int subjectId) {
+        var openStatuses = List.of(CollectionSyncItemStatus.CONFLICT,
+                CollectionSyncItemStatus.RESOLUTION_PENDING,
+                CollectionSyncItemStatus.APPLY_PENDING,
+                CollectionSyncItemStatus.FAILED);
+        var pending = items.selectList(new LambdaQueryWrapper<CollectionSyncConflictEntity>()
+                .eq(CollectionSyncConflictEntity::getUserId, userId)
+                .eq(CollectionSyncConflictEntity::getSubjectId, subjectId)
+                .in(CollectionSyncConflictEntity::getStatus, openStatuses));
+        if (pending.isEmpty()) return;
+        var affectedTaskIds = pending.stream()
+                .map(CollectionSyncConflictEntity::getTaskId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        for (var item : pending) {
+            // 以 UNCHANGED 收尾：既不上传也不导入，只终结这条明细。
+            items.update(null, new LambdaUpdateWrapper<CollectionSyncConflictEntity>()
+                    .eq(CollectionSyncConflictEntity::getId, item.getId())
+                    .in(CollectionSyncConflictEntity::getStatus, openStatuses)
+                    .set(CollectionSyncConflictEntity::getStatus, CollectionSyncItemStatus.DONE)
+                    .set(CollectionSyncConflictEntity::getOperation, CollectionSyncOperation.UNCHANGED)
+                    .set(CollectionSyncConflictEntity::getSelectedType, null)
+                    .set(CollectionSyncConflictEntity::getDesiredPayload, null)
+                    .set(CollectionSyncConflictEntity::getErrorCode, null)
+                    .set(CollectionSyncConflictEntity::getResolvedAt, LocalDateTime.now()));
+        }
+        for (Long taskId : affectedTaskIds) {
+            var task = tasks.selectById(taskId);
+            if (task == null
+                    || List.of(BgmCollectionSyncStatus.CANCELLED, BgmCollectionSyncStatus.SUCCESS)
+                    .contains(task.getStatus())) {
+                continue;
+            }
+            if (!sameBinding(task, tokens.findBangumiOauth(task.getUserId()))) {
+                // 绑定已变化时按既有规则取消任务；删除收藏本身不应因此失败。
+                cancel(task);
+                continue;
+            }
+            summarize(task);
+        }
     }
 
     public List<CollectionSyncConflictEntity> allItems(Long taskId) {

@@ -84,6 +84,18 @@ public class CollectionSyncItemExecutor {
                         || !Objects.equals(item.getConflictVersion(), version))
                     throw new IllegalArgumentException("STALE_CONFLICT：请刷新后重新选择");
                 var local = writer.find(userId, item.getSubjectId());
+                if (local != null && Integer.valueOf(UserBgmCollectionEntity.TYPE_CANCELLED).equals(local.getType())) {
+                    // 本地已取消：旧冲突不再适用，终结明细而不是把它重新激活成冲突。
+                    item.setStatus(CollectionSyncItemStatus.DONE);
+                    item.setOperation(CollectionSyncOperation.UNCHANGED);
+                    item.setSelectedType(null);
+                    item.setDesiredPayload(null);
+                    item.setErrorCode(null);
+                    item.setResolvedAt(LocalDateTime.now());
+                    save(item);
+                    tasks.summarize(task);
+                    return null;
+                }
                 var remote = read(task, item);
                 if (local == null || !Objects.equals(local.getVersion(), item.getLocalVersion())
                         || !same(fields(remote), writer.readPayload(item.getRemoteSnapshot()))) {
@@ -118,6 +130,15 @@ public class CollectionSyncItemExecutor {
             if (List.of(CollectionSyncItemStatus.DONE, CollectionSyncItemStatus.CONFLICT).contains(item.getStatus())) return null;
             tasks.requireBinding(task);
             var local = writer.find(task.getUserId(), item.getSubjectId());
+            if (local != null && Integer.valueOf(UserBgmCollectionEntity.TYPE_CANCELLED).equals(local.getType())) {
+                // 本地已取消的收藏不参与双向同步：丢弃残留写入意图，既不导入远端也不上传本地。
+                item.setStatus(CollectionSyncItemStatus.DONE);
+                item.setOperation(CollectionSyncOperation.UNCHANGED);
+                item.setErrorCode(null);
+                item.setResolvedAt(LocalDateTime.now());
+                save(item);
+                return null;
+            }
             boolean prepared = item.getDesiredPayload() != null;
             boolean useScan = !prepared && CollectionSyncItemStatus.PLANNED == item.getStatus()
                     && item.getScanSnapshot() != null;

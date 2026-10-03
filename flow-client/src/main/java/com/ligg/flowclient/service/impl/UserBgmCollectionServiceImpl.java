@@ -3,6 +3,7 @@ package com.ligg.flowclient.service.impl;
 import com.ligg.flowclient.service.CollectionWriteLock;
 import com.ligg.flowclient.service.LocalCollectionWriter;
 import com.ligg.flowclient.service.CollectionUploadService;
+import com.ligg.flowclient.service.CollectionSyncTaskService;
 import com.ligg.flowclient.service.BangumiOAuthTokenService;
 import com.ligg.flowclient.module.vo.CollectionUpdateVo;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -44,6 +45,7 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
     private final CollectionUploadService collectionUploadService;
     private final BangumiOAuthTokenService bangumiOAuthTokenService;
     private final ImageBackfillService imageBackfillService;
+    private final CollectionSyncTaskService collectionSyncTaskService;
 
     @Override
     public UserCollectionsVo listMyCollections(
@@ -88,6 +90,16 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
             var oauth = bangumiOAuthTokenService.findBangumiOauth(userId);
             var row = localCollectionWriter.save(userId, subjectId, dto, oauth);
             return collectionUploadService.upload(row);
+        });
+    }
+
+    @Override
+    public CollectionUpdateVo deleteCollection(Long userId, int subjectId) {
+        return collectionWriteLock.execute(userId, subjectId, () -> {
+            var row = localCollectionWriter.cancel(userId, subjectId);
+            // 终结该条目未完成的同步明细，避免旧冲突把已删除的条目重新激活。
+            collectionSyncTaskService.dismissItemsForCancelledSubject(userId, subjectId);
+            return CollectionUploadService.result(row);
         });
     }
 

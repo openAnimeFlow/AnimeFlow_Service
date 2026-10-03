@@ -23,4 +23,9 @@ public interface UserBgmCollectionService {
      * 保存本地收藏；已绑定时尝试上传，返回独立的远端同步状态。
      */
     CollectionUpdateVo updateCollection(Long userId, int subjectId, UpdateUserCollectionDto dto);
+
+    /**
+     * 逻辑删除（取消）本地收藏：把 type 置为 6。
+     */
+    CollectionUpdateVo deleteCollection(Long userId, int subjectId);
 }

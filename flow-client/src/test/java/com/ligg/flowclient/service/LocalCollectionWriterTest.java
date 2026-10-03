@@ -75,6 +75,57 @@ class LocalCollectionWriterTest {
     }
 
     @Test
+    void cancelLogicallyDeletesAndDropsUploadIntent() {
+        var row = new UserBgmCollectionEntity();
+        row.setId(7L);
+        row.setUserId(10L);
+        row.setSubjectId(42);
+        row.setType(3);
+        row.setVersion(4L);
+        row.setRemoteSyncStatus(CollectionRemoteSyncStatus.PENDING);
+        row.setPendingPayload("{\"type\":3}");
+        row.setRemoteBaseline("{\"type\":3}");
+        row.setNextRetryAt(java.time.LocalDateTime.now());
+        row.setRetryCount(2);
+        when(mapper.selectOne(any())).thenReturn(row);
+        when(mapper.updateLocal(any())).thenReturn(1);
+
+        var cancelled = writer.cancel(10L, 42);
+
+        assertEquals(UserBgmCollectionEntity.TYPE_CANCELLED, cancelled.getType());
+        assertEquals(5L, cancelled.getVersion());
+        assertEquals(CollectionRemoteSyncStatus.LOCAL_ONLY, cancelled.getRemoteSyncStatus());
+        assertNull(cancelled.getPendingPayload());
+        assertNull(cancelled.getRemoteBaseline());
+        assertNull(cancelled.getNextRetryAt());
+        assertEquals(0, cancelled.getRetryCount());
+        assertNotNull(cancelled.getLocalUpdatedAt());
+        verify(mapper).updateLocal(row);
+    }
+
+    @Test
+    void cancelIsIdempotentForAlreadyCancelledRow() {
+        var row = new UserBgmCollectionEntity();
+        row.setId(7L);
+        row.setType(UserBgmCollectionEntity.TYPE_CANCELLED);
+        row.setVersion(5L);
+        when(mapper.selectOne(any())).thenReturn(row);
+
+        var result = writer.cancel(10L, 42);
+
+        assertSame(row, result);
+        verify(mapper, never()).updateLocal(any());
+    }
+
+    @Test
+    void cancelRejectsMissingOrInvalidCollection() {
+        when(mapper.selectOne(any())).thenReturn(null);
+        assertThrows(IllegalArgumentException.class, () -> writer.cancel(10L, 42));
+        assertThrows(IllegalArgumentException.class, () -> writer.cancel(10L, 0));
+        verify(mapper, never()).updateLocal(any());
+    }
+
+    @Test
     void rejectsMissingInitialTypeMismatchedSubjectTypeAndUnsupportedProgressBeforeWriting() {
         var dto = new UpdateUserCollectionDto();
         dto.setRate(8);

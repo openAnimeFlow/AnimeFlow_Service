@@ -77,6 +77,17 @@ public class CollectionController {
     }
 
     /**
+     * 删除（取消）当前用户的本地收藏。
+     */
+    @DeleteMapping("/{subjectId}")
+    public Result<CollectionUpdateVo> deleteCollection(
+            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken,
+            @PathVariable int subjectId) {
+        Long userId = jwtTokenService.validateAccessToken(accessToken);
+        return Result.success(ResponseCode.SUCCESS, userBgmCollectionService.deleteCollection(userId, subjectId));
+    }
+
+    /**
      * 提交 Bangumi 收藏同步任务（异步执行，立即返回任务状态）。
      * 从 user_oauth 读取 Bangumi token 拉取收藏并写入 user_bgm_collection。
      */

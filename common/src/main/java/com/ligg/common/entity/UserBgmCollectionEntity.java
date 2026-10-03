@@ -14,6 +14,11 @@ import java.time.LocalDateTime;
 @TableName("user_bgm_collection")
 public class UserBgmCollectionEntity {
 
+    /**
+     * 取消收藏类型
+     */
+    public static final int TYPE_CANCELLED = 6;
+
     @TableId(type = IdType.AUTO)
     private Long id;
 

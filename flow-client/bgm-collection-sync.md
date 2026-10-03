@@ -55,6 +55,18 @@ PUT /api/v1/users/collections/{subjectId}
 | AUTH_REQUIRED | 授权失效或绑定变化 |
 | CONFLICT | 需要用户处理冲突 |
 
+### 3.2.1 删除本地收藏
+
+~~~http
+DELETE /api/v1/users/collections/{subjectId}
+~~~
+
+仅删除 AnimeFlow 本地收藏，不调用 Bangumi。服务端把 user_bgm_collection.type 置为 6（本地取消收藏）完成逻辑删除，同时清空 pending_payload、remote_baseline 和重试时间，把 remote_sync_status 置为 LOCAL_ONLY，避免后台任务把已删除的收藏重新上传。
+
+取消时还会终结该条目未完成的同步明细（CONFLICT/RESOLUTION_PENDING/APPLY_PENDING/FAILED 置为 DONE，清空 selected_type 和 desired_payload），并重新汇总受影响的任务状态；否则已删除的条目会以旧冲突的形式重新出现，并在提交决议时把本地行改回 CONFLICT，阻塞后续重新收藏的上传。
+
+被取消的条目不再出现在按 type 过滤的收藏列表中，条目详情接口也不再返回其收藏状态。相同 subjectId 再次 PUT 会重新激活该收藏。
+
 ### 3.3 提交同步任务
 
 ~~~http
@@ -140,7 +152,7 @@ GET /p1/collections/subjects?subjectType={subjectType}&type={1|2|3|4|5}&limit=50
 - 任务恢复后验证远端基线；
 - PUT 后确认远端结果。
 
-五种分类扫描完成后，服务端把本地对应 subjectType 的收藏加入明细，形成双方完整并集。仅存在本地的收藏进入上传判断，不会被同步任务自动删除。
+五种分类扫描完成后，服务端把本地对应 subjectType 的收藏加入明细，形成双方完整并集。仅存在本地的收藏进入上传判断，不会被同步任务自动删除。type=6 的本地取消收藏不参与双向同步：扫描时既不会为它们生成明细，也不会被 Bangumi 的远端记录重新导入或覆盖。
 
 每个条目的处理规则：
 

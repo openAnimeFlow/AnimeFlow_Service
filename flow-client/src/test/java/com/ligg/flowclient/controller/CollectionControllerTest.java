@@ -56,6 +56,24 @@ class CollectionControllerTest {
     private JwtTokenService jwtTokenService;
 
     @Test
+    void deleteCollectionReturnsLogicalDeleteOutcome() throws Exception {
+        when(jwtTokenService.validateAccessToken("flow-token")).thenReturn(10L);
+        when(userBgmCollectionService.deleteCollection(10L, 42))
+                .thenReturn(new com.ligg.flowclient.module.vo.CollectionUpdateVo(true,
+                        com.ligg.common.statuenum.CollectionRemoteSyncStatus.LOCAL_ONLY, 2));
+
+        mockMvc().perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .delete("/api/v1/users/collections/42")
+                        .requestAttr(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, "flow-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.localSaved").value(true))
+                .andExpect(jsonPath("$.data.remoteSyncStatus").value("LOCAL_ONLY"))
+                .andExpect(jsonPath("$.data.localVersion").value(2));
+
+        verify(userBgmCollectionService).deleteCollection(10L, 42);
+    }
+
+    @Test
     void getMeCollections_allowsMissingBangumiOauth() throws Exception {
         UserCollectionsVo collections = new UserCollectionsVo();
         collections.setTotal(2);

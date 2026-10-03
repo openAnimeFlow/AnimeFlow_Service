@@ -95,6 +95,35 @@ class CollectionSyncItemExecutorTest {
         verifyNoInteractions(client);
     }
 
+    @Test void locallyCancelledCollectionIsSkippedWithoutRemoteWrites() {
+        row.setType(UserBgmCollectionEntity.TYPE_CANCELLED);
+        item.setScanSnapshot(writer.writeJson(remote));
+        service.execute(task,item);
+        assertEquals(CollectionSyncItemStatus.DONE,item.getStatus());
+        assertEquals(CollectionSyncOperation.UNCHANGED,item.getOperation());
+        verify(collections,never()).insert(any(UserBgmCollectionEntity.class));
+        verifyNoInteractions(client);
+    }
+
+    @Test void resolvingConflictAfterLocalCancelEndsItemInsteadOfReActivatingIt() {
+        // cancel 已把本地行置为 type=6 并递增版本，旧冲突明细随之失效。
+        row.setType(UserBgmCollectionEntity.TYPE_CANCELLED);
+        row.setVersion(5L);
+        item.setStatus(CollectionSyncItemStatus.CONFLICT);
+        item.setConflictVersion(1L);
+        item.setLocalVersion(4L);
+        item.setRemoteSnapshot("{\"type\":2}");
+        item.setSelectedType(null);
+
+        service.resolve(10L, 1L, 2L, 1L, 3);
+
+        assertEquals(CollectionSyncItemStatus.DONE,item.getStatus());
+        assertEquals(CollectionSyncOperation.UNCHANGED,item.getOperation());
+        assertNull(item.getDesiredPayload());
+        assertNull(item.getSelectedType());
+        verifyNoInteractions(client);
+    }
+
     @Test void scannedDirtyCollectionChecksRemoteBeforeWriting() {
         remote.getInterest().setType(3);
         item.setScanSnapshot(writer.writeJson(remote));
