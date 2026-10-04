@@ -69,7 +69,7 @@ public class CacheService {
     }
 
     /**
-     * 读缓存或回源加载，可指定独立锁键（如每日放送全局锁）。
+     * 读缓存或回源加载，可指定独立锁键。
      */
     public <T> T getOrLoad(
             String cacheKey,
