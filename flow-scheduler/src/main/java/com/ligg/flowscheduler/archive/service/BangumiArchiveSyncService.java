@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 /**
  * Bangumi Archive 同步编排：检查更新、分布式锁、下载资源并按类型顺序导入数据库。
@@ -93,15 +94,17 @@ public class BangumiArchiveSyncService {
         Path workDir = Path.of(properties.getDownloadDir(), dumpName);
         Files.createDirectories(workDir);
 
-        assets.stream()
-                .map(asset -> ArchiveDataType.fromAssetName(asset.getName(), dumpName)
-                        .map(type -> new AssetJob(type, asset))
-                        .orElse(null))
-                .filter(Objects::nonNull)
-                .sorted(Comparator.comparing(AssetJob::type, ArchiveDataType.orderComparator()))
-                .forEach(job -> syncAsset(workDir, job));
-
-        cleanupWorkDir(workDir);
+        try {
+            assets.stream()
+                    .map(asset -> ArchiveDataType.fromAssetName(asset.getName(), dumpName)
+                            .map(type -> new AssetJob(type, asset))
+                            .orElse(null))
+                    .filter(Objects::nonNull)
+                    .sorted(Comparator.comparing(AssetJob::type, ArchiveDataType.orderComparator()))
+                    .forEach(job -> syncAsset(workDir, job));
+        } finally {
+            cleanupWorkDir(workDir);
+        }
     }
 
     private void syncAsset(Path workDir, AssetJob job) {
@@ -126,13 +129,15 @@ public class BangumiArchiveSyncService {
     private void cleanupWorkDir(Path workDir) {
         try {
             if (Files.isDirectory(workDir)) {
-                Files.list(workDir).forEach(path -> {
-                    try {
-                        Files.deleteIfExists(path);
-                    } catch (Exception ignored) {
-                        // ignore
-                    }
-                });
+                try (Stream<Path> files = Files.list(workDir)) {
+                    files.forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (Exception e) {
+                            log.warn("Failed to delete archive temp file {}", path, e);
+                        }
+                    });
+                }
                 Files.deleteIfExists(workDir);
             }
         } catch (Exception e) {

@@ -19,7 +19,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 
 /**
- * 负责请求 latest.json 及将 Release 资源流式下载到本地临时目录。
+ * latest.json 和 Release 资源均先流式写入临时文件，避免响应体整包驻留内存。
  *
  * @author Ligg
  */
@@ -31,51 +31,59 @@ public class BangumiArchiveHttpService {
     private final BangumiArchiveSyncProperties properties;
     private final ObjectMapper objectMapper;
 
-    private volatile HttpClient httpClient;
-
     public ArchiveLatestDto fetchLatest() throws IOException, InterruptedException {
-        HttpResponse<InputStream> response = httpClient().send(
-                HttpRequest.newBuilder()
-                        .uri(URI.create(properties.getLatestUrl()))
-                        .GET()
-                        .timeout(Duration.ofSeconds(properties.getConnectTimeoutSeconds()))
-                        .build(),
-                HttpResponse.BodyHandlers.ofInputStream());
-        if (response.statusCode() != 200) {
-            throw new IOException("Failed to fetch latest.json: HTTP " + response.statusCode());
-        }
-        try (InputStream body = response.body()) {
-            return objectMapper.readValue(body, ArchiveLatestDto.class);
+        Path directory = Path.of(properties.getDownloadDir());
+        Files.createDirectories(directory);
+        Path latestFile = Files.createTempFile(directory, "archive-latest-", ".json");
+        try {
+            downloadToFile(properties.getLatestUrl(), latestFile, properties.getConnectTimeoutSeconds());
+            // 只保留同步编排所需的元数据；原始响应体保存在文件中。
+            return objectMapper.readValue(latestFile.toFile(), ArchiveLatestDto.class);
+        } finally {
+            deleteTempFile(latestFile);
         }
     }
 
     public void download(String url, Path target) throws IOException, InterruptedException {
-        Files.createDirectories(target.getParent());
-        Path temp = target.resolveSibling(target.getFileName() + ".part");
-        HttpResponse<InputStream> response = httpClient().send(
-                HttpRequest.newBuilder()
-                        .uri(URI.create(url))
-                        .GET()
-                        .timeout(Duration.ofSeconds(properties.getReadTimeoutSeconds()))
-                        .build(),
-                HttpResponse.BodyHandlers.ofInputStream());
-        if (response.statusCode() != 200) {
-            throw new IOException("Download failed: HTTP " + response.statusCode() + " url=" + url);
-        }
-        try (InputStream body = response.body()) {
-            Files.copy(body, temp, StandardCopyOption.REPLACE_EXISTING);
-        }
-        Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
+        downloadToFile(url, target, properties.getReadTimeoutSeconds());
         log.info("Downloaded {} ({} bytes)", target.getFileName(), Files.size(target));
     }
 
-    private HttpClient httpClient() {
-        if (httpClient == null) {
-            httpClient = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(properties.getConnectTimeoutSeconds()))
-                    .followRedirects(HttpClient.Redirect.NORMAL)
-                    .build();
+    private void downloadToFile(String url, Path target, int timeoutSeconds)
+            throws IOException, InterruptedException {
+        target = target.toAbsolutePath();
+        Files.createDirectories(target.getParent());
+        Path temp = Files.createTempFile(target.getParent(), "archive-download-", ".part");
+        try (HttpClient client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(properties.getConnectTimeoutSeconds()))
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .build()) {
+            HttpResponse<InputStream> response = client.send(
+                    HttpRequest.newBuilder()
+                            .uri(URI.create(url))
+                            .GET()
+                            .timeout(Duration.ofSeconds(timeoutSeconds))
+                            .build(),
+                    HttpResponse.BodyHandlers.ofInputStream());
+            try (InputStream body = response.body()) {
+                if (response.statusCode() != 200) {
+                    throw new IOException("Download failed: HTTP " + response.statusCode() + " url=" + url);
+                }
+                Files.copy(body, temp, StandardCopyOption.REPLACE_EXISTING);
+            }
+            // 完整下载后才替换目标文件，失败时不暴露半包数据。
+            Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            deleteTempFile(temp);
         }
-        return httpClient;
     }
+
+    private void deleteTempFile(Path file) {
+        try {
+            Files.deleteIfExists(file);
+        } catch (IOException e) {
+            log.warn("Failed to delete archive temp file {}", file, e);
+        }
+    }
+
 }
