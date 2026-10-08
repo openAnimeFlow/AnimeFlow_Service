@@ -71,6 +71,13 @@ anime-flow:
       latest-url: https://raw.githubusercontent.com/openAnimeFlow/animeFlow-assets/main/archive/latest.json
       cron: "0 0 3 * * *"
       batch-size: 500
+      batch-sizes:
+        subject: 100
+        character: 100
+        person: 100
+        episode: 200
+      tag-batch-size: 500
+      max-batch-bytes: 1048576
       batch-delay-ms: 50
       download-dir: ${java.io.tmpdir}/bangumi-archive
       lock-ttl-seconds: 21600

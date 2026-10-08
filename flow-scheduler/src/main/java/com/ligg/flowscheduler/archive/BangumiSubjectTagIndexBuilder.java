@@ -8,10 +8,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * 从归档 JSON 中构建用于推荐的标签关系索引。
@@ -24,21 +24,16 @@ public class BangumiSubjectTagIndexBuilder {
 
     private final ObjectMapper objectMapper;
 
-    public List<BangumiSubjectTagEntity> buildBatch(List<BangumiSubjectEntity> subjects) {
-        List<BangumiSubjectTagEntity> rows = new ArrayList<>();
-        for (BangumiSubjectEntity subject : subjects) {
-            rows.addAll(build(subject));
-        }
-        return rows;
+    /** 每个 subject 的标签名称只提取一次，同时供标签关系和搜索索引使用。 */
+    public SubjectTags extractTags(BangumiSubjectEntity subject) {
+        return new SubjectTags(extractNames(subject.getTags(), true),
+                extractNames(subject.getMetaTags(), false));
     }
 
-    private List<BangumiSubjectTagEntity> build(BangumiSubjectEntity subject) {
-        List<BangumiSubjectTagEntity> rows = new ArrayList<>();
-        addRows(rows, subject.getId(), BangumiSubjectTagEntity.TYPE_TAG,
-                extractNames(subject.getTags(), true));
-        addRows(rows, subject.getId(), BangumiSubjectTagEntity.TYPE_META_TAG,
-                extractNames(subject.getMetaTags(), false));
-        return rows;
+    /** 逐条消费标签实体，避免汇总整批 subject 的所有标签。 */
+    public void forEachTag(Integer subjectId, SubjectTags tags, Consumer<BangumiSubjectTagEntity> consumer) {
+        emitRows(subjectId, BangumiSubjectTagEntity.TYPE_TAG, tags.tags(), consumer);
+        emitRows(subjectId, BangumiSubjectTagEntity.TYPE_META_TAG, tags.metaTags(), consumer);
     }
 
     private List<String> extractNames(String json, boolean tagObject) {
@@ -61,19 +56,23 @@ public class BangumiSubjectTagIndexBuilder {
                     names.add(name);
                 }
             }
-            return new ArrayList<>(names);
+            return List.copyOf(names);
         } catch (Exception e) {
             throw new IllegalArgumentException("无法构建条目标签索引", e);
         }
     }
 
-    private static void addRows(List<BangumiSubjectTagEntity> rows, Integer subjectId, int tagType, List<String> names) {
+    private static void emitRows(Integer subjectId, int tagType, List<String> names,
+                                 Consumer<BangumiSubjectTagEntity> consumer) {
         for (String name : names) {
             BangumiSubjectTagEntity row = new BangumiSubjectTagEntity();
             row.setSubjectId(subjectId);
             row.setTagType(tagType);
             row.setTagName(name);
-            rows.add(row);
+            consumer.accept(row);
         }
+    }
+
+    public record SubjectTags(List<String> tags, List<String> metaTags) {
     }
 }

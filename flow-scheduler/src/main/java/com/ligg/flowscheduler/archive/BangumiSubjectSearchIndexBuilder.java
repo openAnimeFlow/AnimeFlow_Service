@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ligg.common.entity.BangumiSubjectEntity;
 import com.ligg.common.entity.BangumiSubjectSearchEntity;
+import com.ligg.flowscheduler.archive.BangumiSubjectTagIndexBuilder.SubjectTags;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -28,13 +29,7 @@ public class BangumiSubjectSearchIndexBuilder {
 
     private final ObjectMapper objectMapper;
 
-    public List<BangumiSubjectSearchEntity> buildBatch(List<BangumiSubjectEntity> subjects) {
-        return subjects.stream()
-                .map(this::build)
-                .toList();
-    }
-
-    public BangumiSubjectSearchEntity build(BangumiSubjectEntity subject) {
+    public BangumiSubjectSearchEntity build(BangumiSubjectEntity subject, SubjectTags tags) {
         BangumiSubjectSearchEntity index = new BangumiSubjectSearchEntity();
         index.setSubjectId(subject.getId());
         index.setType(subject.getType());
@@ -42,8 +37,8 @@ public class BangumiSubjectSearchIndexBuilder {
         index.setName(valueOrEmpty(subject.getName()));
         index.setNameCn(valueOrEmpty(subject.getNameCn()));
         index.setAliases(join(extractAliases(subject.getInfobox())));
-        index.setTagsText(join(extractTagNames(subject.getTags())));
-        index.setMetaTagsText(join(extractStringArray(subject.getMetaTags())));
+        index.setTagsText(join(tags.tags()));
+        index.setMetaTagsText(join(tags.metaTags()));
         index.setYear(extractYear(subject.getDate()));
         index.setPlatform(subject.getPlatform() != null ? subject.getPlatform() : 0);
         index.setScore(subject.getScore());
@@ -75,49 +70,6 @@ public class BangumiSubjectSearchIndexBuilder {
             }
         }
         return new ArrayList<>(aliases);
-    }
-
-    private List<String> extractTagNames(String tagsJson) {
-        if (!StringUtils.hasText(tagsJson)) {
-            return List.of();
-        }
-        try {
-            JsonNode root = objectMapper.readTree(tagsJson);
-            if (!root.isArray()) {
-                return List.of();
-            }
-            Set<String> names = new LinkedHashSet<>();
-            for (JsonNode item : root) {
-                JsonNode name = item.get("name");
-                if (name != null) {
-                    addIfText(names, name.asText());
-                }
-            }
-            return new ArrayList<>(names);
-        } catch (Exception e) {
-            log.warn("Failed to parse subject tags for search index: {}", e.getMessage());
-            return List.of();
-        }
-    }
-
-    private List<String> extractStringArray(String json) {
-        if (!StringUtils.hasText(json)) {
-            return List.of();
-        }
-        try {
-            JsonNode root = objectMapper.readTree(json);
-            if (!root.isArray()) {
-                return List.of();
-            }
-            Set<String> values = new LinkedHashSet<>();
-            for (JsonNode item : root) {
-                addIfText(values, item.asText());
-            }
-            return new ArrayList<>(values);
-        } catch (Exception e) {
-            log.warn("Failed to parse subject meta tags for search index: {}", e.getMessage());
-            return List.of();
-        }
     }
 
     private Integer extractYear(String date) {

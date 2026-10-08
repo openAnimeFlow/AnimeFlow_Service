@@ -31,8 +31,9 @@ AnimeFlow 定时任务模块，随 `flow-bootstrap` 启动。当前主要实现 
 
 ```yaml
 anime-flow:
-  bangumi-archive-sync:
-    cron: "0 0 3 * * *"
+  sync:
+    archive:
+      cron: "0 0 3 * * *"
 ```
 
 调度器本身只做两件事：检查 `enabled` 是否为 `true`，然后调用 `BangumiArchiveSyncService.triggerSyncAsync()`。
@@ -134,7 +135,7 @@ flowchart TD
 1. 从 `browser_download_url` **流式下载** 到 `{download-dir}/{dump_name}/` 下的临时文件
 2. `BufferedReader` **逐行**读取 jsonlines（不把整个文件载入内存）
 3. 每行 JSON 经 `BangumiArchiveLineParser` 转为实体
-4. 累积到 `batch-size`（默认 500）后，调用 `BangumiArchiveUpsertService` 写入数据库
+4. 达到类型对应的 `batch-sizes` 行数或 `max-batch-bytes` 估算数据量后，调用 `BangumiArchiveUpsertService` 写入数据库；未配置的类型使用 `batch-size`（默认 500）
 5. 每批之间 `sleep(batch-delay-ms)`（默认 50ms），降低对线上数据库的持续压力
 6. 该文件处理完毕后 **立即删除** 本地临时文件
 7. 全部 asset 完成后删除工作目录
@@ -159,6 +160,10 @@ on duplicate key update
 
 `BangumiArchiveUpsertService` 中每个 `upsert*Batch` 方法使用 `@Transactional(propagation = REQUIRES_NEW)`，**每一批** 为独立事务，避免单次同步占用一个超长事务锁表。
 
+subject 批次内，标签名称每个条目只提取一次，复用于标签关系与搜索索引。标签实体逐条生成，达到 `tag-batch-size` 或估算数据量上限即写入并清空缓冲区；搜索索引也按行数与估算数据量分批写入。这些小批仍属于同一个 subject 事务，任一步失败会回滚整个 subject 批次。
+
+`max-batch-bytes` 默认 1 MiB。JSONL 读取按每行字符数 × 2 加固定开销估算，索引写入按生成字段估算，不会为计算大小再创建整行字节数组。此阈值不是精确的堆内存上限；超过阈值的单条记录会独立写入，不截断数据。批次变小会增加数据库往返和累计休眠时间，需要结合同步耗时调整参数。
+
 ---
 
 ## 对线上服务的影响控制
@@ -168,7 +173,8 @@ on duplicate key update
 | 错峰执行 | 默认凌晨 3 点定时跑 |
 | 异步 + 单线程池 | 不占用 Web 请求线程 |
 | 流式下载 / 读文件 | 大文件（数百 MB）不一次性进内存 |
-| 分批 upsert | 默认每批 500 行 |
+| 分批 upsert | subject/character/person 默认 100 行，episode 200 行，其余类型 500 行；同时限制估算数据量 |
+| 标签缓冲区 | 默认最多 500 条标签实体，边生成边写入 |
 | 批次间隔 | 默认每批间隔 50ms |
 | 小事务 | 每批独立提交 |
 | 分布式锁 | 多实例部署时只有一个节点执行 |
@@ -178,21 +184,29 @@ on duplicate key update
 
 ## 配置项
 
-在 `flow-bootstrap` 的 `application.yaml` 中配置（前缀 `anime-flow.bangumi-archive-sync`）：
+在 `flow-bootstrap` 的 `application.yaml` 中配置（前缀 `anime-flow.sync.archive`）：
 
 ```yaml
 anime-flow:
-  bangumi-archive-sync:
-    enabled: true                                          # 是否启用同步
-    run-on-startup-if-missing: true                        # Redis 无记录时启动即同步
-    latest-url: https://raw.githubusercontent.com/openAnimeFlow/animeFlow-assets/main/archive/latest.json
-    cron: "0 0 3 * * *"                                    # 定时表达式（每天 03:00）
-    batch-size: 500                                        # 每批 upsert 行数
-    batch-delay-ms: 50                                     # 批次间隔（毫秒）
-    download-dir: ${java.io.tmpdir}/bangumi-archive        # 临时下载目录
-    lock-ttl-seconds: 21600                                # 分布式锁 TTL（秒）
-    connect-timeout-seconds: 30                          # HTTP 连接超时
-    read-timeout-seconds: 3600                             # 大文件下载读超时
+  sync:
+    archive:
+      enabled: true
+      run-on-startup-if-missing: true
+      latest-url: https://raw.githubusercontent.com/openAnimeFlow/animeFlow-assets/main/archive/latest.json
+      cron: "0 0 3 * * *"
+      batch-size: 500                 # 未单独配置的类型使用该行数
+      batch-sizes:
+        subject: 100
+        character: 100
+        person: 100
+        episode: 200
+      tag-batch-size: 500             # 标签实体缓冲区行数上限
+      max-batch-bytes: 1048576        # 批次估算数据量上限，超大单条独立写入
+      batch-delay-ms: 50
+      download-dir: ${java.io.tmpdir}/bangumi-archive
+      lock-ttl-seconds: 21600
+      connect-timeout-seconds: 30
+      read-timeout-seconds: 3600
 ```
 
 关闭同步：将 `enabled` 设为 `false`，定时任务仍会注册但不会执行实际逻辑。
