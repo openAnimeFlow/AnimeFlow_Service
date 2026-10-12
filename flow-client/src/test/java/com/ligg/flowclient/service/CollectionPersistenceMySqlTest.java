@@ -257,6 +257,38 @@ class CollectionPersistenceMySqlTest {
     }
 
     @Test
+    void pageProgressUsesSeasonPositionForContinuingEpisodeNumbers() {
+        var jdbc = new JdbcTemplate(dataSource);
+        for (int index = 0; index < 11; index++) {
+            jdbc.update("INSERT INTO bangumi_episode(id, subject_id, sort, type) VALUES (?, 41, ?, 0)",
+                    9100 + index, 25 + index);
+        }
+        jdbc.update("INSERT INTO bangumi_episode(id, subject_id, sort, type) VALUES "
+                + "(9200, 41, 29, 0), (9201, 41, 100, 1)");
+        jdbc.update("INSERT INTO user_episode_watch(user_id, subject_id, episode_id, watch_status) VALUES "
+                + "(8, 41, 9201, 1), (9, 41, 9110, 1), (8, 41, 9109, 0)");
+
+        var unwatched = mapper.selectPageByUserFilter(8L, 2, 2, null, CollectionSort.DEFAULT, 20, 0).get(0);
+        assertEquals(11, unwatched.getTotalEpisodes());
+        assertEquals(0, unwatched.getWatchedEpisode());
+
+        jdbc.update("INSERT INTO user_episode_watch(user_id, subject_id, episode_id, watch_status) VALUES "
+                + "(8, 41, 9104, 1), (8, 41, 9105, 1), (8, 41, 9200, 1)");
+        for (var sort : CollectionSort.values()) {
+            var row = mapper.selectPageByUserFilter(8L, 2, 2, null, sort, 20, 0).get(0);
+            assertEquals(11, row.getTotalEpisodes());
+            assertEquals(6, row.getWatchedEpisode()); // 编号 30 是本季第 6 集，不要求前 5 集全看过。
+        }
+
+        jdbc.update("UPDATE user_bgm_collection SET ep_status=4 WHERE user_id=8 AND subject_id=41");
+        assertEquals(6, mapper.selectPageByUserFilter(8L, 2, 2, null, CollectionSort.DEFAULT, 20, 0)
+                .get(0).getWatchedEpisode());
+        jdbc.update("UPDATE user_bgm_collection SET ep_status=8 WHERE user_id=8 AND subject_id=41");
+        assertEquals(8, mapper.selectPageByUserFilter(8L, 2, 2, null, CollectionSort.DEFAULT, 20, 0)
+                .get(0).getWatchedEpisode());
+    }
+
+    @Test
     void pageRowCarriesEpisodeTotalWatchProgressAndNextAirDate() {
         var jdbc = new JdbcTemplate(dataSource);
         String future = java.time.LocalDate.now().plusDays(3).toString();

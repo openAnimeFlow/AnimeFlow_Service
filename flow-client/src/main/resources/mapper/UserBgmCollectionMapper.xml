@@ -92,14 +92,21 @@
                  WHERE e.subject_id = c.subject_id
                    AND e.type = 0) AS total_episodes,
                GREATEST(COALESCE(c.ep_status, 0),
-                        COALESCE((SELECT MAX(e.sort)
-                                    FROM user_episode_watch w
-                                    JOIN bangumi_episode e ON e.id = w.episode_id
-                                   WHERE w.user_id = c.user_id
-                                     AND w.subject_id = c.subject_id
-                                     AND w.watch_status = 1
-                                     AND e.type = 0
-                                     AND e.sort &gt; 0), 0)) AS watched_episode,
+                        (SELECT COUNT(DISTINCT e.sort)
+                           FROM bangumi_episode e
+                          WHERE e.subject_id = c.subject_id
+                            AND e.type = 0
+                            AND e.sort &lt;= (
+                                SELECT MAX(watched_e.sort)
+                                FROM user_episode_watch w
+                                JOIN bangumi_episode watched_e ON watched_e.id = w.episode_id
+                                WHERE w.user_id = c.user_id
+                                  AND w.subject_id = c.subject_id
+                                  AND w.watch_status = 1
+                                  AND watched_e.subject_id = c.subject_id
+                                  AND watched_e.type = 0
+                                  AND watched_e.sort &gt; 0
+                            ))) AS watched_episode,
                (SELECT DATE_FORMAT(MIN(STR_TO_DATE(e.airdate, '%Y-%m-%d')), '%Y-%m-%d')
                   FROM bangumi_episode e
                  WHERE e.subject_id = c.subject_id
