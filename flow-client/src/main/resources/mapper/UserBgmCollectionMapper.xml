@@ -107,8 +107,21 @@
                    AND STR_TO_DATE(e.airdate, '%Y-%m-%d') &gt;= CURDATE()) AS next_episode_air_date
         FROM user_bgm_collection c
                  LEFT JOIN bangumi_subject s ON s.id = c.subject_id
+        <if test="sort == @com.ligg.flowclient.module.enums.CollectionSort@WATCH">
+                 LEFT JOIN user_play_history play_history
+                           ON play_history.user_id = c.user_id
+                          AND play_history.subject_id = c.subject_id
+        </if>
         <include refid="userFilterWhere"/>
-        ORDER BY COALESCE(c.local_updated_at, FROM_UNIXTIME(c.bgm_updated_at)) DESC, c.id DESC
+        <choose>
+            <when test="sort == @com.ligg.flowclient.module.enums.CollectionSort@WATCH">
+                ORDER BY play_history.last_played_at DESC,
+                         COALESCE(c.local_updated_at, FROM_UNIXTIME(c.bgm_updated_at)) DESC, c.id DESC
+            </when>
+            <otherwise>
+                ORDER BY COALESCE(c.local_updated_at, FROM_UNIXTIME(c.bgm_updated_at)) DESC, c.id DESC
+            </otherwise>
+        </choose>
         LIMIT #{limit} OFFSET #{offset}
     </select>
 

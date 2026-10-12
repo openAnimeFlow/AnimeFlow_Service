@@ -11,6 +11,7 @@ import com.ligg.common.statuenum.BgmCollectionSyncStatus;
 import com.ligg.flowclient.mapper.BangumiSubjectMapper;
 import com.ligg.flowclient.mapper.UserBgmCollectionMapper;
 import com.ligg.flowclient.module.dto.UpdateUserCollectionDto;
+import com.ligg.flowclient.module.enums.CollectionSort;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.mybatis.spring.SqlSessionTemplate;
@@ -202,7 +203,7 @@ class CollectionPersistenceMySqlTest {
         assertEquals(List.of(), mapper.selectUserSubjectInterest(10L, 42).getTags());
         assertEquals(2, new JdbcTemplate(dataSource).queryForObject("SELECT COUNT(*) FROM user_bgm_collection", Integer.class));
         assertTrue(mapper.selectUserSubjectInterest(8L, 41).getPrivately());
-        assertNotNull(mapper.selectPageByUserFilter(8L, 2, 2, null, 20, 0).get(0).getLocalUpdatedAt());
+        assertNotNull(mapper.selectPageByUserFilter(8L, 2, 2, null, CollectionSort.DEFAULT, 20, 0).get(0).getLocalUpdatedAt());
         var oauth = new UserOauthEntity(); oauth.setId(5L); oauth.setPlatformUid(6L);
         dto.setTags(List.of()); dto.setComment("");
         lock.execute(10L, 42, () -> writer.save(10L, 42, dto, oauth));
@@ -225,6 +226,37 @@ class CollectionPersistenceMySqlTest {
     }
 
     @Test
+    void watchSortUsesPlayHistoryAndKeepsCollectionsWithoutHistoryAndPagination() {
+        var jdbc = new JdbcTemplate(dataSource);
+        jdbc.update("UPDATE user_bgm_collection SET local_updated_at='2026-01-01' WHERE user_id=8");
+        jdbc.update("INSERT INTO user_bgm_collection(user_id, subject_id, type, comment, bgm_updated_at, local_updated_at) VALUES "
+                + "(8, 42, 2, '', 100, '2026-01-03'),"
+                + "(8, 43, 2, '', 100, '2026-01-02'),"
+                + "(8, 44, 2, '', 100, '2026-01-04')");
+        jdbc.update("INSERT INTO user_play_history(user_id, subject_id, episode_id, last_played_at, is_completed) VALUES "
+                + "(8, 41, 9102, '2026-02-03', 0),"
+                + "(8, 42, 9103, '2026-02-02', 1),"
+                + "(9, 42, 9103, '2026-02-11', 0),"
+                + "(8, 43, 9105, '2026-02-02', 0),"
+                + "(9, 44, 9106, '2026-02-12', 0)");
+        // 标记已看的时间不参与播放历史排序。
+        jdbc.update("INSERT INTO user_episode_watch(user_id, subject_id, episode_id, watch_status, watched_at) VALUES "
+                + "(8, 44, 9106, 1, '2026-02-20')");
+
+        assertEquals(List.of(44, 42, 43, 41), mapper.selectPageByUserFilter(8L, 2, 2, null, CollectionSort.DEFAULT, 20, 0)
+                .stream().map(row -> row.getSubjectId()).toList());
+        assertEquals(List.of(41, 42, 43, 44), mapper.selectPageByUserFilter(8L, 2, 2, null, CollectionSort.WATCH, 20, 0)
+                .stream().map(row -> row.getSubjectId()).toList());
+        assertEquals(List.of(42, 43), mapper.selectPageByUserFilter(8L, 2, 2, null, CollectionSort.WATCH, 2, 1)
+                .stream().map(row -> row.getSubjectId()).toList());
+        assertEquals(4, mapper.countByUserFilter(8L, 2, 2, null));
+
+        jdbc.update("UPDATE user_play_history SET last_played_at='2026-02-04' WHERE user_id=8 AND subject_id=42");
+        assertEquals(List.of(42, 41, 43, 44), mapper.selectPageByUserFilter(8L, 2, 2, null, CollectionSort.WATCH, 20, 0)
+                .stream().map(row -> row.getSubjectId()).toList());
+    }
+
+    @Test
     void pageRowCarriesEpisodeTotalWatchProgressAndNextAirDate() {
         var jdbc = new JdbcTemplate(dataSource);
         String future = java.time.LocalDate.now().plusDays(3).toString();
@@ -238,7 +270,7 @@ class CollectionPersistenceMySqlTest {
         jdbc.update("INSERT INTO user_episode_watch(user_id, subject_id, episode_id, watch_status) VALUES "
                 + "(8, 41, 9002, 1), (8, 41, 9005, 0)");
 
-        var row = mapper.selectPageByUserFilter(8L, 2, 2, null, 20, 0).get(0);
+        var row = mapper.selectPageByUserFilter(8L, 2, 2, null, CollectionSort.DEFAULT, 20, 0).get(0);
 
         assertEquals(4, row.getTotalEpisodes()); // 正片 sort 1/2/3/4 去重，重复归档行与特别篇不计入
         assertEquals(2, row.getWatchedEpisode()); // 本地逐集记录看到第 2 集
@@ -246,12 +278,12 @@ class CollectionPersistenceMySqlTest {
 
         jdbc.update("UPDATE user_bgm_collection SET ep_status = 3 WHERE user_id = 8 AND subject_id = 41");
 
-        var synced = mapper.selectPageByUserFilter(8L, 2, 2, null, 20, 0).get(0);
+        var synced = mapper.selectPageByUserFilter(8L, 2, 2, null, CollectionSort.DEFAULT, 20, 0).get(0);
         assertEquals(3, synced.getWatchedEpisode()); // 同步进度更靠前时取两者较大值
 
         jdbc.update("UPDATE user_bgm_collection SET ep_status = 9 WHERE user_id = 8 AND subject_id = 41");
 
-        var ahead = mapper.selectPageByUserFilter(8L, 2, 2, null, 20, 0).get(0);
+        var ahead = mapper.selectPageByUserFilter(8L, 2, 2, null, CollectionSort.DEFAULT, 20, 0).get(0);
         assertEquals(9, ahead.getWatchedEpisode()); // 超出正片集数时由服务层封顶，mapper 返回原始值
     }
 

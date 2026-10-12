@@ -19,6 +19,7 @@ import com.ligg.common.vo.bangumi.UserCollectionsVo;
 import com.ligg.flowclient.mapper.UserBgmCollectionMapper;
 import com.ligg.flowclient.module.dto.UpdateUserCollectionDto;
 import com.ligg.flowclient.module.dto.UserBgmCollectionRow;
+import com.ligg.flowclient.module.enums.CollectionSort;
 import com.ligg.flowclient.service.ImageBackfillService;
 import com.ligg.flowclient.service.UserBgmCollectionService;
 import lombok.RequiredArgsConstructor;
@@ -54,6 +55,7 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
             int subjectType,
             int type,
             String keyword,
+            CollectionSort sort,
             int limit,
             int offset) {
         UserCollectionsVo vo = new UserCollectionsVo();
@@ -72,7 +74,7 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
         }
 
         List<UserBgmCollectionRow> rows = userBgmCollectionMapper.selectPageByUserFilter(
-                userId, type, subjectType, normalizedKeyword, limit, offset);
+                userId, type, subjectType, normalizedKeyword, sort, limit, offset);
 
         List<UserCollectionsDto.Item> items = new ArrayList<>(rows.size());
         for (UserBgmCollectionRow row : rows) {

@@ -6,6 +6,7 @@ import com.ligg.common.model.CoverImages;
 import com.ligg.common.statuenum.CollectionRemoteSyncStatus;
 import com.ligg.flowclient.mapper.UserBgmCollectionMapper;
 import com.ligg.flowclient.module.dto.UserBgmCollectionRow;
+import com.ligg.flowclient.module.enums.CollectionSort;
 import com.ligg.flowclient.module.vo.CollectionUpdateVo;
 import com.ligg.flowclient.service.BangumiOAuthTokenService;
 import com.ligg.flowclient.service.CollectionUploadService;
@@ -45,6 +46,28 @@ class UserBgmCollectionServiceImplTest {
             collectionSyncTaskService);
 
     @Test
+    void watchSortPassesEnumAndNormalizedKeywordWithoutChangingCountQuery() {
+        when(mapper.countByUserFilter(7L, 3, 2, "葬送")).thenReturn(2L);
+        when(mapper.selectPageByUserFilter(7L, 3, 2, "葬送", CollectionSort.WATCH, 5, 1)).thenReturn(List.of());
+
+        var result = service.listMyCollections(null, 7L, 2, 3, " 葬送 ", CollectionSort.WATCH, 5, 1);
+
+        assertEquals(2, result.getTotal());
+        verify(mapper).countByUserFilter(7L, 3, 2, "葬送");
+        verify(mapper).selectPageByUserFilter(7L, 3, 2, "葬送", CollectionSort.WATCH, 5, 1);
+    }
+
+    @Test
+    void defaultSortDoesNotRequestWatchJoin() {
+        when(mapper.countByUserFilter(7L, 3, 2, null)).thenReturn(1L);
+        when(mapper.selectPageByUserFilter(7L, 3, 2, null, CollectionSort.DEFAULT, 20, 0)).thenReturn(List.of());
+
+        service.listMyCollections(null, 7L, 2, 3, null, CollectionSort.DEFAULT, 20, 0);
+
+        verify(mapper).selectPageByUserFilter(7L, 3, 2, null, CollectionSort.DEFAULT, 20, 0);
+    }
+
+    @Test
     void deleteCollectionCancelsUnderWriteLockAndReportsLocalOnly() {
         var cancelled = new UserBgmCollectionEntity();
         cancelled.setType(UserBgmCollectionEntity.TYPE_CANCELLED);
@@ -70,11 +93,11 @@ class UserBgmCollectionServiceImplTest {
         row.setWatchedEpisode(5);
         row.setNextEpisodeAirDate("2026-10-11");
         when(mapper.countByUserFilter(anyLong(), anyInt(), anyInt(), any())).thenReturn(1L);
-        when(mapper.selectPageByUserFilter(anyLong(), anyInt(), anyInt(), any(), anyInt(), anyInt()))
+        when(mapper.selectPageByUserFilter(anyLong(), anyInt(), anyInt(), any(), any(CollectionSort.class), anyInt(), anyInt()))
                 .thenReturn(List.of(row));
         when(imageBackfillService.resolve(any(), anyInt(), any())).thenReturn(new CoverImages());
 
-        var vo = service.listMyCollections(null, 7L, 2, 3, null, 20, 0);
+        var vo = service.listMyCollections(null, 7L, 2, 3, null, CollectionSort.DEFAULT, 20, 0);
 
         assertEquals(1, vo.getTotal());
         var item = vo.getData().get(0);
@@ -92,11 +115,11 @@ class UserBgmCollectionServiceImplTest {
         row.setTotalEpisodes(13);
         row.setWatchedEpisode(15); // Bangumi 的 ep_status 可能把特别篇也算进去
         when(mapper.countByUserFilter(anyLong(), anyInt(), anyInt(), any())).thenReturn(1L);
-        when(mapper.selectPageByUserFilter(anyLong(), anyInt(), anyInt(), any(), anyInt(), anyInt()))
+        when(mapper.selectPageByUserFilter(anyLong(), anyInt(), anyInt(), any(), any(CollectionSort.class), anyInt(), anyInt()))
                 .thenReturn(List.of(row));
         when(imageBackfillService.resolve(any(), anyInt(), any())).thenReturn(new CoverImages());
 
-        var item = service.listMyCollections(null, 7L, 2, 3, null, 20, 0).getData().get(0);
+        var item = service.listMyCollections(null, 7L, 2, 3, null, CollectionSort.DEFAULT, 20, 0).getData().get(0);
 
         assertEquals(13, item.getTotalEpisodes());
         assertEquals(13, item.getWatchedEpisode());
@@ -111,11 +134,11 @@ class UserBgmCollectionServiceImplTest {
         row.setTotalEpisodes(0);
         row.setWatchedEpisode(4);
         when(mapper.countByUserFilter(anyLong(), anyInt(), anyInt(), any())).thenReturn(1L);
-        when(mapper.selectPageByUserFilter(anyLong(), anyInt(), anyInt(), any(), anyInt(), anyInt()))
+        when(mapper.selectPageByUserFilter(anyLong(), anyInt(), anyInt(), any(), any(CollectionSort.class), anyInt(), anyInt()))
                 .thenReturn(List.of(row));
         when(imageBackfillService.resolve(any(), anyInt(), any())).thenReturn(new CoverImages());
 
-        var item = service.listMyCollections(null, 7L, 2, 3, null, 20, 0).getData().get(0);
+        var item = service.listMyCollections(null, 7L, 2, 3, null, CollectionSort.DEFAULT, 20, 0).getData().get(0);
 
         assertEquals(0, item.getTotalEpisodes());
         assertEquals(4, item.getWatchedEpisode());
@@ -128,11 +151,11 @@ class UserBgmCollectionServiceImplTest {
         row.setSubjectType(2);
         row.setType(2);
         when(mapper.countByUserFilter(anyLong(), anyInt(), anyInt(), any())).thenReturn(1L);
-        when(mapper.selectPageByUserFilter(anyLong(), anyInt(), anyInt(), any(), anyInt(), anyInt()))
+        when(mapper.selectPageByUserFilter(anyLong(), anyInt(), anyInt(), any(), any(CollectionSort.class), anyInt(), anyInt()))
                 .thenReturn(List.of(row));
         when(imageBackfillService.resolve(any(), anyInt(), any())).thenReturn(new CoverImages());
 
-        var item = service.listMyCollections(null, 7L, 2, 2, null, 20, 0).getData().get(0);
+        var item = service.listMyCollections(null, 7L, 2, 2, null, CollectionSort.DEFAULT, 20, 0).getData().get(0);
 
         assertEquals(0, item.getTotalEpisodes());
         assertEquals(0, item.getWatchedEpisode());

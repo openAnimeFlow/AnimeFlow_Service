@@ -2,6 +2,7 @@ package com.ligg.flowclient.config;
 
 import com.ligg.common.thirdparty.bangumi.enums.SubjectBrowseSort;
 import com.ligg.common.thirdparty.bangumi.enums.SubjectSearchSort;
+import com.ligg.flowclient.module.enums.CollectionSort;
 import com.ligg.flowclient.interceptor.ApiSignatureInterceptor;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.interceptor.IpRateLimitInterceptor;
@@ -68,6 +69,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
      */
     @Override
     public void addFormatters(FormatterRegistry registry) {
+        registry.addConverter(String.class, CollectionSort.class, CollectionSort::fromValue);
         registry.addConverter(String.class, SubjectBrowseSort.class, SubjectBrowseSort::fromValue);
         registry.addConverter(String.class, SubjectSearchSort.class, SubjectSearchSort::fromValue);
     }

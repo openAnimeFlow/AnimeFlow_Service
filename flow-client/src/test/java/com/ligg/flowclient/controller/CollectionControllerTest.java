@@ -4,6 +4,7 @@ import com.ligg.common.entity.UserOauthEntity;
 import com.ligg.common.statuenum.ResponseCode;
 import com.ligg.common.vo.bangumi.UserCollectionsVo;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
+import com.ligg.flowclient.module.enums.CollectionSort;
 import com.ligg.flowclient.service.BangumiOAuthTokenService;
 import com.ligg.flowclient.service.JwtTokenService;
 import com.ligg.flowclient.service.UserBgmCollectionService;
@@ -12,6 +13,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.format.support.DefaultFormattingConversionService;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -79,7 +85,7 @@ class CollectionControllerTest {
         collections.setTotal(2);
         when(jwtTokenService.validateAccessToken("flow-token")).thenReturn(10L);
         when(bangumiOAuthTokenService.findBangumiOauth(10L)).thenReturn(null);
-        when(userBgmCollectionService.listMyCollections(null, 10L, 2, 2, null, 20, 0)).thenReturn(collections);
+        when(userBgmCollectionService.listMyCollections(null, 10L, 2, 2, null, CollectionSort.DEFAULT, 20, 0)).thenReturn(collections);
 
         mockMvc().perform(get("/api/v1/users/collections")
                         .requestAttr(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, "flow-token"))
@@ -88,7 +94,7 @@ class CollectionControllerTest {
                 .andExpect(jsonPath("$.data.total").value(2));
 
         verify(userBgmCollectionService).listMyCollections(
-                isNull(), eq(10L), eq(2), eq(2), isNull(), eq(20), eq(0));
+                isNull(), eq(10L), eq(2), eq(2), isNull(), eq(CollectionSort.DEFAULT), eq(20), eq(0));
     }
 
     @Test
@@ -103,7 +109,7 @@ class CollectionControllerTest {
         collections.setData(java.util.List.of(item));
         when(jwtTokenService.validateAccessToken("flow-token")).thenReturn(10L);
         when(bangumiOAuthTokenService.findBangumiOauth(10L)).thenReturn(null);
-        when(userBgmCollectionService.listMyCollections(null, 10L, 2, 2, null, 20, 0)).thenReturn(collections);
+        when(userBgmCollectionService.listMyCollections(null, 10L, 2, 2, null, CollectionSort.DEFAULT, 20, 0)).thenReturn(collections);
 
         mockMvc().perform(get("/api/v1/users/collections")
                         .requestAttr(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, "flow-token"))
@@ -122,7 +128,7 @@ class CollectionControllerTest {
         when(jwtTokenService.validateAccessToken("flow-token")).thenReturn(10L);
         when(bangumiOAuthTokenService.findBangumiOauth(10L)).thenReturn(oauth);
         when(userBgmCollectionService.listMyCollections(
-                "bangumi-token", 10L, 2, 2, "葬送", 20, 0)).thenReturn(collections);
+                "bangumi-token", 10L, 2, 2, "葬送", CollectionSort.DEFAULT, 20, 0)).thenReturn(collections);
 
         mockMvc().perform(get("/api/v1/users/collections")
                         .requestAttr(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, "flow-token")
@@ -132,15 +138,84 @@ class CollectionControllerTest {
                 .andExpect(jsonPath("$.data.total").value(1));
 
         verify(userBgmCollectionService).listMyCollections(
-                eq("bangumi-token"), eq(10L), eq(2), eq(2), eq("葬送"), eq(20), eq(0));
+                eq("bangumi-token"), eq(10L), eq(2), eq(2), eq("葬送"), eq(CollectionSort.DEFAULT), eq(20), eq(0));
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = "default")
+    void getMeCollections_legacyRequestsUseDefaultSortAndKeepResponse(String sort) throws Exception {
+        UserOauthEntity oauth = new UserOauthEntity();
+        oauth.setAccessToken("bangumi-token");
+        var first = new com.ligg.common.thirdparty.bangumi.response.UserCollectionsDto.Item();
+        first.setId(42);
+        first.setTotalEpisodes(12);
+        first.setWatchedEpisode(5);
+        var second = new com.ligg.common.thirdparty.bangumi.response.UserCollectionsDto.Item();
+        second.setId(41);
+        UserCollectionsVo collections = new UserCollectionsVo();
+        collections.setTotal(3);
+        collections.setData(java.util.List.of(first, second));
+        when(jwtTokenService.validateAccessToken("flow-token")).thenReturn(10L);
+        when(bangumiOAuthTokenService.findBangumiOauth(10L)).thenReturn(oauth);
+        when(userBgmCollectionService.listMyCollections(
+                "bangumi-token", 10L, 2, 3, "葬送", CollectionSort.DEFAULT, 2, 1)).thenReturn(collections);
+
+        var request = get("/api/v1/users/collections")
+                .requestAttr(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, "flow-token")
+                .param("subjectType", "2").param("type", "3").param("keyword", "葬送")
+                .param("limit", "2").param("offset", "1");
+        if (sort != null) {
+            request.param("sort", sort);
+        }
+        mockMvc().perform(request)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ResponseCode.SUCCESS.getCode()))
+                .andExpect(jsonPath("$.data.total").value(3))
+                .andExpect(jsonPath("$.data.data.length()").value(2))
+                .andExpect(jsonPath("$.data.data[0].id").value(42))
+                .andExpect(jsonPath("$.data.data[1].id").value(41))
+                .andExpect(jsonPath("$.data.data[0].totalEpisodes").value(12))
+                .andExpect(jsonPath("$.data.data[0].watchedEpisode").value(5));
+
+        verify(userBgmCollectionService).listMyCollections(
+                "bangumi-token", 10L, 2, 3, "葬送", CollectionSort.DEFAULT, 2, 1);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"default, DEFAULT", "watch, WATCH", "WATCH, WATCH"})
+    void getMeCollections_acceptsSort(String value, CollectionSort sort) throws Exception {
+        when(jwtTokenService.validateAccessToken("flow-token")).thenReturn(10L);
+        when(userBgmCollectionService.listMyCollections(null, 10L, 2, 3, "葬送", sort, 5, 10))
+                .thenReturn(new UserCollectionsVo());
+
+        mockMvc().perform(get("/api/v1/users/collections")
+                        .requestAttr(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, "flow-token")
+                        .param("type", "3").param("keyword", "葬送")
+                        .param("sort", value).param("limit", "5").param("offset", "10"))
+                .andExpect(status().isOk());
+
+        verify(userBgmCollectionService).listMyCollections(null, 10L, 2, 3, "葬送", sort, 5, 10);
+    }
+
+    @Test
+    void getMeCollections_rejectsUnknownSortBeforeQuerying() throws Exception {
+        mockMvc().perform(get("/api/v1/users/collections")
+                        .requestAttr(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, "flow-token")
+                        .param("sort", "invalid"))
+                .andExpect(status().isBadRequest());
+
+        org.mockito.Mockito.verifyNoInteractions(userBgmCollectionService, jwtTokenService);
     }
 
     private MockMvc mockMvc() {
+        var conversion = new DefaultFormattingConversionService();
+        conversion.addConverter(String.class, CollectionSort.class, CollectionSort::fromValue);
         return standaloneSetup(new CollectionController(
                 org.mockito.Mockito.mock(com.ligg.flowclient.service.CollectionSyncSseService.class),
                 jwtTokenService,
                 bangumiOAuthTokenService,
                 userBgmCollectionService,
-                userBgmCollectionSyncService)).build();
+                userBgmCollectionSyncService)).setConversionService(conversion).build();
     }
 }

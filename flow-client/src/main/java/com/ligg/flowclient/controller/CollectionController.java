@@ -12,6 +12,7 @@ import com.ligg.common.vo.bangumi.UserCollectionsVo;
 import com.ligg.flowclient.annotation.IpEndpointRateLimit;
 import com.ligg.flowclient.interceptor.AuthorizationInterceptor;
 import com.ligg.flowclient.module.dto.UpdateUserCollectionDto;
+import com.ligg.flowclient.module.enums.CollectionSort;
 import com.ligg.flowclient.module.vo.UserBgmCollectionSyncStatusVo;
 import com.ligg.flowclient.module.vo.CollectionConflictVo;
 import com.ligg.flowclient.module.dto.CollectionConflictResolveDto;
@@ -45,6 +46,8 @@ public class CollectionController {
      * @param subjectType 条目大类，默认 2（动画）
      * @param type        收藏状态，默认 2（看过）
      * @param keyword     条目名称关键字，可匹配原名或中文名
+     * @param sort        可选，未传或为空时使用 default，保持收藏更新时间倒序
+     *                    watch 按播放历史的最近播放时间倒序，无播放历史排在末尾
      * @param limit       每页条数，默认 20
      * @param offset      偏移量，默认 0
      */
@@ -54,13 +57,14 @@ public class CollectionController {
             @RequestParam(defaultValue = "2") int subjectType,
             @RequestParam(defaultValue = "2") int type,
             @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "default") CollectionSort sort,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int offset) {
         Long userId = jwtTokenService.validateAccessToken(flowAccessToken);
         UserOauthEntity bangumiOauth = bangumiOAuthTokenService.findBangumiOauth(userId);
         String bangumiAccessToken = bangumiOauth != null ? bangumiOauth.getAccessToken() : null;
         UserCollectionsVo vo = userBgmCollectionService.listMyCollections(
-                bangumiAccessToken, userId, subjectType, type, keyword, limit, offset);
+                bangumiAccessToken, userId, subjectType, type, keyword, sort, limit, offset);
         return Result.success(ResponseCode.SUCCESS, vo);
     }
 

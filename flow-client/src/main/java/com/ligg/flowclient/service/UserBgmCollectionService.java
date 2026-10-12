@@ -3,6 +3,7 @@ package com.ligg.flowclient.service;
 import com.ligg.flowclient.module.vo.CollectionUpdateVo;
 import com.ligg.common.vo.bangumi.UserCollectionsVo;
 import com.ligg.flowclient.module.dto.UpdateUserCollectionDto;
+import com.ligg.flowclient.module.enums.CollectionSort;
 
 public interface UserBgmCollectionService {
 
@@ -16,6 +17,7 @@ public interface UserBgmCollectionService {
             int subjectType,
             int type,
             String keyword,
+            CollectionSort sort,
             int limit,
             int offset);
 
