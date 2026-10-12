@@ -126,6 +126,13 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
         // ep_status 由 Bangumi 同步带入时可能把特别篇也计入，超过本地收录的正片集数时按正片集数封顶。
         item.setWatchedEpisode(totalEpisodes > 0 ? Math.min(watchedEpisode, totalEpisodes) : watchedEpisode);
         item.setNextEpisodeAirDate(row.getNextEpisodeAirDate());
+        if (row.getNextEpisodeSort() != null && row.getNextEpisodeSort() > 0
+                && StringUtils.hasText(row.getNextEpisodeAirDate())) {
+            UserCollectionsDto.NextEpisode nextEpisode = new UserCollectionsDto.NextEpisode();
+            nextEpisode.setSort(row.getNextEpisodeSort());
+            nextEpisode.setAirdate(row.getNextEpisodeAirDate());
+            item.setNextEpisode(nextEpisode);
+        }
         return item;
     }
 

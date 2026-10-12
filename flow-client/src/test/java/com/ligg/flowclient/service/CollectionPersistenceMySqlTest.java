@@ -271,6 +271,14 @@ class CollectionPersistenceMySqlTest {
         var unwatched = mapper.selectPageByUserFilter(8L, 2, 2, null, CollectionSort.DEFAULT, 20, 0).get(0);
         assertEquals(11, unwatched.getTotalEpisodes());
         assertEquals(0, unwatched.getWatchedEpisode());
+        assertNull(unwatched.getNextEpisodeSort());
+        assertNull(unwatched.getNextEpisodeAirDate());
+
+        String today = java.time.LocalDate.now().toString();
+        String later = java.time.LocalDate.now().plusDays(3).toString();
+        // 连续编号 30 对应本季第 6 集；同日播出按集号选择，并忽略特别篇。
+        jdbc.update("UPDATE bangumi_episode SET airdate=? WHERE id IN (9105, 9106, 9201)", today);
+        jdbc.update("UPDATE bangumi_episode SET airdate=? WHERE id=9100", later);
 
         jdbc.update("INSERT INTO user_episode_watch(user_id, subject_id, episode_id, watch_status) VALUES "
                 + "(8, 41, 9104, 1), (8, 41, 9105, 1), (8, 41, 9200, 1)");
@@ -278,6 +286,8 @@ class CollectionPersistenceMySqlTest {
             var row = mapper.selectPageByUserFilter(8L, 2, 2, null, sort, 20, 0).get(0);
             assertEquals(11, row.getTotalEpisodes());
             assertEquals(6, row.getWatchedEpisode()); // 编号 30 是本季第 6 集，不要求前 5 集全看过。
+            assertEquals(6, row.getNextEpisodeSort());
+            assertEquals(today, row.getNextEpisodeAirDate());
         }
 
         jdbc.update("UPDATE user_bgm_collection SET ep_status=4 WHERE user_id=8 AND subject_id=41");
@@ -307,6 +317,7 @@ class CollectionPersistenceMySqlTest {
         assertEquals(4, row.getTotalEpisodes()); // 正片 sort 1/2/3/4 去重，重复归档行与特别篇不计入
         assertEquals(2, row.getWatchedEpisode()); // 本地逐集记录看到第 2 集
         assertEquals(future, row.getNextEpisodeAirDate()); // 非 ISO 的播出日期不参与比较
+        assertEquals(3, row.getNextEpisodeSort());
 
         jdbc.update("UPDATE user_bgm_collection SET ep_status = 3 WHERE user_id = 8 AND subject_id = 41");
 

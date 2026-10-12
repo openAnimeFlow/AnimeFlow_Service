@@ -92,6 +92,7 @@ class UserBgmCollectionServiceImplTest {
         row.setTotalEpisodes(12);
         row.setWatchedEpisode(5);
         row.setNextEpisodeAirDate("2026-10-11");
+        row.setNextEpisodeSort(6);
         when(mapper.countByUserFilter(anyLong(), anyInt(), anyInt(), any())).thenReturn(1L);
         when(mapper.selectPageByUserFilter(anyLong(), anyInt(), anyInt(), any(), any(CollectionSort.class), anyInt(), anyInt()))
                 .thenReturn(List.of(row));
@@ -104,6 +105,8 @@ class UserBgmCollectionServiceImplTest {
         assertEquals(12, item.getTotalEpisodes());
         assertEquals(5, item.getWatchedEpisode());
         assertEquals("2026-10-11", item.getNextEpisodeAirDate());
+        assertEquals(6, item.getNextEpisode().getSort());
+        assertEquals(item.getNextEpisodeAirDate(), item.getNextEpisode().getAirdate());
     }
 
     @Test
@@ -160,5 +163,6 @@ class UserBgmCollectionServiceImplTest {
         assertEquals(0, item.getTotalEpisodes());
         assertEquals(0, item.getWatchedEpisode());
         assertNull(item.getNextEpisodeAirDate());
+        assertNull(item.getNextEpisode());
     }
 }

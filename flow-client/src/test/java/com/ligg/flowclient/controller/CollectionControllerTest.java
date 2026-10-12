@@ -25,6 +25,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
@@ -104,6 +105,10 @@ class CollectionControllerTest {
         item.setTotalEpisodes(12);
         item.setWatchedEpisode(5);
         item.setNextEpisodeAirDate("2026-10-11");
+        var nextEpisode = new com.ligg.common.thirdparty.bangumi.response.UserCollectionsDto.NextEpisode();
+        nextEpisode.setSort(6);
+        nextEpisode.setAirdate("2026-10-11");
+        item.setNextEpisode(nextEpisode);
         UserCollectionsVo collections = new UserCollectionsVo();
         collections.setTotal(1);
         collections.setData(java.util.List.of(item));
@@ -116,7 +121,21 @@ class CollectionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.data[0].totalEpisodes").value(12))
                 .andExpect(jsonPath("$.data.data[0].watchedEpisode").value(5))
-                .andExpect(jsonPath("$.data.data[0].nextEpisodeAirDate").value("2026-10-11"));
+                .andExpect(jsonPath("$.data.data[0].nextEpisodeAirDate").value("2026-10-11"))
+                .andExpect(jsonPath("$.data.data[0].nextEpisode.sort").value(6))
+                .andExpect(jsonPath("$.data.data[0].nextEpisode.airdate").value("2026-10-11"));
+
+        item.setNextEpisode(null);
+        item.setNextEpisodeAirDate(null);
+        mockMvc().perform(get("/api/v1/users/collections")
+                        .requestAttr(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, "flow-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.data[0].nextEpisode").doesNotExist())
+                .andExpect(jsonPath("$.data.data[0].nextEpisodeAirDate").doesNotExist())
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("\"nextEpisodeAirDate\":"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("\"nextEpisode\":"))));
     }
 
     @Test

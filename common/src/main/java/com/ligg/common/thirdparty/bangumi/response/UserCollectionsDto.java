@@ -1,6 +1,7 @@
 package com.ligg.common.thirdparty.bangumi.response;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ligg.common.model.CoverImages;
 import com.ligg.common.thirdparty.bangumi.model.BangumiRating;
@@ -35,8 +36,19 @@ public class UserCollectionsDto {
         private Integer totalEpisodes;
         /** 当前用户观看到第几集。 */
         private Integer watchedEpisode;
-        /** 新番的下一集播出日期（yyyy-MM-dd），已完结时为 null。 */
+        /** 兼容旧客户端的下一集播出日期（yyyy-MM-dd）。 */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
         private String nextEpisodeAirDate;
+        /** 下一集的本季正片序号及播出日期。 */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private NextEpisode nextEpisode;
+    }
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class NextEpisode {
+        private Integer sort;
+        private String airdate;
     }
 
     @Data

@@ -107,13 +107,24 @@
                                   AND watched_e.type = 0
                                   AND watched_e.sort &gt; 0
                             ))) AS watched_episode,
-               (SELECT DATE_FORMAT(MIN(STR_TO_DATE(e.airdate, '%Y-%m-%d')), '%Y-%m-%d')
+               CASE WHEN next_e.id IS NOT NULL THEN
+               (SELECT COUNT(DISTINCT e.sort)
                   FROM bangumi_episode e
                  WHERE e.subject_id = c.subject_id
                    AND e.type = 0
-                   AND STR_TO_DATE(e.airdate, '%Y-%m-%d') &gt;= CURDATE()) AS next_episode_air_date
+                   AND e.sort &lt;= next_e.sort)
+               END AS next_episode_sort,
+               DATE_FORMAT(STR_TO_DATE(next_e.airdate, '%Y-%m-%d'), '%Y-%m-%d') AS next_episode_air_date
         FROM user_bgm_collection c
                  LEFT JOIN bangumi_subject s ON s.id = c.subject_id
+                 LEFT JOIN bangumi_episode next_e ON next_e.id = (
+                     SELECT e.id
+                     FROM bangumi_episode e
+                     WHERE e.subject_id = c.subject_id AND e.type = 0
+                       AND STR_TO_DATE(e.airdate, '%Y-%m-%d') &gt;= CURDATE()
+                     ORDER BY STR_TO_DATE(e.airdate, '%Y-%m-%d'), e.sort, e.id
+                     LIMIT 1
+                 )
         <if test="sort == @com.ligg.flowclient.module.enums.CollectionSort@WATCH">
                  LEFT JOIN user_play_history play_history
                            ON play_history.user_id = c.user_id
