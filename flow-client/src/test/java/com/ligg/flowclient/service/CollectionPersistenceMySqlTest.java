@@ -1,8 +1,8 @@
 package com.ligg.flowclient.service;
 
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
-import com.baomidou.mybatisplus.extension.spring.MybatisSqlSessionFactoryBean;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.baomidou.mybatisplus.spring.MybatisSqlSessionFactoryBean;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.common.entity.CollectionSyncConflictEntity;
 import com.ligg.common.entity.UserOauthEntity;
 import com.ligg.common.statuenum.CollectionSyncItemStatus;

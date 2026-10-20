@@ -1,7 +1,7 @@
 package com.ligg.flowclient.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.common.entity.UserBgmCollectionEntity;
 import com.ligg.common.entity.UserOauthEntity;
@@ -176,7 +176,7 @@ public class CollectionUploadService {
 
     private boolean sameEditedFields(UpdateCollectionBody edits, UpdateCollectionBody before, UpdateCollectionBody now) {
         JsonNode editJson = json.valueToTree(edits), beforeJson = json.valueToTree(before), nowJson = json.valueToTree(now);
-        var fields = editJson.fieldNames();
+        var fields = editJson.propertyNames().iterator();
         while (fields.hasNext()) {
             String name = fields.next();
             if (!CollectionFieldComparison.same(name, beforeJson.get(name), nowJson.get(name))) return false;

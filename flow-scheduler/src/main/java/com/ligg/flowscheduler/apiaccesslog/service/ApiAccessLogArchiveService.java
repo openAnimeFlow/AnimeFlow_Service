@@ -1,15 +1,17 @@
 package com.ligg.flowscheduler.apiaccesslog.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.common.constants.Constants;
 import com.ligg.common.entity.ApiAccessLogEntity;
 import com.ligg.flowscheduler.apiaccesslog.config.ApiAccessLogArchiveProperties;
 import com.ligg.flowscheduler.apiaccesslog.mapper.ApiAccessLogMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedWriter;
@@ -22,7 +24,6 @@ import java.time.YearMonth;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 /** 归档或清理上月接口访问日志。 */
 @Slf4j
@@ -30,8 +31,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class ApiAccessLogArchiveService {
 
-    private static final DefaultRedisScript<Long> RELEASE_LOCK_SCRIPT = redisScript(
-            "lua/access_log_release_lock.lua");
+    private static final DefaultRedisScript<@NonNull Long> RELEASE_LOCK_SCRIPT = createReleaseLockScript();
 
     private final ApiAccessLogMapper apiAccessLogMapper;
     private final StringRedisTemplate stringRedisTemplate;
@@ -46,8 +46,7 @@ public class ApiAccessLogArchiveService {
         Boolean locked = stringRedisTemplate.opsForValue().setIfAbsent(
                 Constants.API_ACCESS_LOG_ARCHIVE_LOCK_KEY,
                 lockToken,
-                properties.getLockTtlSeconds(),
-                TimeUnit.SECONDS);
+                Expiration.seconds(properties.getLockTtlSeconds()));
         if (!Boolean.TRUE.equals(locked)) {
             log.info("接口访问日志月度归档已由其他实例执行，跳过");
             return;
@@ -84,7 +83,7 @@ public class ApiAccessLogArchiveService {
                             writer.newLine();
                             archivedIds.add(entry.getId());
                         }
-                        ApiAccessLogEntity last = batch.get(batch.size() - 1);
+                        ApiAccessLogEntity last = batch.getLast();
                         cursorTime = last.getRequestTime();
                         cursorId = last.getId();
                         count += batch.size();
@@ -122,7 +121,7 @@ public class ApiAccessLogArchiveService {
             }
             List<Long> ids = batch.stream().map(ApiAccessLogEntity::getId).toList();
             deleteArchivedRows(ids);
-            ApiAccessLogEntity last = batch.get(batch.size() - 1);
+            ApiAccessLogEntity last = batch.getLast();
             cursorTime = last.getRequestTime();
             cursorId = last.getId();
             count += batch.size();
@@ -137,9 +136,9 @@ public class ApiAccessLogArchiveService {
         }
     }
 
-    private static DefaultRedisScript<Long> redisScript(String resourcePath) {
-        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
-        script.setLocation(new ClassPathResource(resourcePath));
+    private static DefaultRedisScript<@NonNull Long> createReleaseLockScript() {
+        DefaultRedisScript<@NonNull Long> script = new DefaultRedisScript<>();
+        script.setLocation(new ClassPathResource("lua/access_log_release_lock.lua"));
         script.setResultType(Long.class);
         return script;
     }

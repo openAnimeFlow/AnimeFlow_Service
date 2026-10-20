@@ -1,10 +1,6 @@
 package com.ligg.flowclient.service;
 
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.annotation.PropertyAccessor;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
+import com.ligg.common.utils.RedisJsonMapper;
 import com.ligg.common.exception.AccessTokenExpiredException;
 import com.ligg.common.exception.RefreshTokenInvalidException;
 import com.ligg.common.response.FlowTokenVo;
@@ -13,7 +9,7 @@ import com.ligg.flowclient.config.JwtProperties;
 import org.junit.jupiter.api.*;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.Jackson2JsonRedisSerializer;
+import org.springframework.data.redis.serializer.JacksonJsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.net.ServerSocket;
@@ -45,12 +41,8 @@ class JwtTokenServiceRedisTest {
         factory.start();
         redis = new RedisTemplate<>();
         redis.setConnectionFactory(factory);
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
-        mapper.activateDefaultTyping(LaissezFaireSubTypeValidator.instance,
-                ObjectMapper.DefaultTyping.NON_FINAL, JsonTypeInfo.As.WRAPPER_ARRAY);
         redis.setKeySerializer(new StringRedisSerializer());
-        redis.setValueSerializer(new Jackson2JsonRedisSerializer<>(mapper, Object.class));
+        redis.setValueSerializer(new JacksonJsonRedisSerializer<>(RedisJsonMapper.create(), Object.class));
         redis.afterPropertiesSet();
         for (int i = 0; i < 50; i++) {
             try (var connection = factory.getConnection()) {

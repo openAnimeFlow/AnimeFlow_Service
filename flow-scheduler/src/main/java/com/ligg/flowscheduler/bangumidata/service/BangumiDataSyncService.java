@@ -1,9 +1,10 @@
 package com.ligg.flowscheduler.bangumidata.service;
 
-    import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.DeserializationFeature;
 import com.ligg.common.constants.Constants;
 import com.ligg.flowscheduler.bangumidata.config.BangumiDataSyncProperties;
 import com.ligg.flowscheduler.bangumidata.mapper.BangumiDataMapper;
@@ -167,13 +168,13 @@ public class BangumiDataSyncService {
             if (FIELD_ITEMS.equals(field)) {
                 if (parser.currentToken() != JsonToken.START_ARRAY) return;
                 while (parser.nextToken() != JsonToken.END_ARRAY) {
-                    if (isValidItem(objectMapper.readTree(parser))) items[0]++;
+                    if (isValidItem(readPayloadNode(parser))) items[0]++;
                 }
             } else {
                 if (parser.currentToken() != JsonToken.START_OBJECT) return;
                 while (parser.nextToken() != JsonToken.END_OBJECT) {
                     parser.nextToken();
-                    if (isValidSite(objectMapper.readTree(parser))) sites[0]++;
+                    if (isValidSite(readPayloadNode(parser))) sites[0]++;
                 }
             }
         });
@@ -187,7 +188,7 @@ public class BangumiDataSyncService {
             if (!FIELD_ITEMS.equals(field)) return;
             if (parser.currentToken() != JsonToken.START_ARRAY) return;
             while (parser.nextToken() != JsonToken.END_ARRAY) {
-                BangumiDataItem item = toItem(objectMapper.readTree(parser), version);
+                BangumiDataItem item = toItem(readPayloadNode(parser), version);
                 if (item == null) continue;
                 batch.add(item);
                 if (batch.size() >= batchSize) {
@@ -211,7 +212,7 @@ public class BangumiDataSyncService {
             while (parser.nextToken() != JsonToken.END_OBJECT) {
                 String siteKey = parser.currentName();
                 parser.nextToken();
-                JsonNode node = objectMapper.readTree(parser);
+                JsonNode node = readPayloadNode(parser);
                 if (!isValidSite(node)) continue;
                 batch.add(toSite(siteKey, node, version));
                 if (batch.size() >= batchSize) {
@@ -226,11 +227,16 @@ public class BangumiDataSyncService {
         }
     }
 
+    /** 单个元素后还存在同一流的其他元素，不应按完整 JSON 文档检查 trailing tokens。 */
+    private JsonNode readPayloadNode(JsonParser parser) {
+        return objectMapper.reader().without(DeserializationFeature.FAIL_ON_TRAILING_TOKENS).readTree(parser);
+    }
+
     /** 只遍历根对象的字段，命中回调后跳过其余容器字段，避免深入无关结构。 */
     private void forEachRootField(Path file, RootFieldVisitor visitor) throws Exception {
-        try (JsonParser parser = objectMapper.getFactory().createParser(file.toFile())) {
+        try (JsonParser parser = objectMapper.createParser(file.toFile())) {
             while (parser.nextToken() != null) {
-                if (parser.currentToken() != JsonToken.FIELD_NAME) {
+                if (parser.currentToken() != JsonToken.PROPERTY_NAME) {
                     continue;
                 }
                 String field = parser.currentName();

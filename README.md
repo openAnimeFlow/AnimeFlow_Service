@@ -1,6 +1,6 @@
 # Anime Flow Service
 
-AnimeFlow 客户端的后端服务，基于 **Spring Boot 3** 与 **Maven 多模块** 构建。根目录 `pom.xml` 为父工程（`packaging=pom`），统一依赖版本与构建配置。
+AnimeFlow 客户端的后端服务，基于 **Spring Boot 4.1.1 / Jackson 3** 与 **Maven 多模块** 构建。根目录 `pom.xml` 为父工程（`packaging=pom`），统一依赖版本与构建配置。
 
 默认监听端口 **1024**，与客户端开发环境 `AnimeFlowApi.animeFlowApiDev` 一致。
 
@@ -26,6 +26,21 @@ AnimeFlow 客户端的后端服务，基于 **Spring Boot 3** 与 **Maven 多模
 - **MySQL 8**（库名默认 `anime_flow`）
 - **Redis**（Flow Token、限流、Bangumi Archive 同步锁与状态等）
 - 可选：Resend 账号（邮件验证码）、Bangumi OAuth 应用、弹弹 Play 应用凭证
+
+## Spring Boot 4 / Jackson 3
+
+- 使用 Spring Boot 4 starter、MyBatis-Plus 3.5.17 Boot 4 starter 和 Redisson 4.8.0，Jackson 版本由 Spring Boot BOM 管理。
+- JSON 读写使用 `tools.jackson.*`，Redis 使用 `JacksonJsonRedisSerializer`，MyBatis JSON 映射使用 `Jackson3TypeHandler`。不引入 Jackson 2 core/databind 或兼容模块。
+- `com.fasterxml.jackson.annotation.*` 是 Jackson 3 继续使用的注解包，保留这些注解。
+- JWT 显式使用 Jackson 3 序列化器；Resend 和 TMDb 请求使用 WebClient。TMDb SDK 仅保留响应模型，不使用其 HTTP/Jackson 2 实现。
+- Bangumi Data 逐条流式导入只在读取单个元素时关闭尾随 token 检查，其他 JSON 解析保留 Jackson 3 默认行为。
+
+使用 JDK 25 执行 `mvn clean verify`。配置 `REDIS_TEST_EXECUTABLE` 为本机 `redis-server` 可执行文件的绝对路径后，还会运行隔离 Redis JWT 测试和完整应用上下文测试（H2 + 随机端口 Redis），不依赖生产数据库。未配置时这些测试会跳过。
+
+```powershell
+$env:REDIS_TEST_EXECUTABLE = 'C:\path\to\redis-server.exe'
+mvn clean verify
+```
 
 ---
 

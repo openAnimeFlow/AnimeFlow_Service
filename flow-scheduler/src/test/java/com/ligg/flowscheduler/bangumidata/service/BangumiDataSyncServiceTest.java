@@ -1,6 +1,6 @@
 package com.ligg.flowscheduler.bangumidata.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.common.constants.Constants;
 import com.ligg.flowscheduler.bangumidata.config.BangumiDataSyncProperties;
 import com.ligg.flowscheduler.bangumidata.mapper.BangumiDataMapper;

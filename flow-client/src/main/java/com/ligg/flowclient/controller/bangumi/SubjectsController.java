@@ -83,8 +83,9 @@ public class SubjectsController {
      */
     @GetMapping("/{subjectId}/stills")
     public Result<List<String>> subjectStills(@Min(1) @PathVariable int subjectId) {
-        List<String> subjectStills = bangumiService.getSubjectStills(subjectId);
-        subjectStills.replaceAll(Utils::imgUrlToWsrvCdn);
+        List<String> subjectStills = bangumiService.getSubjectStills(subjectId).stream()
+                .map(Utils::imgUrlToWsrvCdn)
+                .toList();
         return Result.success(ResponseCode.SUCCESS, subjectStills);
     }
 

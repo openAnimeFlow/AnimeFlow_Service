@@ -1,8 +1,8 @@
 package com.ligg.flowclient.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.common.entity.UserBgmCollectionEntity;
 import com.ligg.common.entity.UserOauthEntity;
 import com.ligg.common.statuenum.CollectionRemoteSyncStatus;
@@ -129,11 +129,11 @@ public class LocalCollectionWriter {
     public UpdateCollectionBody readPayload(String value) {
         if (value == null) return new UpdateCollectionBody();
         try { return json.readValue(value, UpdateCollectionBody.class); }
-        catch (JsonProcessingException e) { throw new IllegalStateException("收藏待同步数据无效", e); }
+        catch (JacksonException e) { throw new IllegalStateException("收藏待同步数据无效", e); }
     }
 
     public String writeJson(Object value) {
         try { return json.writeValueAsString(value); }
-        catch (JsonProcessingException e) { throw new IllegalStateException("收藏序列化失败", e); }
+        catch (JacksonException e) { throw new IllegalStateException("收藏序列化失败", e); }
     }
 }

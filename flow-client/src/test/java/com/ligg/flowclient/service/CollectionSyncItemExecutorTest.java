@@ -3,7 +3,7 @@ package com.ligg.flowclient.service;
 import com.baomidou.mybatisplus.core.MybatisConfiguration;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.common.entity.*;
 import com.ligg.common.statuenum.CollectionSyncItemStatus;

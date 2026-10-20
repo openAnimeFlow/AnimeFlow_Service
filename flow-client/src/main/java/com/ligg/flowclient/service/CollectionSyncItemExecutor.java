@@ -1,7 +1,7 @@
 package com.ligg.flowclient.service;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.common.entity.UserBgmCollectionEntity;
 import com.ligg.common.entity.UserOauthEntity;
@@ -366,7 +366,7 @@ public class CollectionSyncItemExecutor {
         result.setPrivate_(row.getIsPrivate());
         try {
             result.setTags(row.getTags() == null ? List.of() : json.readValue(row.getTags(),
-                    new com.fasterxml.jackson.core.type.TypeReference<>() {
+                    new tools.jackson.core.type.TypeReference<>() {
                     }));
         } catch (Exception e) {
             throw new IllegalStateException("本地标签无效", e);

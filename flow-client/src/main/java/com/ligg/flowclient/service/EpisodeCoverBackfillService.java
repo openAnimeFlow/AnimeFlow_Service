@@ -1,8 +1,8 @@
 package com.ligg.flowclient.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.api.themoviedbapi.TmdbClient;
 import com.ligg.api.themoviedbapi.TmdbImageSet;
 import com.ligg.common.entity.BangumiEpisodeEntity;
@@ -111,7 +111,7 @@ public class EpisodeCoverBackfillService {
             } else {
                 backdropCacheMapper.updateById(row);
             }
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("序列化剧照缓存失败", e);
         }
     }
@@ -122,7 +122,7 @@ public class EpisodeCoverBackfillService {
         }
         try {
             return objectMapper.readValue(json, new TypeReference<List<String>>() { });
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.warn("读取剧照缓存失败", e);
             return Collections.emptyList();
         }

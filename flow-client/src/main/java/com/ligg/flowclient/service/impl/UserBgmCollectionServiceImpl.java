@@ -6,10 +6,10 @@ import com.ligg.flowclient.service.CollectionUploadService;
 import com.ligg.flowclient.service.CollectionSyncTaskService;
 import com.ligg.flowclient.service.BangumiOAuthTokenService;
 import com.ligg.flowclient.module.vo.CollectionUpdateVo;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.common.model.CoverImages;
 import com.ligg.common.thirdparty.bangumi.model.BangumiRating;
 import com.ligg.common.thirdparty.bangumi.response.UserCollectionsDto;
@@ -176,7 +176,7 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
                     counts.set(i - 1, value.intValue());
                 }
             }
-        } catch (JsonProcessingException ignored) {
+        } catch (JacksonException ignored) {
             return counts;
         }
         return counts;
@@ -189,7 +189,7 @@ public class UserBgmCollectionServiceImpl implements UserBgmCollectionService {
         try {
             List<String> tags = objectMapper.readValue(json, TAG_LIST_TYPE);
             return tags != null ? tags : Collections.emptyList();
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             return Collections.emptyList();
         }
     }

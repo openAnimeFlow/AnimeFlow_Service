@@ -14,9 +14,12 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
@@ -27,9 +30,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -46,8 +49,8 @@ public class JwtTokenService {
     private final RedisTemplate<String, Object> redisTemplate;
 
     private SecretKey secretKey;
-    private static final DefaultRedisScript<byte[]> REFRESH_SCRIPT = new DefaultRedisScript<>();
-    private static final DefaultRedisScript<Long> SESSION_CAS_SCRIPT = new DefaultRedisScript<>();
+    private static final DefaultRedisScript<byte @NonNull []> REFRESH_SCRIPT = new DefaultRedisScript<>();
+    private static final DefaultRedisScript<@NonNull Long> SESSION_CAS_SCRIPT = new DefaultRedisScript<>();
     static {
         REFRESH_SCRIPT.setLocation(new ClassPathResource("lua/auth_refresh.lua"));
         REFRESH_SCRIPT.setResultType(byte[].class);
@@ -98,20 +101,13 @@ public class JwtTokenService {
             String oldAccessJti = session.getAccessJti();
             String oldRefreshJti = session.getRefreshJti();
             FlowTokenVo candidate = buildTokenPair(session);
-            String replayKey = Constants.AUTH_REFRESH_TOKEN_KEY + ":retry:" + refreshJti;
-            long grace = Math.min(jwtProperties.getRefreshRetrySeconds(),
-                    Math.min(jwtProperties.getExpireSeconds(), jwtProperties.getRefreshExpireSeconds()));
-            byte[] result = redisTemplate.execute(REFRESH_SCRIPT,
-                    RedisSerializer.byteArray(), RedisSerializer.byteArray(),
-                    List.of(sessionRedisKey(sessionId), replayKey, replayKey + ":jti",
-                            accessRedisKey(session.getAccessJti()), refreshRedisKey(session.getRefreshJti()),
-                            accessRedisKey(oldAccessJti), refreshRedisKey(oldRefreshJti), userSessionsRedisKey(userId)),
-                    snapshot, serialize(session), serialize(candidate), bytes(refreshJti),
-                    bytes(session.getRefreshJti()), serialize(sessionId),
-                    bytes(jwtProperties.getExpireSeconds()), bytes(jwtProperties.getRefreshExpireSeconds()), bytes(grace));
+            byte[] result = rotateSession(session, candidate, refreshJti, oldAccessJti, oldRefreshJti, snapshot);
             if (result == null) throw new RefreshTokenInvalidException();
             if (result.length == 0) continue; // Concurrent email update/rotation: reload and retry CAS.
-            FlowTokenVo token = (FlowTokenVo) redisTemplate.getValueSerializer().deserialize(result);
+            Object decoded = redisTemplate.getValueSerializer().deserialize(result);
+            if (!(decoded instanceof FlowTokenVo token)) {
+                throw new RefreshTokenInvalidException();
+            }
             // Cached responses must not advertise a fresh lifetime on every retry.
             token.setExpiresIn(remainingSeconds(token.getAccessToken()));
             token.setRefreshExpiresIn(remainingSeconds(token.getRefreshToken()));
@@ -180,7 +176,7 @@ public class JwtTokenService {
             throw new AccessTokenExpiredException();
         }
         try {
-            Claims claims = Jwts.parser()
+            Claims claims = Jwts.parser().json(Jackson3JwtCodec.DESERIALIZER)
                     .verifyWith(secretKey)
                     .build()
                     .parseSignedClaims(accessToken)
@@ -290,24 +286,21 @@ public class JwtTokenService {
         redisTemplate.opsForValue().set(
                 sessionRedisKey(session.getSessionId()),
                 session,
-                refreshExpireSeconds,
-                TimeUnit.SECONDS
+                Expiration.seconds(refreshExpireSeconds)
         );
         redisTemplate.opsForValue().set(
                 accessRedisKey(session.getAccessJti()),
                 session.getSessionId(),
-                accessExpireSeconds,
-                TimeUnit.SECONDS
+                Expiration.seconds(accessExpireSeconds)
         );
         redisTemplate.opsForValue().set(
                 refreshRedisKey(session.getRefreshJti()),
                 session.getSessionId(),
-                refreshExpireSeconds,
-                TimeUnit.SECONDS
+                Expiration.seconds(refreshExpireSeconds)
         );
         String userSessionsKey = userSessionsRedisKey(session.getUserId());
         redisTemplate.opsForSet().add(userSessionsKey, session.getSessionId());
-        redisTemplate.expire(userSessionsKey, refreshExpireSeconds, TimeUnit.SECONDS);
+        redisTemplate.expire(userSessionsKey, Expiration.seconds(refreshExpireSeconds));
     }
 
     private void removeTokenIndexes(AuthSessionDto session) {
@@ -321,7 +314,7 @@ public class JwtTokenService {
         redisTemplate.opsForSet().remove(userSessionsRedisKey(session.getUserId()), session.getSessionId());
     }
 
-    private AuthSessionDto loadSession(String sessionId) {
+    private @Nullable AuthSessionDto loadSession(String sessionId) {
         if (!StringUtils.hasText(sessionId)) {
             return null;
         }
@@ -334,7 +327,7 @@ public class JwtTokenService {
 
     private Claims parseRefreshClaims(String refreshToken) {
         try {
-            Claims claims = Jwts.parser()
+            Claims claims = Jwts.parser().json(Jackson3JwtCodec.DESERIALIZER)
                     .verifyWith(secretKey)
                     .build()
                     .parseSignedClaims(refreshToken)
@@ -354,9 +347,9 @@ public class JwtTokenService {
     /**
      * 解析 access_token 声明；签名仍校验，过期令牌也返回 claims（用于登出）。
      */
-    private Claims parseAccessClaimsLenient(String accessToken) {
+    private @Nullable Claims parseAccessClaimsLenient(String accessToken) {
         try {
-            return Jwts.parser()
+            return Jwts.parser().json(Jackson3JwtCodec.DESERIALIZER)
                     .verifyWith(secretKey)
                     .build()
                     .parseSignedClaims(accessToken)
@@ -375,7 +368,7 @@ public class JwtTokenService {
             Instant issuedAt,
             Instant expiresAt
     ) {
-        return Jwts.builder()
+        return Jwts.builder().json(Jackson3JwtCodec.SERIALIZER)
                 .id(jti)
                 .subject(String.valueOf(session.getUserId()))
                 .claim(CLAIM_EMAIL, session.getEmail())
@@ -389,16 +382,33 @@ public class JwtTokenService {
     }
 
     private long remainingSeconds(String token) {
-        Claims claims = Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload();
+        Claims claims = Jwts.parser().json(Jackson3JwtCodec.DESERIALIZER).verifyWith(secretKey).build().parseSignedClaims(token).getPayload();
         return Math.max(0, claims.getExpiration().toInstant().getEpochSecond() - Instant.now().getEpochSecond());
     }
 
-    private byte[] readSessionBytes(String sessionId) {
-        return redisTemplate.execute((RedisCallback<byte[]>) connection ->
+    private byte @Nullable [] readSessionBytes(String sessionId) {
+        return redisTemplate.execute((RedisCallback<byte @Nullable []>) connection ->
                 connection.stringCommands().get(bytes(sessionRedisKey(sessionId))));
     }
 
-    private AuthSessionDto deserializeSession(byte[] value) {
+    /** Lua 的 nil 表示刷新被拒绝；RedisTemplate 的脚本泛型未表达这一可空结果。 */
+    private byte @Nullable [] rotateSession(AuthSessionDto session, FlowTokenVo candidate, String refreshJti,
+                                           String oldAccessJti, String oldRefreshJti, byte[] snapshot) {
+        String sessionId = session.getSessionId();
+        String replayKey = Constants.AUTH_REFRESH_TOKEN_KEY + ":retry:" + refreshJti;
+        long grace = Math.min(jwtProperties.getRefreshRetrySeconds(),
+                Math.min(jwtProperties.getExpireSeconds(), jwtProperties.getRefreshExpireSeconds()));
+        return redisTemplate.execute(REFRESH_SCRIPT,
+                RedisSerializer.byteArray(), RedisSerializer.byteArray(),
+                List.of(sessionRedisKey(sessionId), replayKey, replayKey + ":jti",
+                        accessRedisKey(session.getAccessJti()), refreshRedisKey(session.getRefreshJti()),
+                        accessRedisKey(oldAccessJti), refreshRedisKey(oldRefreshJti), userSessionsRedisKey(session.getUserId())),
+                snapshot, serialize(session), serialize(candidate), bytes(refreshJti),
+                bytes(session.getRefreshJti()), serialize(sessionId),
+                bytes(jwtProperties.getExpireSeconds()), bytes(jwtProperties.getRefreshExpireSeconds()), bytes(grace));
+    }
+
+    private @Nullable AuthSessionDto deserializeSession(byte @Nullable [] value) {
         if (value == null) return null;
         Object decoded = redisTemplate.getValueSerializer().deserialize(value);
         return decoded instanceof AuthSessionDto session ? session : null;
@@ -406,7 +416,9 @@ public class JwtTokenService {
 
     @SuppressWarnings("unchecked")
     private byte[] serialize(Object value) {
-        return ((RedisSerializer<Object>) redisTemplate.getValueSerializer()).serialize(value);
+        return Objects.requireNonNull(
+                ((RedisSerializer<@NonNull Object>) redisTemplate.getValueSerializer()).serialize(value),
+                "Redis 会话数据序列化结果不能为空");
     }
 
     private static byte[] bytes(Object value) {

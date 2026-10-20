@@ -1,7 +1,7 @@
 package com.ligg.accesslog.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.common.constants.Constants;
 import com.ligg.common.entity.ApiAccessLogEntity;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +43,7 @@ public class ApiAccessLogRedisProducer {
         try {
             String payload = objectMapper.writeValueAsString(entity);
             stringRedisTemplate.opsForList().rightPush(Constants.API_ACCESS_LOG_QUEUE_KEY, payload);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             log.error("访问日志序列化失败，traceId={}", entity.getTraceId(), exception);
         } catch (Exception exception) {
             log.error("访问日志写入 Redis 失败，traceId={}", entity.getTraceId(), exception);

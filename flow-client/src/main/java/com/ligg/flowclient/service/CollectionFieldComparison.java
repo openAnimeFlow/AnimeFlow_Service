@@ -1,6 +1,6 @@
 package com.ligg.flowclient.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import java.util.HashSet;
 import java.util.Objects;
 

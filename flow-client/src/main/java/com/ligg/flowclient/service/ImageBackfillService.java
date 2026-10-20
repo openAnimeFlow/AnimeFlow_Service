@@ -1,9 +1,9 @@
 package com.ligg.flowclient.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 import com.ligg.api.bangumiv0api.BangumiV0Client;
 import com.ligg.common.entity.BangumiSubjectEntity;
 import com.ligg.common.model.CoverImages;
@@ -92,7 +92,7 @@ public class ImageBackfillService {
             JsonNode node = objectMapper.readTree(json);
             String value = node == null ? "" : node.path(FETCHED_AT).asText("");
             return StringUtils.hasText(value) ? Instant.parse(value) : null;
-        } catch (JsonProcessingException | DateTimeParseException e) {
+        } catch (JacksonException | DateTimeParseException e) {
             return null;
         }
     }
@@ -136,7 +136,7 @@ public class ImageBackfillService {
                     || StringUtils.hasText(images.getCommon()) || StringUtils.hasText(images.getMedium())
                     || StringUtils.hasText(images.getSmall()) || StringUtils.hasText(images.getGrid()))
                     ? images : null;
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.warn("解析条目图片 JSON 失败, subjectId={}", subjectId, e);
             return null;
         }
@@ -178,7 +178,7 @@ public class ImageBackfillService {
                     update.setImages(json);
                     bangumiSubjectMapper.updateById(update);
                     log.info("条目图片已回写 DB, subjectId={}, images={}", subjectId, json);
-                } catch (JsonProcessingException e) {
+                } catch (JacksonException e) {
                     log.error("序列化条目图片 JSON 失败, subjectId={}", subjectId, e);
                 }
             } else {

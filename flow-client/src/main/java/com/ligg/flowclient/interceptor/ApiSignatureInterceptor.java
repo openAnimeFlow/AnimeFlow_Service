@@ -1,6 +1,6 @@
 package com.ligg.flowclient.interceptor;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.common.response.Result;
 import com.ligg.flowclient.config.ApiAuthProperties;
 import jakarta.servlet.http.HttpServletRequest;

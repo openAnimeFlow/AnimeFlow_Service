@@ -1,6 +1,6 @@
 package com.ligg.flowclient.service.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.common.model.CoverImages;
 import com.ligg.common.utils.BangumiSeasonUtils;
 import com.ligg.common.vo.bangumi.SeasonCalendarVo;

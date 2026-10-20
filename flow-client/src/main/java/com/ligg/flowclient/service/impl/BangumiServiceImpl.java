@@ -6,10 +6,10 @@ package com.ligg.flowclient.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.common.constants.Constants;
 import com.ligg.common.constants.BangumiConstants;
 import com.ligg.common.entity.BangumiEpisodeEntity;
@@ -251,7 +251,7 @@ public class BangumiServiceImpl implements BangumiService {
                         subject.getTags(), new TypeReference<>() {
                         });
                 vo.setTags(tags);
-            } catch (JsonProcessingException e) {
+            } catch (JacksonException e) {
                 log.warn("解析 tags JSON 失败: {}", subject.getTags(), e);
             }
         }
@@ -263,7 +263,7 @@ public class BangumiServiceImpl implements BangumiService {
                         subject.getMetaTags(), new TypeReference<>() {
                         });
                 vo.setMetaTags(metaTags);
-            } catch (JsonProcessingException e) {
+            } catch (JacksonException e) {
                 log.warn("解析 meta_tags JSON 失败: {}", subject.getMetaTags(), e);
             }
         }
@@ -284,7 +284,7 @@ public class BangumiServiceImpl implements BangumiService {
                     }
                 }
                 vo.setCollection(collection);
-            } catch (JsonProcessingException e) {
+            } catch (JacksonException e) {
                 log.warn("解析 favorite JSON 失败: {}", subject.getFavorite(), e);
             }
         }
@@ -328,7 +328,7 @@ public class BangumiServiceImpl implements BangumiService {
 //
 //                platformIds.putIfAbsent(platform, id);
 //            }
-//        } catch (JsonProcessingException | DataAccessException e) {
+//        } catch (JacksonException | DataAccessException e) {
 //            log.debug("读取 bangumi-data 平台映射失败, subjectId={}", subjectId, e);
 //        }
 //        return platformIds;
@@ -947,7 +947,7 @@ public class BangumiServiceImpl implements BangumiService {
             JsonNode node = objectMapper.readTree(json);
             JsonNode done = node.get("done");
             return done != null && done.isNumber() ? done.intValue() : 0;
-        } catch (JsonProcessingException ignored) {
+        } catch (JacksonException ignored) {
             return 0;
         }
     }
@@ -968,7 +968,7 @@ public class BangumiServiceImpl implements BangumiService {
                     .map(String::trim)
                     .distinct()
                     .toList();
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.warn("解析推荐目标 tags JSON 失败: {}", json, e);
             return Collections.emptyList();
         }
@@ -989,7 +989,7 @@ public class BangumiServiceImpl implements BangumiService {
                     .map(String::trim)
                     .distinct()
                     .toList();
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.warn("解析推荐目标 meta_tags JSON 失败: {}", json, e);
             return Collections.emptyList();
         }
@@ -1083,7 +1083,7 @@ public class BangumiServiceImpl implements BangumiService {
                     counts.set(i - 1, value.intValue());
                 }
             }
-        } catch (JsonProcessingException ignored) {
+        } catch (JacksonException ignored) {
             return counts;
         }
         return counts;

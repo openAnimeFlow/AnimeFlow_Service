@@ -1,6 +1,6 @@
 package com.ligg.flowclient.service;
 
-import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.spring.service.IService;
 import com.ligg.common.entity.DanmakuEntity;
 import com.ligg.common.vo.dandanplay.DandanplayCommentVo;
 import com.ligg.flowclient.module.dto.DanmakuDto;

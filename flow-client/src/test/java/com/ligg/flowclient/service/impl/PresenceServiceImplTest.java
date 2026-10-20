@@ -1,6 +1,6 @@
 package com.ligg.flowclient.service.impl;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.common.constants.Constants;
 import com.ligg.common.entity.BangumiSubjectEntity;
 import com.ligg.flowclient.mapper.BangumiSubjectMapper;

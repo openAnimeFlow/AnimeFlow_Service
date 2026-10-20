@@ -1,7 +1,7 @@
 package com.ligg.flowscheduler.backgroundimage.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.common.constants.Constants;
 import com.ligg.common.entity.BackgroundEntity;
 import com.ligg.common.utils.Utils;

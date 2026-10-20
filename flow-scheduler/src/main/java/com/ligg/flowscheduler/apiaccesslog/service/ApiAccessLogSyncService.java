@@ -1,7 +1,7 @@
 package com.ligg.flowscheduler.apiaccesslog.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.JsonProcessingException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
 import com.ligg.common.constants.Constants;
 import com.ligg.common.entity.ApiAccessLogEntity;
 import com.ligg.flowscheduler.apiaccesslog.mapper.ApiAccessLogMapper;
@@ -70,7 +70,7 @@ public class ApiAccessLogSyncService {
         for (String payload : payloads) {
             try {
                 logs.add(objectMapper.readValue(payload, ApiAccessLogEntity.class));
-            } catch (JsonProcessingException exception) {
+            } catch (JacksonException exception) {
                 moveToDeadLetter(payload, exception);
                 return true;
             }
@@ -87,7 +87,7 @@ public class ApiAccessLogSyncService {
         }
     }
 
-    private void moveToDeadLetter(String invalidPayload, JsonProcessingException exception) {
+    private void moveToDeadLetter(String invalidPayload, JacksonException exception) {
         Long moved = stringRedisTemplate.execute(MOVE_TO_DEAD_LETTER_SCRIPT,
                 List.of(Constants.API_ACCESS_LOG_QUEUE_KEY, Constants.API_ACCESS_LOG_DEAD_LETTER_QUEUE_KEY),
                 invalidPayload);

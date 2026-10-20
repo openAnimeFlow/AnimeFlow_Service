@@ -1,6 +1,6 @@
 package com.ligg.flowscheduler.archive.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.flowscheduler.archive.dto.ArchiveLatestDto;
 import com.ligg.flowscheduler.archive.config.BangumiArchiveSyncProperties;
 import lombok.RequiredArgsConstructor;

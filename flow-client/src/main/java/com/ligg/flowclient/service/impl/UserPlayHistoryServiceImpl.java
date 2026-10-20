@@ -1,8 +1,8 @@
 package com.ligg.flowclient.service.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.common.entity.BangumiEpisodeEntity;
 import com.ligg.common.entity.UserPlayHistoryEntity;
 import com.ligg.flowclient.mapper.BangumiEpisodeMapper;
@@ -106,7 +106,7 @@ public class UserPlayHistoryServiceImpl implements UserPlayHistoryService {
     private String toJson(List<String> alias) {
         try {
             return objectMapper.writeValueAsString(alias == null ? Collections.emptyList() : alias);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalArgumentException("别名格式无效", e);
         }
     }
@@ -118,7 +118,7 @@ public class UserPlayHistoryServiceImpl implements UserPlayHistoryService {
         try {
             List<String> alias = objectMapper.readValue(json, ALIAS_TYPE);
             return alias == null ? Collections.emptyList() : alias;
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             return Collections.emptyList();
         }
     }

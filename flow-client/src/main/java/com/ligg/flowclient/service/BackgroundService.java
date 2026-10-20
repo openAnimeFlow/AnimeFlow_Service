@@ -1,6 +1,6 @@
 package com.ligg.flowclient.service;
 
-import com.baomidou.mybatisplus.extension.service.IService;
+import com.baomidou.mybatisplus.spring.service.IService;
 import com.ligg.common.entity.BackgroundEntity;
 
 import java.util.List;

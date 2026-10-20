@@ -1,6 +1,6 @@
 package com.ligg.flowclient.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.common.exception.*;
 import com.ligg.common.handler.GlobalExceptionHandler;
 import com.ligg.flowclient.config.ApiAuthProperties;

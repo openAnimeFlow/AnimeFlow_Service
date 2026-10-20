@@ -1,6 +1,6 @@
 package com.ligg.flowclient.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.api.bangumiapi.BangumiClient;
 import com.ligg.common.handler.GlobalExceptionHandler;
 import com.ligg.common.model.CoverImages;

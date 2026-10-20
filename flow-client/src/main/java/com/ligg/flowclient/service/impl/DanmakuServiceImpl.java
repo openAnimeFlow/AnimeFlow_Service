@@ -1,7 +1,7 @@
 package com.ligg.flowclient.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.baomidou.mybatisplus.spring.service.impl.ServiceImpl;
 import com.ligg.common.vo.dandanplay.DandanplayCommentVo;
 import com.ligg.flowclient.mapper.DanmakuMapper;
 import com.ligg.common.entity.DanmakuEntity;

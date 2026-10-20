@@ -1,7 +1,7 @@
 package com.ligg.flowclient.service.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.ligg.common.constants.Constants;
 import com.ligg.common.entity.BangumiSubjectEntity;
 import com.ligg.common.model.CoverImages;
@@ -484,7 +484,7 @@ public class PresenceServiceImpl implements PresenceService {
         }
         try {
             return objectMapper.readValue(value, CoverImages.class);
-        } catch (JsonProcessingException ignored) {
+        } catch (JacksonException ignored) {
             return null;
         }
     }

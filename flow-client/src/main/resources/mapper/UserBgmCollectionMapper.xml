@@ -4,7 +4,7 @@
 
     <resultMap id="subjectInterest" type="com.ligg.flowclient.module.dto.UserSubjectInterestRow" autoMapping="true">
         <result column="tags" property="tags" javaType="java.util.List"
-                typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+                typeHandler="com.baomidou.mybatisplus.extension.handlers.Jackson3TypeHandler"/>
     </resultMap>
 
     <update id="updateLocal">
