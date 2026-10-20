@@ -96,7 +96,7 @@ public class BangumiSubjectEntity {
     private Boolean series;
 
     /**
-     * 封面图片 JSON（large / common / medium / small / grid）
+     * 封面图片 JSON（large / common / medium / small / grid，fetched_at 为最近成功获取时间）
      */
     private String images;
 }

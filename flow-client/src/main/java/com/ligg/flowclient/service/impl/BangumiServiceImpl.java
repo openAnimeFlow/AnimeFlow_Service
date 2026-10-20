@@ -14,6 +14,7 @@ import com.ligg.common.constants.Constants;
 import com.ligg.common.constants.BangumiConstants;
 import com.ligg.common.entity.BangumiEpisodeEntity;
 import com.ligg.common.entity.BangumiSubjectEntity;
+import com.ligg.common.entity.UserOauthEntity;
 import com.ligg.common.model.CoverImages;
 import com.ligg.common.thirdparty.bangumi.model.BangumiRating;
 import com.ligg.common.thirdparty.bangumi.model.BangumiSubject;
@@ -98,6 +99,7 @@ public class BangumiServiceImpl implements BangumiService {
     private final UserBgmCollectionMapper userBgmCollectionMapper;
     private final UserEpisodeWatchService userEpisodeWatchService;
     private final EpisodeCoverBackfillService episodeCoverBackfillService;
+    private final BangumiOAuthTokenService bangumiOAuthTokenService;
 
     @Override
     public SubjectsVo getSubjects(SubjectBrowseSort sort, int page, int type, Integer year, Integer month) {
@@ -288,7 +290,14 @@ public class BangumiServiceImpl implements BangumiService {
         }
 
         // 封面图片
-        CoverImages images = imageBackfillService.resolve(subject.getImages(), subjectId, null);
+        String accessToken = null;
+        if (userId > 0) {
+            UserOauthEntity oauth = bangumiOAuthTokenService.findBangumiOauth(userId);
+            if (oauth != null && StringUtils.hasText(oauth.getAccessToken())) {
+                accessToken = oauth.getAccessToken();
+            }
+        }
+        CoverImages images = imageBackfillService.resolve(subject, accessToken);
         if (images != null && StringUtils.hasText(images.getLarge())) {
             Utils.applyWsrvCdnInPlace(images);
             vo.setImages(images);

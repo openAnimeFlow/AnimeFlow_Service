@@ -10,6 +10,7 @@ import com.ligg.flowclient.mapper.UserBgmCollectionMapper;
 import com.ligg.flowclient.module.dto.SeasonEpisodeRow;
 import com.ligg.flowclient.module.dto.SeasonSubjectRow;
 import com.ligg.flowclient.service.EpisodeCoverBackfillService;
+import com.ligg.flowclient.service.BangumiOAuthTokenService;
 import com.ligg.flowclient.service.ImageBackfillService;
 import com.ligg.flowclient.service.UserEpisodeWatchService;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class BangumiSeasonCalendarServiceTest {
@@ -146,7 +148,8 @@ class BangumiSeasonCalendarServiceTest {
                 imageBackfillService,
                 userBgmCollectionMapper,
                 userEpisodeWatchService,
-                episodeCoverBackfillService);
+                episodeCoverBackfillService,
+                mock(BangumiOAuthTokenService.class));
     }
 
     private static SeasonSubjectRow row(int id, String date, String weekday, double score) {
