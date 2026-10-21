@@ -104,6 +104,9 @@ class Boot41Jackson3SmokeTest {
                                              "time":1,"color":16777215,"type":1}
                                             """))
                             .andExpect(jsonPath("$.code").value(401));
+                    mvc.perform(post("/api/danmaku").header("X-Api-Version", "2")
+                                    .contentType("application/json").content("{}"))
+                            .andExpect(jsonPath("$.code").value(401));
                     mvc.perform(get("/api/danmaku").header("X-Api-Version", "2")
                                     .param("subjectId", "0").param("episodeId", "260269"))
                             .andExpect(jsonPath("$.code").value(400));

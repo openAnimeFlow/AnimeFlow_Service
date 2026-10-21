@@ -12,8 +12,6 @@ import com.ligg.flowclient.service.JwtTokenService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.Nullable;
-import org.springframework.util.StringUtils;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -72,11 +70,7 @@ public class DanmakuV2Controller {
     @DanmakuSendRateLimit
     public Result<String> addDanmaku(
             @Valid @RequestBody DanmakuDto danmakuDto,
-            @RequestAttribute(value = AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE, required = false)
-            @Nullable String accessToken) {
-        if (!StringUtils.hasText(accessToken)) {
-            throw new AuthorizationException("未登录...");
-        }
+            @RequestAttribute(AuthorizationInterceptor.ACCESS_TOKEN_REQUEST_ATTRIBUTE) String accessToken) {
         Long userId = jwtTokenService.validateAccessToken(accessToken);
         if (userId == null || userId <= 0) {
             throw new AuthorizationException("用户身份无效");

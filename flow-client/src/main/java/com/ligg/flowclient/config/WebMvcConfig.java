@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.format.FormatterRegistry;
+import org.springframework.http.HttpMethod;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -55,9 +56,13 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 )
                 .order(2);
 
+        registry.addInterceptor(authorizationInterceptor)
+                .addPathPatterns("/api/danmaku")
+                .includeHttpMethods(HttpMethod.POST)
+                .order(2);
+
         registry.addInterceptor(optionalAuthorizationInterceptor)
                 .addPathPatterns(
-                        "/api/danmaku",
                         "/api/v1/bangumi/subjects/**",
                         "/api/v1/bangumi/search/subjects",
                         "/api/v1/presence/**")
