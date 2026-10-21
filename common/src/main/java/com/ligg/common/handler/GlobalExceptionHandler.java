@@ -31,6 +31,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.accept.InvalidApiVersionException;
+import org.springframework.web.accept.MissingApiVersionException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * 全局异常处理器
@@ -38,6 +42,18 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler({NoHandlerFoundException.class, NoResourceFoundException.class})
+    public Result<Void> handleNotFound(Exception e) {
+        log.debug("请求资源不存在: {}", e.getMessage());
+        return Result.error(ResponseCode.NOT_FOUND);
+    }
+
+    @ExceptionHandler({InvalidApiVersionException.class, MissingApiVersionException.class})
+    public Result<Void> handleApiVersion(Exception e) {
+        log.warn("接口版本错误: {}", e.getMessage());
+        return Result.error(ResponseCode.PARAM_ERROR, "接口版本缺失或不支持");
+    }
 
     /**
      * 主键或唯一键冲突

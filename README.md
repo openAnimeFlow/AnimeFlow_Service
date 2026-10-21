@@ -141,7 +141,8 @@ mvn -pl flow-bootstrap spring-boot:run
 
 | 前缀 | 说明 |
 |------|------|
-| `/api/v1/danmaku` | 弹幕发送与查询 |
+| `/api/danmaku` | v2 弹幕发送与本站、弹弹Play合并查询，请求头 `X-Api-Version: 2` |
+| `/api/v1/danmaku` | 弹幕查询与旧接口弃用提示 |
 | `/api/v1/email` | 发送验证码 |
 | `/api/v1/users` | Flow 用户信息 |
 | `/api/forum/comment` | 论坛评论 |

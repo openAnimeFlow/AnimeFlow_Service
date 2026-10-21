@@ -13,7 +13,12 @@ import lombok.NoArgsConstructor;
 public class DanmakuDto {
 
     @NotNull(message = "弹幕剧集参数不合法")
+    @Min(value = 1, message = "episodeId 必须大于 0")
     private Long episodeId;
+
+    @NotNull(message = "subjectId 不能为空")
+    @Min(value = 1, message = "subjectId 必须大于 0")
+    private Integer subjectId;
 
     /**
      * 弹幕内容

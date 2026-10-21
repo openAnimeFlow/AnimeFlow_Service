@@ -22,6 +22,10 @@ public class DanmakuEntity {
      */
     private Long episodeId;
 
+    private Integer subjectId;
+
+    private Long userId;
+
     /**
      * 弹幕内容
      */
@@ -41,11 +45,6 @@ public class DanmakuEntity {
      * 弹幕类型，1为滚动弹幕，4为底部弹幕，5为顶部弹幕
      */
     private Integer type;
-
-    /**
-     * bgm_user_id
-     */
-    private Integer bgmUserId;
 
     /**
      * 弹幕来源([BiliBili], [Gamer])

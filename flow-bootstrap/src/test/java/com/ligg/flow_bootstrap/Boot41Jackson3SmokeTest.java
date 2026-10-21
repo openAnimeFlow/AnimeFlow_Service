@@ -9,14 +9,11 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.config.annotation.ApiVersionConfigurer;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.net.ServerSocket;
@@ -66,7 +63,7 @@ class Boot41Jackson3SmokeTest {
     @Test
     void applicationStartsWithNativeJackson3DatabaseRedisJwtAndVersionedMappings() {
         new WebApplicationContextRunner()
-                .withUserConfiguration(AnimeFlowApplication.class, Versioning.class, ProbeController.class)
+                .withUserConfiguration(AnimeFlowApplication.class, ProbeController.class)
                 .withPropertyValues(
                         "server.port=0",
                         "spring.datasource.url=jdbc:h2:mem:boot41_upgrade;MODE=MySQL;DB_CLOSE_DELAY=-1",
@@ -75,6 +72,7 @@ class Boot41Jackson3SmokeTest {
                         "spring.data.redis.host=127.0.0.1", "spring.data.redis.port=" + redisPort,
                         "spring.data.redis.timeout=2s",
                         "anime-flow.jwt.secret=upgrade-test-secret-at-least-32-characters",
+                        "anime-flow.api-auth.enabled=false",
                         "anime-flow.bangumi.user-agent=AnimeFlow-upgrade-test",
                         "anime-flow.dandanplay.app_id=test", "anime-flow.dandanplay.secret=test",
                         "anime-flow.resend.api_key=test", "anime-flow.resend.domain=example.test",
@@ -100,20 +98,27 @@ class Boot41Jackson3SmokeTest {
                             .andExpect(status().isOk()).andExpect(content().string("v1"));
                     mvc.perform(post("/upgrade-check/version").header("X-Api-Version", "2.0"))
                             .andExpect(status().isOk()).andExpect(content().string("v2"));
+                    mvc.perform(post("/api/danmaku").header("X-Api-Version", "2")
+                                    .contentType("application/json").content("""
+                                            {"subjectId":70131,"episodeId":260269,"comment":"hello",
+                                             "time":1,"color":16777215,"type":1}
+                                            """))
+                            .andExpect(jsonPath("$.code").value(401));
+                    mvc.perform(get("/api/danmaku").header("X-Api-Version", "2")
+                                    .param("subjectId", "0").param("episodeId", "260269"))
+                            .andExpect(jsonPath("$.code").value(400));
+                    mvc.perform(get("/api/danmaku").header("X-Api-Version", "2")
+                                    .param("episodeId", "260269"))
+                            .andExpect(jsonPath("$.code").value(400));
+                    mvc.perform(post("/api/danmaku").header("Authorization", "Bearer unused")
+                                    .contentType("application/json").content("{}"))
+                            .andExpect(jsonPath("$.code").value(404));
                     JwtTokenService tokens = context.getBean(JwtTokenService.class);
                     var pair = tokens.issueToken(42L, "upgrade@example.test", Platform.WINDOWS);
                     assertEquals(42L, tokens.validateAccessToken(pair.getAccessToken()));
                     var refreshed = tokens.refreshToken(pair.getRefreshToken());
                     assertEquals(42L, tokens.validateAccessToken(refreshed.getAccessToken()));
                 });
-    }
-
-    @Configuration(proxyBeanMethods = false)
-    static class Versioning implements WebMvcConfigurer {
-        @Override
-        public void configureApiVersioning(ApiVersionConfigurer configurer) {
-            configurer.useRequestHeader("X-Api-Version").setVersionRequired(false).addSupportedVersions("1.0", "2.0");
-        }
     }
 
     @RestController

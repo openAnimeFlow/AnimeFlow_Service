@@ -44,7 +44,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addInterceptor(authorizationInterceptor)
                 .addPathPatterns(
                         "/api/forum/comment/**",
-                        "/api/v1/danmaku",
                         "/api/v1/users/**",
                         "/api/v1/account/logout",
                         "/api/v1/account/oauth/**",
@@ -58,6 +57,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
         registry.addInterceptor(optionalAuthorizationInterceptor)
                 .addPathPatterns(
+                        "/api/danmaku",
                         "/api/v1/bangumi/subjects/**",
                         "/api/v1/bangumi/search/subjects",
                         "/api/v1/presence/**")

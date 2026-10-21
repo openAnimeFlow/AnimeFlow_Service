@@ -11,7 +11,7 @@
  Target Server Version : 80043 (8.0.43)
  File Encoding         : 65001
 
- Date: 29/09/2026 21:06:15
+ Date: 21/10/2026 15:22:37
 */
 
 SET NAMES utf8mb4;
@@ -45,7 +45,7 @@ CREATE TABLE `api_access_log`  (
   INDEX `idx_client_ip_time`(`client_ip` ASC, `request_time` ASC) USING BTREE,
   INDEX `idx_user_id_time`(`request_time` ASC) USING BTREE,
   INDEX `idx_status_time`(`http_status` ASC, `request_time` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 9294 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '接口访问日志表' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 13064 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '接口访问日志表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for background
@@ -135,21 +135,6 @@ CREATE TABLE `bangumi_episode`  (
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Bangumi 章节' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
--- Table structure for bangumi_subject_backdrop_cache
--- ----------------------------
-DROP TABLE IF EXISTS `bangumi_subject_backdrop_cache`;
-CREATE TABLE `bangumi_subject_backdrop_cache`  (
-  `subject_id` int UNSIGNED NOT NULL COMMENT 'Bangumi 条目 ID',
-  `tmdb_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'TMDb 条目标识，如 tv/66716',
-  `backdrops` json NOT NULL COMMENT '剧照 URL 数组',
-  `logos` json NOT NULL COMMENT 'Logo URL 数组',
-  `posters` json NOT NULL COMMENT '海报 URL 数组',
-  `fetched_at` datetime NOT NULL COMMENT '最近一次成功从 TMDb 获取的时间',
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`subject_id`) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Bangumi 条目 TMDb 剧照缓存' ROW_FORMAT = Dynamic;
-
--- ----------------------------
 -- Table structure for bangumi_person
 -- ----------------------------
 DROP TABLE IF EXISTS `bangumi_person`;
@@ -222,6 +207,21 @@ CREATE TABLE `bangumi_subject`  (
   INDEX `idx_bgm_rank`(`rank` ASC) USING BTREE,
   INDEX `idx_type_nsfw`(`type` ASC, `nsfw` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Bangumi 条目' ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for bangumi_subject_backdrop_cache
+-- ----------------------------
+DROP TABLE IF EXISTS `bangumi_subject_backdrop_cache`;
+CREATE TABLE `bangumi_subject_backdrop_cache`  (
+  `subject_id` int UNSIGNED NOT NULL COMMENT 'Bangumi 条目 ID',
+  `tmdb_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'TMDb 条目标识，如 tv/66716',
+  `backdrops` json NOT NULL COMMENT '剧照 URL 数组',
+  `logos` json NOT NULL COMMENT 'Logo URL 数组',
+  `posters` json NOT NULL COMMENT '海报 URL 数组',
+  `fetched_at` datetime NOT NULL COMMENT '最近一次成功从 TMDb 获取的时间',
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`subject_id`) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = 'Bangumi 条目 TMDb 剧照缓存' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for bangumi_subject_character
@@ -308,19 +308,19 @@ DROP TABLE IF EXISTS `danmaku`;
 CREATE TABLE `danmaku`  (
   `id` bigint NOT NULL AUTO_INCREMENT,
   `episode_id` bigint NOT NULL COMMENT '主键ID',
+  `subject_id` int UNSIGNED NULL DEFAULT NULL COMMENT '本站弹幕的Bangumi条目ID',
   `comment` tinytext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '弹幕内容',
   `time` double NOT NULL COMMENT '弹幕时间（秒）',
   `type` tinyint NOT NULL COMMENT '弹幕类型 1=普通 4=底部 5=顶部',
   `color` int NOT NULL COMMENT '弹幕颜色（ARGB整数）',
   `source` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '弹幕来源',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `bgm_user_id` int NOT NULL COMMENT 'bangumi id',
-  `c_id` bigint NULL DEFAULT NULL,
+  `user_id` bigint NULL DEFAULT NULL,
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_time`(`time` ASC) USING BTREE,
   INDEX `idx_type`(`type` ASC) USING BTREE,
-  INDEX `danmaku_episode_id_index`(`episode_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 2054175879880593429 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '弹幕表' ROW_FORMAT = Dynamic;
+  INDEX `idx_danmaku_episode_subject`(`episode_id` ASC, `subject_id` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 53 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '弹幕表' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for forum_comment
@@ -399,7 +399,7 @@ CREATE TABLE `user_bgm_collection`  (
   INDEX `idx_bgm_interest_id`(`bgm_interest_id` ASC) USING BTREE,
   INDEX `idx_user_collection_local`(`user_id` ASC, `type` ASC, `subject_type` ASC, `local_updated_at` DESC, `id` DESC) USING BTREE,
   INDEX `idx_collection_upload`(`remote_sync_status` ASC, `next_retry_at` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 766 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏关系表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 773 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏关系表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for user_bgm_collection_sync_item
@@ -431,7 +431,7 @@ CREATE TABLE `user_bgm_collection_sync_item`  (
   UNIQUE INDEX `uk_collection_sync_item`(`task_id` ASC, `subject_id` ASC) USING BTREE,
   INDEX `idx_collection_sync_conflict`(`user_id` ASC, `status` ASC, `id` ASC) USING BTREE,
   CONSTRAINT `fk_collection_sync_item_task` FOREIGN KEY (`task_id`) REFERENCES `user_bgm_collection_sync_task` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT
-) ENGINE = InnoDB AUTO_INCREMENT = 3318 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏同步明细与冲突快照' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 3518 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏同步明细与冲突快照' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for user_bgm_collection_sync_task
@@ -466,7 +466,7 @@ CREATE TABLE `user_bgm_collection_sync_task`  (
   INDEX `idx_collection_sync_active`(`user_id` ASC, `status` ASC, `id` ASC) USING BTREE,
   INDEX `idx_collection_sync_cleanup`(`status` ASC, `finished_at` ASC, `id` ASC) USING BTREE,
   INDEX `idx_sync_task_recovery`(`status` ASC, `heartbeat_at` ASC, `created_at` ASC, `id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 19 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏双向同步任务' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 20 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户 Bangumi 收藏双向同步任务' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for user_episode_watch
@@ -486,7 +486,7 @@ CREATE TABLE `user_episode_watch`  (
   INDEX `idx_user_subject`(`user_id` ASC, `subject_id` ASC) USING BTREE,
   INDEX `idx_subject_episode`(`subject_id` ASC, `episode_id` ASC) USING BTREE,
   INDEX `idx_user_subject_status`(`user_id` ASC, `subject_id` ASC, `watch_status` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 148 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户剧集观看记录' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 154 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户剧集观看记录' ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for user_oauth
@@ -533,6 +533,6 @@ CREATE TABLE `user_play_history`  (
   INDEX `idx_user_last_played`(`user_id` ASC, `last_played_at` DESC) USING BTREE,
   INDEX `idx_user_episode`(`user_id` ASC, `episode_id` ASC) USING BTREE,
   INDEX `idx_subject`(`subject_id` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 100 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户番剧播放记录' ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 130 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_unicode_ci COMMENT = '用户番剧播放记录' ROW_FORMAT = Dynamic;
 
 SET FOREIGN_KEY_CHECKS = 1;
